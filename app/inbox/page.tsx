@@ -13,21 +13,42 @@ export default async function InboxPage() {
     redirect('/login');
   }
 
-  // Fetch inbox data
-  const response = await fetch(
-    `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/inbox`,
-    {
-      headers: {
-        Cookie: `next-auth.session-token=${session.user.id}`,
-      },
-      cache: 'no-store',
+  // Fetch inbox data directly from database instead of API call
+  // This avoids authentication issues during SSR
+  let shares: any[] = [];
+  
+  try {
+    // Import the function directly to avoid API call during SSR
+    const { getEmailSharesForUser } = await import('@/lib/documents');
+    
+    if (session.user.id && session.user.email) {
+      const emailShares = await getEmailSharesForUser(session.user.id, session.user.email);
+      
+      // Filter out expired shares
+      const now = new Date();
+      shares = emailShares
+        .filter((share: any) => !share.expiresAt || share.expiresAt > now)
+        .map((share: any) => ({
+          id: share.id,
+          document: {
+            id: share.document.id,
+            title: share.document.title,
+            filename: share.document.filename
+          },
+          sharedBy: {
+            name: share.sharedBy.name,
+            email: share.sharedBy.email
+          },
+          createdAt: share.createdAt.toISOString(),
+          expiresAt: share.expiresAt?.toISOString(),
+          canDownload: share.canDownload,
+          note: share.note,
+          type: 'email'
+        }));
     }
-  );
-
-  let shares = [];
-  if (response.ok) {
-    const data = await response.json();
-    shares = data.shares || [];
+  } catch (error) {
+    console.error('Error fetching inbox:', error);
+    // Continue with empty shares array
   }
 
   return (
