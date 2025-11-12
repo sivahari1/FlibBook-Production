@@ -1,0 +1,123 @@
+// Prisma schema for FlipBook DRM Application
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// User model for authentication and account management
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  passwordHash  String
+  name          String?
+  role          Role     @default(USER)
+  subscription  String   @default("free")
+  storageUsed   BigInt   @default(0)
+  emailVerified Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  documents     Document[]
+  shareLinks    ShareLink[]
+  subscriptions Subscription[]
+
+  @@index([email])
+  @@map("users")
+}
+
+// Document model for uploaded PDF files
+model Document {
+  id          String   @id @default(cuid())
+  title       String
+  filename    String
+  fileSize    BigInt
+  storagePath String
+  mimeType    String   @default("application/pdf")
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  shareLinks ShareLink[]
+  analytics  ViewAnalytics[]
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("documents")
+}
+
+// ShareLink model for secure document sharing
+model ShareLink {
+  id         String    @id @default(cuid())
+  shareKey   String    @unique
+  documentId String
+  document   Document  @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt  DateTime?
+  isActive   Boolean   @default(true)
+  password   String?
+  maxViews   Int?
+  viewCount  Int       @default(0)
+  createdAt  DateTime  @default(now())
+
+  @@index([shareKey])
+  @@index([documentId])
+  @@index([userId])
+  @@map("share_links")
+}
+
+// ViewAnalytics model for tracking document views
+model ViewAnalytics {
+  id          String   @id @default(cuid())
+  documentId  String
+  document    Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  shareKey    String?
+  viewerEmail String?
+  ipAddress   String
+  userAgent   String
+  country     String?
+  city        String?
+  duration    Int? // Duration in seconds
+  viewedAt    DateTime @default(now())
+
+  @@index([documentId])
+  @@index([viewedAt])
+  @@index([shareKey])
+  @@map("view_analytics")
+}
+
+// Subscription model for payment tracking
+model Subscription {
+  id                String   @id @default(cuid())
+  userId            String
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan              String // free, pro, enterprise
+  status            String // active, expired, cancelled
+  razorpayOrderId   String?  @unique
+  razorpayPaymentId String?  @unique
+  amount            Int // Amount in smallest currency unit (paise for INR)
+  currency          String   @default("INR")
+  startDate         DateTime @default(now())
+  endDate           DateTime
+  createdAt         DateTime @default(now())
+
+  @@index([userId])
+  @@index([status])
+  @@index([razorpayOrderId])
+  @@map("subscriptions")
+}
+
+// Enum for user roles
+enum Role {
+  USER
+  ADMIN
+}
