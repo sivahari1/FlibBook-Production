@@ -5,6 +5,9 @@ import { prisma } from '@/lib/db';
 import { DashboardClient } from '@/app/dashboard/DashboardClient';
 import { SUBSCRIPTION_PLANS, SubscriptionTier } from '@/lib/razorpay';
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
 

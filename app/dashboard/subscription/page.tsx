@@ -4,6 +4,9 @@ import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/db';
 import SubscriptionClient from './SubscriptionClient';
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export default async function SubscriptionPage() {
   const session = await getServerSession(authOptions);
 

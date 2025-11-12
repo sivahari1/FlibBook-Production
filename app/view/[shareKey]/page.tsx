@@ -3,6 +3,9 @@ import { authOptions } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import ViewerClient from './ViewerClient';
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export default async function ViewerPage({
   params,
 }: {
