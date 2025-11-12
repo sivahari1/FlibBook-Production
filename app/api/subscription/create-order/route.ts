@@ -5,6 +5,10 @@ import { razorpay, SUBSCRIPTION_PLANS, SubscriptionTier } from '@/lib/razorpay';
 import { sanitizeString } from '@/lib/sanitization';
 import { logger } from '@/lib/logger';
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+export const runtime = 'nodejs'
+
 export async function POST(request: NextRequest) {
   try {
     // Verify authentication

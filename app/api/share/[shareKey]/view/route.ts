@@ -3,6 +3,10 @@ import { prisma } from '@/lib/db';
 import { sanitizeString, sanitizeEmail } from '@/lib/sanitization';
 import { logger } from '@/lib/logger';
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+export const runtime = 'nodejs'
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ shareKey: string }> }

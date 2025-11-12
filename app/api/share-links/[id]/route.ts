@@ -4,6 +4,10 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { logger } from '@/lib/logger';
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+export const runtime = 'nodejs'
+
 /**
  * PATCH /api/share-links/[id]
  * Deactivate a share link

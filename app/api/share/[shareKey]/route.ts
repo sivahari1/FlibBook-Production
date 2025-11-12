@@ -5,6 +5,10 @@ import { verifyPassword } from '@/lib/auth';
 import { sanitizeString } from '@/lib/sanitization';
 import { logger } from '@/lib/logger';
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+export const runtime = 'nodejs'
+
 /**
  * GET /api/share/[shareKey]
  * Validate share link and return document metadata with signed URL

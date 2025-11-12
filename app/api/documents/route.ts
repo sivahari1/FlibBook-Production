@@ -10,6 +10,7 @@ import { logger } from '@/lib/logger'
 
 // Force dynamic rendering - don't try to statically analyze this route
 export const dynamic = 'force-dynamic'
+export const revalidate = 0
 export const runtime = 'nodejs'
 
 /**

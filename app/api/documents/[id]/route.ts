@@ -5,6 +5,10 @@ import { prisma } from '@/lib/db'
 import { deleteFile } from '@/lib/storage'
 import { logger } from '@/lib/logger'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+export const runtime = 'nodejs'
+
 /**
  * GET /api/documents/[id]
  * Get single document details with share links and analytics count
