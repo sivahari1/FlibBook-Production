@@ -286,12 +286,4 @@ export function getBaseUrl(headers: Headers): string {
   return 'http://localhost:3000'
 }
 
-/**
- * Format a share URL
- * @param baseUrl - Base URL of the application
- * @param shareKey - The share key
- * @returns Complete share URL
- */
-export function formatShareUrl(baseUrl: string, shareKey: string): string {
-  return `${baseUrl}/share/${shareKey}`
-}
+
