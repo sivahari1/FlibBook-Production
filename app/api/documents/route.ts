@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/db'
+import { getDocumentsByUserId, getUserStorageInfo } from '@/lib/documents'
 import { uploadFile } from '@/lib/storage'
 import { validateFile, validateStorageQuota } from '@/lib/validation'
 import { SUBSCRIPTION_PLANS, SubscriptionTier } from '@/lib/razorpay'
@@ -28,33 +29,11 @@ export async function GET() {
       )
     }
 
-    // Fetch user's documents
-    const documents = await prisma.document.findMany({
-      where: {
-        userId: session.user.id
-      },
-      orderBy: {
-        createdAt: 'desc'
-      },
-      select: {
-        id: true,
-        title: true,
-        filename: true,
-        fileSize: true,
-        mimeType: true,
-        createdAt: true,
-        updatedAt: true
-      }
-    })
+    // Fetch user's documents using shared data access layer
+    const documents = await getDocumentsByUserId(session.user.id)
 
-    // Get user's storage usage
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: {
-        storageUsed: true,
-        subscription: true
-      }
-    })
+    // Get user's storage usage using shared data access layer
+    const user = await getUserStorageInfo(session.user.id)
 
     return NextResponse.json({
       documents,

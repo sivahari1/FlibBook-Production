@@ -1,7 +1,7 @@
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { redirect } from 'next/navigation';
-import { prisma } from '@/lib/db';
+import { getUserSubscription } from '@/lib/documents';
 import SubscriptionClient from './SubscriptionClient';
 
 export const dynamic = 'force-dynamic'
@@ -14,24 +14,8 @@ export default async function SubscriptionPage() {
     redirect('/login');
   }
 
-  // Fetch user with current subscription
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: {
-      id: true,
-      email: true,
-      subscription: true,
-      subscriptions: {
-        where: {
-          status: 'active',
-        },
-        orderBy: {
-          createdAt: 'desc',
-        },
-        take: 1,
-      },
-    },
-  });
+  // Fetch user subscription using shared data access layer
+  const user = await getUserSubscription(session.user.id);
 
   if (!user) {
     redirect('/login');

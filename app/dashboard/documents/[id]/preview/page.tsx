@@ -1,7 +1,7 @@
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { redirect } from 'next/navigation';
-import { prisma } from '@/lib/db';
+import { getDocumentForPreview } from '@/lib/documents';
 import { getSignedUrl } from '@/lib/storage';
 import PreviewWrapper from './PreviewWrapper';
 
@@ -21,23 +21,10 @@ export default async function PreviewPage({
 
   const { id: documentId } = await params;
 
-  // Fetch document and verify ownership
-  const document = await prisma.document.findUnique({
-    where: { id: documentId },
-    select: {
-      id: true,
-      title: true,
-      filename: true,
-      storagePath: true,
-      userId: true,
-    },
-  });
+  // Fetch document using shared data access layer
+  const document = await getDocumentForPreview(documentId, session.user.id);
 
   if (!document) {
-    redirect('/dashboard');
-  }
-
-  if (document.userId !== session.user.id) {
     redirect('/dashboard');
   }
 

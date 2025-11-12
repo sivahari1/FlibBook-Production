@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { prisma } from '@/lib/db';
+import { getDocumentAnalytics } from '@/lib/documents';
 import { logger } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic'
@@ -24,41 +24,15 @@ export async function GET(
 
     const { documentId } = await params;
 
-    // Verify document ownership
-    const document = await prisma.document.findUnique({
-      where: { id: documentId },
-      select: { userId: true }
-    });
+    // Fetch analytics using shared data access layer (includes ownership check)
+    const analytics = await getDocumentAnalytics(documentId, session.user.id);
 
-    if (!document) {
+    if (analytics === null) {
       return NextResponse.json(
-        { error: 'Document not found' },
+        { error: 'Document not found or access denied' },
         { status: 404 }
       );
     }
-
-    if (document.userId !== session.user.id) {
-      return NextResponse.json(
-        { error: 'Forbidden: You do not own this document' },
-        { status: 403 }
-      );
-    }
-
-    // Fetch all ViewAnalytics records for the document
-    const analytics = await prisma.viewAnalytics.findMany({
-      where: { documentId },
-      orderBy: { viewedAt: 'desc' },
-      select: {
-        id: true,
-        viewerEmail: true,
-        ipAddress: true,
-        userAgent: true,
-        country: true,
-        city: true,
-        viewedAt: true,
-        shareKey: true
-      }
-    });
 
     // Calculate total views
     const totalViews = analytics.length;

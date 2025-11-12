@@ -1,7 +1,7 @@
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { redirect } from 'next/navigation';
-import { prisma } from '@/lib/db';
+import { getDocumentById } from '@/lib/documents';
 import AnalyticsClient from './AnalyticsClient';
 
 export const dynamic = 'force-dynamic'
@@ -20,24 +20,10 @@ export default async function DocumentAnalyticsPage({
 
   const { id } = await params;
 
-  // Fetch document details
-  const document = await prisma.document.findUnique({
-    where: { id },
-    select: {
-      id: true,
-      title: true,
-      filename: true,
-      fileSize: true,
-      createdAt: true,
-      userId: true,
-    },
-  });
+  // Fetch document using shared data access layer
+  const document = await getDocumentById(id, session.user.id);
 
   if (!document) {
-    redirect('/dashboard');
-  }
-
-  if (document.userId !== session.user.id) {
     redirect('/dashboard');
   }
 

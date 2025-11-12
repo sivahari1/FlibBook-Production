@@ -1,7 +1,7 @@
 import { getServerSession } from 'next-auth';
 import { redirect } from 'next/navigation';
 import { authOptions } from '@/lib/auth';
-import { prisma } from '@/lib/db';
+import { getUserWithDocuments } from '@/lib/documents';
 import { DashboardClient } from '@/app/dashboard/DashboardClient';
 import { SUBSCRIPTION_PLANS, SubscriptionTier } from '@/lib/razorpay';
 
@@ -15,22 +15,8 @@ export default async function DashboardPage() {
     redirect('/login');
   }
 
-  // Fetch user with documents
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    include: {
-      documents: {
-        orderBy: { createdAt: 'desc' },
-        select: {
-          id: true,
-          title: true,
-          filename: true,
-          fileSize: true,
-          createdAt: true,
-        },
-      },
-    },
-  });
+  // Fetch user with documents using shared data access layer
+  const user = await getUserWithDocuments(session.user.id);
 
   if (!user) {
     redirect('/login');

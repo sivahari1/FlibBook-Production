@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
+import { getShareLinkByKey } from '@/lib/documents';
 import { getSignedUrl } from '@/lib/storage';
 import { verifyPassword } from '@/lib/auth';
 import { sanitizeString } from '@/lib/sanitization';
@@ -31,23 +31,8 @@ export async function GET(
     const shareKey = sanitizeString(shareKeyRaw);
     const password = passwordRaw ? sanitizeString(passwordRaw) : null;
 
-    // Find the share link with document details
-    const shareLink = await prisma.shareLink.findUnique({
-      where: { shareKey },
-      include: {
-        document: {
-          select: {
-            id: true,
-            title: true,
-            filename: true,
-            fileSize: true,
-            storagePath: true,
-            mimeType: true,
-            createdAt: true
-          }
-        }
-      }
-    });
+    // Find the share link using shared data access layer
+    const shareLink = await getShareLinkByKey(shareKey);
 
     // Check if share link exists
     if (!shareLink) {
