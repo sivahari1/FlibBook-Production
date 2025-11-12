@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
+import { SessionProvider } from "@/components/providers/SessionProvider";
+import { ErrorBoundary } from "@/components/providers/ErrorBoundary";
+import { validateEnv } from "@/lib/env";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -18,12 +21,21 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Validate environment variables on server side
+  if (typeof window === 'undefined') {
+    validateEnv();
+  }
+
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.variable} font-sans antialiased`}>
-        <ThemeProvider>
-          {children}
-        </ThemeProvider>
+        <ErrorBoundary>
+          <SessionProvider>
+            <ThemeProvider>
+              {children}
+            </ThemeProvider>
+          </SessionProvider>
+        </ErrorBoundary>
       </body>
     </html>
   );
