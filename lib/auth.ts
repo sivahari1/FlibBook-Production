@@ -5,7 +5,7 @@ import bcrypt from "bcryptjs";
 import { prisma } from "./db";
 
 export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma) as any,
+  adapter: process.env.DATABASE_URL ? (PrismaAdapter(prisma) as any) : undefined,
   providers: [
     CredentialsProvider({
       name: "Credentials",

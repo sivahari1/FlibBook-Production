@@ -8,6 +8,10 @@ import { SUBSCRIPTION_PLANS, SubscriptionTier } from '@/lib/razorpay'
 import { sanitizeString, sanitizeFilename } from '@/lib/sanitization'
 import { logger } from '@/lib/logger'
 
+// Force dynamic rendering - don't try to statically analyze this route
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+
 /**
  * GET /api/documents
  * List all documents for the authenticated user

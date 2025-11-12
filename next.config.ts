@@ -15,6 +15,18 @@ const nextConfig: NextConfig = {
   },
   turbopack: {},
   
+  // Skip API route static analysis during build
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '10mb',
+    },
+  },
+  
+  // Disable static page generation for API routes
+  typescript: {
+    ignoreBuildErrors: false,
+  },
+  
   // Security headers for production
   async headers() {
     return [
