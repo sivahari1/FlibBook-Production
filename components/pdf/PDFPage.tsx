@@ -52,6 +52,7 @@ export default function PDFPage({
       const renderContext = {
         canvasContext: context,
         viewport: viewport,
+        canvas: canvas,
       };
 
       try {
