@@ -1,21 +1,28 @@
-import { createClient } from '@supabase/supabase-js'
-
-// Initialize Supabase client with service role key for admin operations
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
-
-if (!supabaseUrl || !supabaseServiceKey) {
-  throw new Error('Missing Supabase environment variables')
-}
-
-export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false
-  }
-})
+import { createClient, SupabaseClient } from '@supabase/supabase-js'
 
 const BUCKET_NAME = 'documents'
+
+// Lazy-load Supabase client to avoid build-time initialization
+let _supabaseAdmin: SupabaseClient | null = null
+
+function getSupabaseAdmin(): SupabaseClient {
+  if (!_supabaseAdmin) {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+    if (!supabaseUrl || !supabaseServiceKey) {
+      throw new Error('Missing Supabase environment variables')
+    }
+
+    _supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    })
+  }
+  return _supabaseAdmin
+}
 
 /**
  * Upload a file to Supabase Storage
@@ -30,6 +37,7 @@ export async function uploadFile(
   contentType: string = 'application/pdf'
 ): Promise<{ path: string; error?: string }> {
   try {
+    const supabaseAdmin = getSupabaseAdmin()
     const { data, error } = await supabaseAdmin.storage
       .from(BUCKET_NAME)
       .upload(path, file, {
@@ -56,6 +64,7 @@ export async function uploadFile(
  */
 export async function downloadFile(path: string): Promise<{ data?: Blob; error?: string }> {
   try {
+    const supabaseAdmin = getSupabaseAdmin()
     const { data, error } = await supabaseAdmin.storage
       .from(BUCKET_NAME)
       .download(path)
@@ -83,6 +92,7 @@ export async function getSignedUrl(
   expiresIn: number = 3600
 ): Promise<{ url?: string; error?: string }> {
   try {
+    const supabaseAdmin = getSupabaseAdmin()
     const { data, error } = await supabaseAdmin.storage
       .from(BUCKET_NAME)
       .createSignedUrl(path, expiresIn)
@@ -106,6 +116,7 @@ export async function getSignedUrl(
  */
 export async function deleteFile(path: string): Promise<{ success: boolean; error?: string }> {
   try {
+    const supabaseAdmin = getSupabaseAdmin()
     const { error } = await supabaseAdmin.storage
       .from(BUCKET_NAME)
       .remove([path])
@@ -128,6 +139,7 @@ export async function deleteFile(path: string): Promise<{ success: boolean; erro
  * @returns Public URL
  */
 export function getPublicUrl(path: string): string {
+  const supabaseAdmin = getSupabaseAdmin()
   const { data } = supabaseAdmin.storage
     .from(BUCKET_NAME)
     .getPublicUrl(path)
@@ -142,6 +154,7 @@ export function getPublicUrl(path: string): string {
  */
 export async function listFiles(path: string): Promise<{ files?: any[]; error?: string }> {
   try {
+    const supabaseAdmin = getSupabaseAdmin()
     const { data, error } = await supabaseAdmin.storage
       .from(BUCKET_NAME)
       .list(path)
