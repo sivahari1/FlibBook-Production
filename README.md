@@ -6,7 +6,8 @@ A secure PDF sharing platform with DRM protection, watermarking, analytics, and 
 
 - 🔐 **Secure Authentication** - User registration and login with NextAuth
 - 📄 **PDF Upload & Management** - Upload and organize PDF documents
-- 🔗 **Secure Sharing** - Generate time-limited share links
+- 🔗 **Advanced Sharing** - Link shares and email shares with access controls
+- 📥 **Inbox System** - View all documents shared with you
 - 💧 **Dynamic Watermarking** - Automatic watermarks with viewer information
 - 📊 **View Analytics** - Track who viewed your documents and when
 - 🛡️ **DRM Protection** - Prevent unauthorized copying and downloading
@@ -156,12 +157,41 @@ Required environment variables (see `.env.example` for details):
 - Storage in Supabase Storage
 - Organized by user folders
 
-### Secure Sharing
-- Generate unique share links
+### Advanced Sharing & Inbox
+
+**Link Sharing:**
+- Generate secure share links (24-character keys)
 - Optional expiration dates
-- Password protection (optional)
-- View count limits (optional)
+- Password protection with bcrypt encryption
+- View count limits (1-10,000 views)
+- Email restrictions (limit to specific email)
+- Download permissions control
+- Copy-to-clipboard functionality
 - Revoke links anytime
+
+**Email Sharing:**
+- Share directly to email addresses
+- Support for registered and unregistered users
+- Personal notes (up to 500 characters)
+- Optional expiration dates
+- Download permissions control
+- Email notification ready (stub included)
+
+**Inbox:**
+- View all documents shared with you
+- Sortable by title, sender, or date
+- Responsive design (table/card views)
+- Expiration time display
+- Personal notes from senders
+- One-click access to shared documents
+
+**Share Management:**
+- View all active shares per document
+- Detailed share information
+- Copy share links
+- Revoke shares with confirmation
+- Status indicators (active/revoked/password-protected)
+- Tabbed interface in document details
 
 ### Watermarking
 - Dynamic watermarks with viewer email
