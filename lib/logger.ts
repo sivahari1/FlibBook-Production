@@ -126,16 +126,77 @@ class Logger {
     severity: 'low' | 'medium' | 'high' | 'critical',
     context?: LogContext
   ): void {
-    this.warn(`Security Event: ${event}`, {
+    const level = severity === 'critical' || severity === 'high' ? 'error' : 'warn';
+    
+    this.log(level, `Security Event: ${event}`, {
       severity,
       type: 'security',
+      timestamp: new Date().toISOString(),
       ...context,
     });
     
     // In production, send critical security events to monitoring
-    if (this.isProduction && severity === 'critical') {
+    if (this.isProduction && (severity === 'critical' || severity === 'high')) {
       // Alert security team or monitoring service
+      // Examples: Sentry, PagerDuty, Slack webhook, etc.
     }
+  }
+
+  /**
+   * Log authentication attempt
+   */
+  logAuthAttempt(
+    action: 'login' | 'register' | 'verify_email' | 'resend_verification' | 'forgot_password' | 'reset_password',
+    success: boolean,
+    context?: LogContext
+  ): void {
+    const message = `Auth ${action}: ${success ? 'success' : 'failed'}`;
+    const level = success ? 'info' : 'warn';
+    
+    this.log(level, message, {
+      action,
+      success,
+      type: 'authentication',
+      timestamp: new Date().toISOString(),
+      ...context,
+    });
+  }
+
+  /**
+   * Log rate limit violation
+   */
+  logRateLimitViolation(
+    endpoint: string,
+    identifier: string,
+    context?: LogContext
+  ): void {
+    this.logSecurityEvent(
+      `Rate limit exceeded: ${endpoint}`,
+      'medium',
+      {
+        endpoint,
+        identifier,
+        ...context,
+      }
+    );
+  }
+
+  /**
+   * Log suspicious activity
+   */
+  logSuspiciousActivity(
+    activity: string,
+    severity: 'low' | 'medium' | 'high' | 'critical',
+    context?: LogContext
+  ): void {
+    this.logSecurityEvent(
+      `Suspicious activity: ${activity}`,
+      severity,
+      {
+        activity,
+        ...context,
+      }
+    );
   }
 }
 

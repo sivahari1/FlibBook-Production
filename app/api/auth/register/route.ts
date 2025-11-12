@@ -3,6 +3,8 @@ import { hash } from 'bcryptjs';
 import { prisma } from '@/lib/db';
 import { sanitizeString, sanitizeEmail } from '@/lib/sanitization';
 import { logger } from '@/lib/logger';
+import { generateVerificationToken } from '@/lib/tokens';
+import { sendVerificationEmail } from '@/lib/email';
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -58,7 +60,7 @@ export async function POST(request: NextRequest) {
     // Hash password with bcrypt (12 rounds)
     const hashedPassword = await hash(password, 12);
 
-    // Create user
+    // Create user (unverified by default)
     const user = await prisma.user.create({
       data: {
         name,
@@ -66,22 +68,56 @@ export async function POST(request: NextRequest) {
         passwordHash: hashedPassword,
         subscription: 'free',
         storageUsed: 0,
+        emailVerified: false, // Explicitly set to false
       },
     });
 
-    logger.info('User registered successfully', {
+    logger.info('User registered successfully (unverified)', {
       userId: user.id,
       email: user.email
     });
 
-    // Return user without password
+    // Generate verification token
+    try {
+      const tokenData = await generateVerificationToken(user.id, 'EMAIL_VERIFICATION');
+      
+      // Build verification URL
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || 'http://localhost:3000';
+      const verificationUrl = `${appUrl}/verify?token=${tokenData.token}`;
+
+      // Send verification email
+      const emailSent = await sendVerificationEmail(user.email, {
+        userName: user.name || 'User',
+        verificationUrl,
+      });
+
+      if (!emailSent) {
+        logger.warn('Verification email failed to send', {
+          userId: user.id,
+          email: user.email
+        });
+        // Don't fail registration if email fails - user can resend later
+      }
+    } catch (error) {
+      logger.error('Failed to generate token or send verification email', {
+        userId: user.id,
+        error
+      });
+      // Don't fail registration if token/email fails - user can resend later
+    }
+
+    // Return success message with instructions
     return NextResponse.json(
       {
+        success: true,
+        message: 'Registration successful! Please check your email to verify your account.',
+        email: user.email,
         user: {
           id: user.id,
           name: user.name,
           email: user.email,
           subscription: user.subscription,
+          emailVerified: user.emailVerified,
         },
       },
       { status: 201 }

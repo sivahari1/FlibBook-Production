@@ -145,6 +145,64 @@ export function validatePassword(
 }
 
 /**
+ * Validate password strength with security requirements
+ * Requires: minimum 8 characters, uppercase, lowercase, number, and special character
+ * @param password - Password to validate
+ * @returns Validation result with error message if invalid
+ */
+export function validatePasswordStrength(
+  password: string
+): { valid: boolean; error?: string } {
+  if (!password || password.length === 0) {
+    return {
+      valid: false,
+      error: 'Password is required.'
+    }
+  }
+
+  if (password.length < 8) {
+    return {
+      valid: false,
+      error: 'Password must be at least 8 characters long.'
+    }
+  }
+
+  // Check for uppercase letter
+  if (!/[A-Z]/.test(password)) {
+    return {
+      valid: false,
+      error: 'Password must contain at least one uppercase letter.'
+    }
+  }
+
+  // Check for lowercase letter
+  if (!/[a-z]/.test(password)) {
+    return {
+      valid: false,
+      error: 'Password must contain at least one lowercase letter.'
+    }
+  }
+
+  // Check for number
+  if (!/[0-9]/.test(password)) {
+    return {
+      valid: false,
+      error: 'Password must contain at least one number.'
+    }
+  }
+
+  // Check for special character
+  if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+    return {
+      valid: false,
+      error: 'Password must contain at least one special character.'
+    }
+  }
+
+  return { valid: true }
+}
+
+/**
  * Sanitize filename to prevent path traversal attacks
  * @param filename - Original filename
  * @returns Sanitized filename

@@ -5,6 +5,8 @@ A secure PDF sharing platform with DRM protection, watermarking, analytics, and 
 ## Features
 
 - 🔐 **Secure Authentication** - User registration and login with NextAuth
+- ✉️ **Email Verification** - Verify email addresses during registration
+- 🔑 **Password Reset** - Secure password recovery via email
 - 📄 **PDF Upload & Management** - Upload and organize PDF documents
 - 🔗 **Advanced Sharing** - Link shares and email shares with access controls
 - 📥 **Inbox System** - View all documents shared with you
@@ -47,26 +49,41 @@ npm install
    - Set up storage bucket
    - Configure storage policies
 
-3. **Configure environment variables**:
+3. **Set up email service (Resend)**:
+   - Create a free account at [resend.com](https://resend.com)
+   - Get your API key from the dashboard
+   - Add and verify your domain (or use Resend's test domain for development)
+   - Configure DNS records (SPF, DKIM, DMARC) for production
+   - See detailed setup in the "Email Service Setup" section below
+
+4. **Configure environment variables**:
    - Copy `.env.example` to `.env.local`
    - Update all values with your Supabase credentials
+   - Add your Resend API key and from email address
    - Generate a NextAuth secret: `openssl rand -base64 32`
+   - Generate a cron secret: `openssl rand -hex 32`
    - Add your Razorpay keys
 
-4. **Set up the database**:
+5. **Set up the database**:
 ```bash
 npx prisma generate
 npx prisma db push
 ```
 
-5. **Run the development server**:
+6. **Mark existing users as verified** (if migrating):
+```bash
+npx tsx prisma/mark-existing-users-verified.ts
+```
+
+7. **Run the development server**:
 ```bash
 npm run dev
 ```
 
-6. **Open your browser**:
+8. **Open your browser**:
    - Visit `http://localhost:3000`
    - Register a new account
+   - Check your email for verification link
    - Start uploading and sharing PDFs!
 
 ## Project Structure
@@ -142,14 +159,22 @@ Required environment variables (see `.env.example` for details):
 - `RAZORPAY_KEY_ID` - Razorpay API key
 - `RAZORPAY_KEY_SECRET` - Razorpay secret key
 - `NEXT_PUBLIC_RAZORPAY_KEY_ID` - Razorpay public key
+- `RESEND_API_KEY` - Resend API key for email service
+- `RESEND_FROM_EMAIL` - Email address for sending emails
+- `CRON_SECRET` - Secret for securing cron job endpoints
 
 ## Features in Detail
 
-### Authentication
+### Authentication & Email Verification
 - Secure registration with email and password
+- Email verification with 24-hour token expiration
+- Password reset via email with 1-hour token expiration
+- Resend verification email functionality
+- Rate limiting on email endpoints (prevents abuse)
 - Password hashing with bcrypt (12 rounds)
 - Session management with NextAuth
 - Protected routes and API endpoints
+- Unverified users redirected to verification page
 
 ### Document Management
 - Upload PDFs up to 50MB
@@ -229,6 +254,65 @@ Required environment variables (see `.env.example` for details):
 - SQL injection prevention with Prisma
 - XSS protection with React
 - CSRF protection with NextAuth
+- Automated token cleanup for expired verification tokens
+
+## Email Service Setup
+
+### Resend Configuration
+
+The application uses [Resend](https://resend.com) for sending transactional emails (verification and password reset).
+
+**Development Setup:**
+1. Create a free Resend account at [resend.com](https://resend.com)
+2. Get your API key from the dashboard
+3. For testing, you can use Resend's test domain: `onboarding@resend.dev`
+4. Add to `.env.local`:
+   ```
+   RESEND_API_KEY="re_your_api_key_here"
+   RESEND_FROM_EMAIL="onboarding@resend.dev"
+   ```
+
+**Production Setup:**
+1. Add your domain in Resend dashboard
+2. Configure DNS records:
+   - **SPF**: Add TXT record for email authentication
+   - **DKIM**: Add TXT record for email signing
+   - **DMARC**: Add TXT record for email policy
+3. Verify domain in Resend dashboard
+4. Update environment variables:
+   ```
+   RESEND_API_KEY="re_your_production_key"
+   RESEND_FROM_EMAIL="noreply@yourdomain.com"
+   ```
+
+**Email Templates:**
+- Verification emails use branded React Email templates
+- Password reset emails include secure one-time links
+- All emails include plain text fallbacks
+- Templates located in `/emails` directory
+
+**Rate Limiting:**
+- Resend verification: 1 request per 60 seconds
+- Password reset: 1 request per 60 seconds
+- Prevents abuse and spam
+
+## Automated Maintenance
+
+### Token Cleanup Cron Job
+
+The application includes an automated cron job that cleans up expired verification and password reset tokens:
+
+- **Schedule**: Runs daily at 2:00 AM UTC
+- **Function**: Deletes tokens expired for more than 7 days
+- **Configuration**: Defined in `vercel.json`
+- **Security**: Protected by `CRON_SECRET` environment variable
+
+**Setup**:
+1. Generate a secure secret: `openssl rand -hex 32`
+2. Add `CRON_SECRET` to your Vercel environment variables
+3. Deploy - Vercel will automatically configure the cron job
+
+For detailed documentation, see `TOKEN_CLEANUP_CRON.md`
 
 ## Support
 

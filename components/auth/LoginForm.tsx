@@ -5,9 +5,11 @@ import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { useToast } from '@/components/ui/Toast';
 
 export const LoginForm: React.FC = () => {
   const router = useRouter();
+  const { showToast } = useToast();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -54,17 +56,22 @@ export const LoginForm: React.FC = () => {
       });
 
       if (result?.error) {
-        setServerError('Invalid email or password');
+        const errorMsg = 'Invalid email or password';
+        setServerError(errorMsg);
+        showToast('error', errorMsg);
         return;
       }
 
       if (result?.ok) {
+        showToast('success', 'Login successful! Redirecting...');
         // Redirect to dashboard after successful login
         router.push('/dashboard');
         router.refresh();
       }
     } catch (error) {
-      setServerError('An unexpected error occurred. Please try again.');
+      const errorMsg = 'An unexpected error occurred. Please try again.';
+      setServerError(errorMsg);
+      showToast('error', errorMsg);
     } finally {
       setIsLoading(false);
     }
@@ -96,6 +103,13 @@ export const LoginForm: React.FC = () => {
         error={errors.email}
         placeholder="Enter your email"
         autoComplete="email"
+        validateOnBlur
+        onValidate={(value) => {
+          if (!value) return 'Email is required';
+          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+          if (!emailRegex.test(value)) return 'Invalid email format';
+          return undefined;
+        }}
       />
 
       <Input
@@ -108,6 +122,15 @@ export const LoginForm: React.FC = () => {
         placeholder="Enter your password"
         autoComplete="current-password"
       />
+
+      <div className="flex items-center justify-end mb-4">
+        <a 
+          href="/forgot-password" 
+          className="text-sm text-blue-600 hover:text-blue-700 hover:underline"
+        >
+          Forgot Password?
+        </a>
+      </div>
 
       <Button
         type="submit"

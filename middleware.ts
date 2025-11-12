@@ -71,6 +71,10 @@ export async function middleware(request: NextRequest) {
   const protectedPaths = ['/dashboard', '/api/documents', '/api/analytics', '/api/subscription'];
   const isProtectedPath = protectedPaths.some(path => pathname.startsWith(path));
   
+  // Allow access to verification-related pages without email verification
+  const verificationPaths = ['/verify-email', '/verify'];
+  const isVerificationPath = verificationPaths.some(path => pathname.startsWith(path));
+  
   if (isProtectedPath) {
     // Check for valid session token
     const token = await getToken({ 
@@ -91,6 +95,21 @@ export async function middleware(request: NextRequest) {
       const loginUrl = new URL('/login', request.url);
       loginUrl.searchParams.set('callbackUrl', pathname);
       return NextResponse.redirect(loginUrl);
+    }
+    
+    // Check email verification status for authenticated users
+    if (token && !token.emailVerified && !isVerificationPath) {
+      // For API routes, return 403 with specific message
+      if (pathname.startsWith('/api/')) {
+        return NextResponse.json(
+          { error: 'Email verification required', code: 'EMAIL_NOT_VERIFIED' },
+          { status: 403 }
+        );
+      }
+      
+      // For pages, redirect to verification pending page
+      const verifyUrl = new URL('/verify-email', request.url);
+      return NextResponse.redirect(verifyUrl);
     }
   }
   

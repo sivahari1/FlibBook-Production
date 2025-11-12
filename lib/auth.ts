@@ -3,6 +3,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import bcrypt from "bcryptjs";
 import { prisma } from "./db";
+import { logger } from "./logger";
 
 export const authOptions: NextAuthOptions = {
   adapter: process.env.DATABASE_URL ? (PrismaAdapter(prisma) as any) : undefined,
@@ -37,13 +38,14 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Invalid email or password");
         }
 
-        // Return user object for session
+        // Return user object for session (including emailVerified status)
         return {
           id: user.id,
           email: user.email,
           name: user.name,
           subscription: user.subscription,
-          role: user.role
+          role: user.role,
+          emailVerified: user.emailVerified
         };
       }
     })
@@ -71,7 +73,7 @@ export const authOptions: NextAuthOptions = {
     }
   },
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger }) {
       // Add user data to token on sign in
       if (user) {
         token.id = user.id;
@@ -79,7 +81,20 @@ export const authOptions: NextAuthOptions = {
         token.name = user.name;
         token.subscription = (user as any).subscription;
         token.role = (user as any).role;
+        token.emailVerified = (user as any).emailVerified;
       }
+      
+      // Refresh emailVerified status on update trigger
+      if (trigger === "update" && token.id) {
+        const dbUser = await prisma.user.findUnique({
+          where: { id: token.id as string },
+          select: { emailVerified: true }
+        });
+        if (dbUser) {
+          token.emailVerified = dbUser.emailVerified;
+        }
+      }
+      
       return token;
     },
     async session({ session, token }) {
@@ -90,8 +105,19 @@ export const authOptions: NextAuthOptions = {
         session.user.name = token.name as string;
         session.user.subscription = token.subscription as string;
         session.user.role = token.role as string;
+        session.user.emailVerified = token.emailVerified as boolean;
       }
       return session;
+    },
+    async signIn({ user }) {
+      // Allow sign in but will redirect unverified users in middleware
+      if (user && !(user as any).emailVerified) {
+        logger.info('Unverified user login attempt', { 
+          userId: user.id, 
+          email: user.email 
+        });
+      }
+      return true;
     }
   },
   secret: process.env.NEXTAUTH_SECRET,

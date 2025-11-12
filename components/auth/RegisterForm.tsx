@@ -4,9 +4,13 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { PasswordStrengthIndicator, PasswordStrength } from '@/components/ui/PasswordStrengthIndicator';
+import { EmailSentMessage } from '@/components/ui/EmailSentMessage';
+import { useToast } from '@/components/ui/Toast';
 
 export const RegisterForm: React.FC = () => {
   const router = useRouter();
+  const { showToast } = useToast();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -16,6 +20,10 @@ export const RegisterForm: React.FC = () => {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [serverError, setServerError] = useState('');
+  const [registrationSuccess, setRegistrationSuccess] = useState(false);
+  const [registeredEmail, setRegisteredEmail] = useState('');
+  const [isResending, setIsResending] = useState(false);
+  const [passwordStrength, setPasswordStrength] = useState<PasswordStrength | null>(null);
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
@@ -38,6 +46,8 @@ export const RegisterForm: React.FC = () => {
       newErrors.password = 'Password is required';
     } else if (formData.password.length < 8) {
       newErrors.password = 'Password must be at least 8 characters';
+    } else if (passwordStrength && passwordStrength.score < 4) {
+      newErrors.password = 'Password is too weak. Please use a stronger password.';
     }
 
     // Confirm password validation
@@ -77,16 +87,57 @@ export const RegisterForm: React.FC = () => {
       const data = await response.json();
 
       if (!response.ok) {
-        setServerError(data.error || 'Registration failed');
+        const errorMsg = data.error || 'Registration failed';
+        setServerError(errorMsg);
+        showToast('error', errorMsg);
         return;
       }
 
-      // Redirect to login page after successful registration
-      router.push('/login?registered=true');
+      // Show success message with email verification instructions
+      setRegistrationSuccess(true);
+      setRegisteredEmail(data.email || formData.email);
+      showToast('success', 'Registration successful! Please check your email to verify your account.');
     } catch (error) {
-      setServerError('An unexpected error occurred. Please try again.');
+      const errorMsg = 'An unexpected error occurred. Please try again.';
+      setServerError(errorMsg);
+      showToast('error', errorMsg);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleResendVerification = async () => {
+    setIsResending(true);
+    setServerError('');
+
+    try {
+      const response = await fetch('/api/auth/resend-verification', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: registeredEmail,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        const errorMsg = data.error || 'Failed to resend verification email';
+        setServerError(errorMsg);
+        showToast('error', errorMsg);
+        return;
+      }
+
+      // Show success message
+      showToast('success', 'Verification email sent! Please check your inbox.');
+    } catch (error) {
+      const errorMsg = 'Failed to resend verification email. Please try again.';
+      setServerError(errorMsg);
+      showToast('error', errorMsg);
+    } finally {
+      setIsResending(false);
     }
   };
 
@@ -98,6 +149,53 @@ export const RegisterForm: React.FC = () => {
       setErrors(prev => ({ ...prev, [name]: '' }));
     }
   };
+
+  // Show success message after registration
+  if (registrationSuccess) {
+    return (
+      <div className="space-y-4">
+        <EmailSentMessage
+          email={registeredEmail}
+          title="Registration Successful!"
+          message="We've sent a verification email to"
+          additionalInfo="Please check your inbox and click the verification link to activate your account."
+        />
+
+        {serverError && (
+          <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+            {serverError}
+          </div>
+        )}
+
+        <div className="space-y-3">
+          <Button
+            type="button"
+            variant="secondary"
+            size="lg"
+            onClick={handleResendVerification}
+            isLoading={isResending}
+            className="w-full"
+          >
+            Resend Verification Email
+          </Button>
+
+          <Button
+            type="button"
+            variant="secondary"
+            size="lg"
+            onClick={() => router.push('/login')}
+            className="w-full"
+          >
+            Go to Login
+          </Button>
+        </div>
+
+        <p className="text-sm text-gray-600 text-center">
+          Didn't receive the email? Check your spam folder or click "Resend Verification Email" above.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -116,6 +214,11 @@ export const RegisterForm: React.FC = () => {
         error={errors.name}
         placeholder="Enter your name"
         autoComplete="name"
+        validateOnBlur
+        onValidate={(value) => {
+          if (!value.trim()) return 'Name is required';
+          return undefined;
+        }}
       />
 
       <Input
@@ -127,6 +230,13 @@ export const RegisterForm: React.FC = () => {
         error={errors.email}
         placeholder="Enter your email"
         autoComplete="email"
+        validateOnBlur
+        onValidate={(value) => {
+          if (!value) return 'Email is required';
+          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+          if (!emailRegex.test(value)) return 'Invalid email format';
+          return undefined;
+        }}
       />
 
       <Input
@@ -137,8 +247,12 @@ export const RegisterForm: React.FC = () => {
         onChange={handleChange}
         error={errors.password}
         placeholder="Enter your password"
-        helperText="Must be at least 8 characters"
         autoComplete="new-password"
+      />
+
+      <PasswordStrengthIndicator
+        password={formData.password}
+        onStrengthChange={setPasswordStrength}
       />
 
       <Input

@@ -1,4 +1,6 @@
-// Prisma schema for FlipBook DRM Application
+generator client {
+  provider = "prisma-client-js"
+}
 
 datasource db {
   provider  = "postgresql"
@@ -6,73 +8,64 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-generator client {
-  provider = "prisma-client-js"
-}
-
-// User model for authentication and account management
 model User {
-  id            String   @id @default(cuid())
-  email         String   @unique
-  passwordHash  String
-  name          String?
-  role          Role     @default(USER)
-  subscription  String   @default("free")
-  storageUsed   BigInt   @default(0)
-  emailVerified Boolean  @default(false)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  // Relations
-  documents            Document[]
-  shareLinks           ShareLink[]
-  subscriptions        Subscription[]
-  emailSharesCreated   DocumentShare[] @relation("SharedByUser")
-  emailSharesReceived  DocumentShare[] @relation("SharedWithUser")
+  id                  String              @id @default(cuid())
+  email               String              @unique
+  passwordHash        String
+  name                String?
+  role                Role                @default(USER)
+  subscription        String              @default("free")
+  storageUsed         BigInt              @default(0)
+  emailVerified       Boolean             @default(false)
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  emailVerifiedAt     DateTime?
+  emailSharesCreated  DocumentShare[]     @relation("SharedByUser")
+  emailSharesReceived DocumentShare[]     @relation("SharedWithUser")
+  documents           Document[]
+  shareLinks          ShareLink[]
+  subscriptions       Subscription[]
+  verificationTokens  VerificationToken[]
 
   @@index([email])
   @@map("users")
 }
 
-// Document model for uploaded PDF files
 model Document {
-  id          String   @id @default(cuid())
+  id          String          @id @default(cuid())
   title       String
   filename    String
   fileSize    BigInt
   storagePath String
-  mimeType    String   @default("application/pdf")
+  mimeType    String          @default("application/pdf")
   userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // Relations
-  shareLinks    ShareLink[]
-  emailShares   DocumentShare[]
-  analytics     ViewAnalytics[]
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  emailShares DocumentShare[]
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  shareLinks  ShareLink[]
+  analytics   ViewAnalytics[]
 
   @@index([userId])
   @@index([createdAt])
   @@map("documents")
 }
 
-// ShareLink model for secure document sharing (link-based)
 model ShareLink {
   id              String    @id @default(cuid())
   shareKey        String    @unique
   documentId      String
-  document        Document  @relation(fields: [documentId], references: [id], onDelete: Cascade)
   userId          String
-  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   expiresAt       DateTime?
   isActive        Boolean   @default(true)
-  password        String? // bcrypt hash if password-protected
+  password        String?
   maxViews        Int?
   viewCount       Int       @default(0)
-  restrictToEmail String? // Optional email restriction for link shares
-  canDownload     Boolean   @default(false)
   createdAt       DateTime  @default(now())
+  canDownload     Boolean   @default(false)
+  restrictToEmail String?
+  document        Document  @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([shareKey])
   @@index([documentId])
@@ -81,24 +74,19 @@ model ShareLink {
   @@map("share_links")
 }
 
-// DocumentShare model for email-specific sharing
 model DocumentShare {
   id               String    @id @default(cuid())
   documentId       String
-  document         Document  @relation(fields: [documentId], references: [id], onDelete: Cascade)
   sharedByUserId   String
-  sharedBy         User      @relation("SharedByUser", fields: [sharedByUserId], references: [id], onDelete: Cascade)
-  
-  // Targeted share (email-based)
   sharedWithUserId String?
-  sharedWithUser   User?     @relation("SharedWithUser", fields: [sharedWithUserId], references: [id])
-  sharedWithEmail  String? // Used if recipient not registered yet
-  
-  // Optional controls
+  sharedWithEmail  String?
   expiresAt        DateTime?
   canDownload      Boolean   @default(false)
-  note             String?   @db.Text
+  note             String?
   createdAt        DateTime  @default(now())
+  document         Document  @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  sharedBy         User      @relation("SharedByUser", fields: [sharedByUserId], references: [id], onDelete: Cascade)
+  sharedWithUser   User?     @relation("SharedWithUser", fields: [sharedWithUserId], references: [id])
 
   @@index([documentId])
   @@index([sharedByUserId])
@@ -107,19 +95,18 @@ model DocumentShare {
   @@map("document_shares")
 }
 
-// ViewAnalytics model for tracking document views
 model ViewAnalytics {
   id          String   @id @default(cuid())
   documentId  String
-  document    Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
   shareKey    String?
   viewerEmail String?
   ipAddress   String
   userAgent   String
   country     String?
   city        String?
-  duration    Int? // Duration in seconds
+  duration    Int?
   viewedAt    DateTime @default(now())
+  document    Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
 
   @@index([documentId])
   @@index([viewedAt])
@@ -127,20 +114,19 @@ model ViewAnalytics {
   @@map("view_analytics")
 }
 
-// Subscription model for payment tracking
 model Subscription {
   id                String   @id @default(cuid())
   userId            String
-  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  plan              String // free, pro, enterprise
-  status            String // active, expired, cancelled
+  plan              String
+  status            String
   razorpayOrderId   String?  @unique
   razorpayPaymentId String?  @unique
-  amount            Int // Amount in smallest currency unit (paise for INR)
+  amount            Int
   currency          String   @default("INR")
   startDate         DateTime @default(now())
   endDate           DateTime
   createdAt         DateTime @default(now())
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([status])
@@ -148,8 +134,27 @@ model Subscription {
   @@map("subscriptions")
 }
 
-// Enum for user roles
+model VerificationToken {
+  id        String    @id @default(cuid())
+  userId    String
+  token     String    @unique
+  type      TokenType
+  expiresAt DateTime
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([expiresAt])
+  @@index([userId])
+  @@map("verification_tokens")
+}
+
 enum Role {
   USER
   ADMIN
+}
+
+enum TokenType {
+  EMAIL_VERIFICATION
+  PASSWORD_RESET
 }

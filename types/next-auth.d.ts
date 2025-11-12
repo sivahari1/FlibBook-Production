@@ -9,6 +9,7 @@ declare module "next-auth" {
       name?: string | null;
       subscription: string;
       role: string;
+      emailVerified: boolean;
     } & DefaultSession["user"];
   }
 
@@ -18,6 +19,7 @@ declare module "next-auth" {
     name?: string | null;
     subscription: string;
     role: string;
+    emailVerified: boolean;
   }
 }
 
@@ -28,5 +30,6 @@ declare module "next-auth/jwt" {
     name?: string | null;
     subscription: string;
     role: string;
+    emailVerified: boolean;
   }
 }

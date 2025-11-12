@@ -4,6 +4,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { SessionProvider } from "@/components/providers/SessionProvider";
 import { ErrorBoundary } from "@/components/providers/ErrorBoundary";
+import { ToastProvider } from "@/components/ui/Toast";
 import { validateEnv } from "@/lib/env";
 
 const inter = Inter({
@@ -32,7 +33,9 @@ export default function RootLayout({
         <ErrorBoundary>
           <SessionProvider>
             <ThemeProvider>
-              {children}
+              <ToastProvider>
+                {children}
+              </ToastProvider>
             </ThemeProvider>
           </SessionProvider>
         </ErrorBoundary>
