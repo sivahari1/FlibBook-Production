@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { DocumentCard } from './DocumentCard';
-import { ShareLinkModal } from './ShareLinkModal';
+import { ShareDialog } from './ShareDialog';
 import { useRouter } from 'next/navigation';
 
 interface Document {
@@ -91,9 +91,9 @@ export const DocumentList: React.FC<DocumentListProps> = ({
         ))}
       </div>
 
-      {/* Share Link Modal */}
+      {/* Share Dialog */}
       {selectedDocument && (
-        <ShareLinkModal
+        <ShareDialog
           isOpen={shareModalOpen}
           onClose={handleCloseShareModal}
           documentId={selectedDocument.id}
