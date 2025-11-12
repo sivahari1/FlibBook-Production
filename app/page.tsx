@@ -1,26 +1,29 @@
 import Link from 'next/link';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { Shield, Lock, Eye, BarChart3, FileText, Users, Sparkles, Zap, Globe, CheckCircle } from 'lucide-react';
+import ThemeToggle from '@/components/theme/ThemeToggle';
 import Footer from '@/components/layout/Footer';
 
 export default async function LandingPage() {
   const session = await getServerSession(authOptions);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-purple-900 transition-colors duration-300">
       {/* Navigation Header */}
-      <nav className="bg-white/80 backdrop-blur-sm shadow-sm border-b border-gray-200 sticky top-0 z-50">
+      <nav className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-md shadow-sm border-b border-gray-200 dark:border-gray-700 sticky top-0 z-50 transition-colors duration-300">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <Link href="/" className="text-2xl font-bold text-blue-600">
+            <Link href="/" className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent hover:scale-105 transition-transform">
               FlipBook DRM
             </Link>
             
             <div className="flex items-center space-x-4">
+              <ThemeToggle />
               {session ? (
                 <Link
                   href="/dashboard"
-                  className="bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors"
+                  className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-2 rounded-lg font-medium hover:shadow-lg transition-all duration-300 hover:scale-105"
                 >
                   Dashboard
                 </Link>
@@ -28,13 +31,13 @@ export default async function LandingPage() {
                 <>
                   <Link
                     href="/login"
-                    className="text-gray-700 hover:text-blue-600 px-4 py-2 rounded-lg font-medium transition-colors"
+                    className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 px-4 py-2 rounded-lg font-medium transition-colors"
                   >
                     Login
                   </Link>
                   <Link
                     href="/register"
-                    className="bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors"
+                    className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-2 rounded-lg font-medium hover:shadow-lg transition-all duration-300 hover:scale-105"
                   >
                     Get Started
                   </Link>
@@ -47,172 +50,210 @@ export default async function LandingPage() {
 
       {/* Hero Section */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-32">
-        <div className="text-center">
-          <h1 className="text-5xl md:text-6xl font-bold text-gray-900 mb-6 leading-tight">
-            Secure PDF Sharing
+        <div className="text-center animate-fadeIn">
+          <div className="inline-flex items-center gap-2 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-4 py-2 rounded-full text-sm font-medium mb-6 animate-scaleIn">
+            <Sparkles className="w-4 h-4" />
+            <span>Secure PDF Sharing Platform</span>
+          </div>
+          
+          <h1 className="text-5xl md:text-7xl font-bold mb-6 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent animate-slideIn">
+            Protect Your Documents
             <br />
-            <span className="text-blue-600">Made Simple</span>
+            <span className="text-4xl md:text-6xl">With Advanced DRM</span>
           </h1>
-          <p className="text-xl text-gray-600 mb-10 max-w-3xl mx-auto">
-            Upload, protect, and share your PDF documents with advanced DRM protection,
-            dynamic watermarking, and comprehensive view analytics.
+          
+          <p className="text-xl text-gray-600 dark:text-gray-300 mb-8 max-w-3xl mx-auto animate-slideIn" style={{ animationDelay: '0.1s' }}>
+            Upload, share, and protect your PDF documents with enterprise-grade security, 
+            dynamic watermarking, and comprehensive analytics.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            {session ? (
-              <Link
-                href="/dashboard"
-                className="bg-blue-600 text-white px-8 py-4 rounded-lg text-lg font-semibold hover:bg-blue-700 transition-colors shadow-lg hover:shadow-xl"
-              >
-                Go to Dashboard
-              </Link>
-            ) : (
-              <>
-                <Link
-                  href="/register"
-                  className="bg-blue-600 text-white px-8 py-4 rounded-lg text-lg font-semibold hover:bg-blue-700 transition-colors shadow-lg hover:shadow-xl"
-                >
-                  Start Free Trial
-                </Link>
-                <Link
-                  href="/login"
-                  className="bg-white text-blue-600 px-8 py-4 rounded-lg text-lg font-semibold hover:bg-gray-50 transition-colors border-2 border-blue-600"
-                >
-                  Sign In
-                </Link>
-              </>
-            )}
+          
+          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center animate-slideIn" style={{ animationDelay: '0.2s' }}>
+            <Link
+              href="/register"
+              className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-4 rounded-lg text-lg font-semibold hover:shadow-2xl transition-all duration-300 hover:scale-105 flex items-center gap-2"
+            >
+              <Zap className="w-5 h-5" />
+              Start Free Trial
+            </Link>
+            <Link
+              href="#features"
+              className="bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 px-8 py-4 rounded-lg text-lg font-semibold border-2 border-gray-200 dark:border-gray-700 hover:border-blue-600 dark:hover:border-blue-400 transition-all duration-300 hover:scale-105"
+            >
+              Learn More
+            </Link>
+          </div>
+
+          {/* Stats */}
+          <div className="grid grid-cols-3 gap-8 mt-16 max-w-3xl mx-auto animate-fadeIn" style={{ animationDelay: '0.3s' }}>
+            <div className="text-center">
+              <div className="text-4xl font-bold text-blue-600 dark:text-blue-400">256-bit</div>
+              <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">Encryption</div>
+            </div>
+            <div className="text-center">
+              <div className="text-4xl font-bold text-purple-600 dark:text-purple-400">99.9%</div>
+              <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">Uptime</div>
+            </div>
+            <div className="text-center">
+              <div className="text-4xl font-bold text-pink-600 dark:text-pink-400">24/7</div>
+              <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">Support</div>
+            </div>
           </div>
         </div>
       </section>
 
       {/* Features Section */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 bg-white/50 rounded-3xl">
-        <div className="text-center mb-16">
-          <h2 className="text-4xl font-bold text-gray-900 mb-4">
-            Powerful Features for Document Security
+      <section id="features" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+        <div className="text-center mb-16 animate-fadeIn">
+          <h2 className="text-4xl md:text-5xl font-bold mb-4 text-gray-900 dark:text-white">
+            Powerful Features
           </h2>
-          <p className="text-lg text-gray-600">
-            Everything you need to protect and track your PDF documents
+          <p className="text-xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
+            Everything you need to secure and manage your PDF documents
           </p>
         </div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {/* Feature 1 */}
-          <div className="bg-white p-8 rounded-xl shadow-md hover:shadow-lg transition-shadow">
-            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
-              <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-              </svg>
+          {[
+            {
+              icon: Shield,
+              title: 'Advanced DRM Protection',
+              description: 'Military-grade encryption and access control to keep your documents secure',
+              color: 'from-blue-500 to-cyan-500',
+              delay: '0s'
+            },
+            {
+              icon: Eye,
+              title: 'Dynamic Watermarking',
+              description: 'Automatic watermarks with viewer email and timestamp for accountability',
+              color: 'from-purple-500 to-pink-500',
+              delay: '0.1s'
+            },
+            {
+              icon: Lock,
+              title: 'Secure Sharing',
+              description: 'Password-protected links with expiration dates and view limits',
+              color: 'from-green-500 to-emerald-500',
+              delay: '0.2s'
+            },
+            {
+              icon: BarChart3,
+              title: 'Real-time Analytics',
+              description: 'Track who views your documents, when, and from where',
+              color: 'from-orange-500 to-red-500',
+              delay: '0.3s'
+            },
+            {
+              icon: FileText,
+              title: 'Document Management',
+              description: 'Organize, preview, and manage all your documents in one place',
+              color: 'from-indigo-500 to-purple-500',
+              delay: '0.4s'
+            },
+            {
+              icon: Globe,
+              title: 'Global CDN',
+              description: 'Fast document delivery worldwide with 99.9% uptime guarantee',
+              color: 'from-teal-500 to-cyan-500',
+              delay: '0.5s'
+            },
+          ].map((feature, index) => (
+            <div
+              key={index}
+              className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 border border-gray-100 dark:border-gray-700 animate-scaleIn"
+              style={{ animationDelay: feature.delay }}
+            >
+              <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${feature.color} flex items-center justify-center mb-6 animate-float`}>
+                <feature.icon className="w-7 h-7 text-white" />
+              </div>
+              <h3 className="text-xl font-bold mb-3 text-gray-900 dark:text-white">
+                {feature.title}
+              </h3>
+              <p className="text-gray-600 dark:text-gray-300">
+                {feature.description}
+              </p>
             </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">
-              Advanced DRM Protection
-            </h3>
-            <p className="text-gray-600">
-              Prevent unauthorized copying, downloading, and printing with comprehensive DRM controls.
-            </p>
-          </div>
+          ))}
+        </div>
+      </section>
 
-          {/* Feature 2 */}
-          <div className="bg-white p-8 rounded-xl shadow-md hover:shadow-lg transition-shadow">
-            <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mb-4">
-              <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
-              </svg>
-            </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">
-              Dynamic Watermarking
-            </h3>
-            <p className="text-gray-600">
-              Automatically apply personalized watermarks with viewer email and timestamp on every page.
-            </p>
-          </div>
+      {/* How It Works */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+        <div className="text-center mb-16 animate-fadeIn">
+          <h2 className="text-4xl md:text-5xl font-bold mb-4 text-gray-900 dark:text-white">
+            How It Works
+          </h2>
+          <p className="text-xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
+            Get started in minutes with our simple 3-step process
+          </p>
+        </div>
 
-          {/* Feature 3 */}
-          <div className="bg-white p-8 rounded-xl shadow-md hover:shadow-lg transition-shadow">
-            <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mb-4">
-              <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-              </svg>
+        <div className="grid md:grid-cols-3 gap-8">
+          {[
+            {
+              step: '01',
+              title: 'Upload Your PDF',
+              description: 'Drag and drop your PDF document or select from your device',
+              icon: FileText,
+            },
+            {
+              step: '02',
+              title: 'Configure Security',
+              description: 'Set passwords, expiration dates, and view limits for your document',
+              icon: Lock,
+            },
+            {
+              step: '03',
+              title: 'Share Securely',
+              description: 'Generate a secure link and share it with your intended recipients',
+              icon: Users,
+            },
+          ].map((step, index) => (
+            <div
+              key={index}
+              className="relative bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 animate-slideIn"
+              style={{ animationDelay: `${index * 0.1}s` }}
+            >
+              <div className="absolute -top-6 left-8 w-12 h-12 rounded-full bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center text-white font-bold text-lg shadow-lg">
+                {step.step}
+              </div>
+              <div className="mt-6">
+                <step.icon className="w-12 h-12 text-blue-600 dark:text-blue-400 mb-4" />
+                <h3 className="text-2xl font-bold mb-3 text-gray-900 dark:text-white">
+                  {step.title}
+                </h3>
+                <p className="text-gray-600 dark:text-gray-300">
+                  {step.description}
+                </p>
+              </div>
             </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">
-              Secure Share Links
-            </h3>
-            <p className="text-gray-600">
-              Create time-limited, password-protected share links with view count restrictions.
-            </p>
-          </div>
-
-          {/* Feature 4 */}
-          <div className="bg-white p-8 rounded-xl shadow-md hover:shadow-lg transition-shadow">
-            <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center mb-4">
-              <svg className="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-              </svg>
-            </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">
-              View Analytics
-            </h3>
-            <p className="text-gray-600">
-              Track who viewed your documents, when, and from where with detailed analytics.
-            </p>
-          </div>
-
-          {/* Feature 5 */}
-          <div className="bg-white p-8 rounded-xl shadow-md hover:shadow-lg transition-shadow">
-            <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center mb-4">
-              <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-            </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">
-              Easy Document Management
-            </h3>
-            <p className="text-gray-600">
-              Upload, organize, and manage all your PDF documents from a simple dashboard.
-            </p>
-          </div>
-
-          {/* Feature 6 */}
-          <div className="bg-white p-8 rounded-xl shadow-md hover:shadow-lg transition-shadow">
-            <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center mb-4">
-              <svg className="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
-            </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">
-              Flexible Subscription Plans
-            </h3>
-            <p className="text-gray-600">
-              Choose from Free, Pro, or Enterprise plans to match your storage and feature needs.
-            </p>
-          </div>
+          ))}
         </div>
       </section>
 
       {/* CTA Section */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-        <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-3xl p-12 text-center text-white shadow-2xl">
-          <h2 className="text-4xl font-bold mb-4">
+        <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-3xl p-12 md:p-16 text-center text-white shadow-2xl animate-scaleIn">
+          <h2 className="text-4xl md:text-5xl font-bold mb-6">
             Ready to Secure Your Documents?
           </h2>
-          <p className="text-xl mb-8 opacity-90">
-            Start protecting your PDFs today with FlipBook DRM
+          <p className="text-xl mb-8 opacity-90 max-w-2xl mx-auto">
+            Join thousands of users who trust FlipBook DRM to protect their valuable documents
           </p>
-          {session ? (
-            <Link
-              href="/dashboard"
-              className="inline-block bg-white text-blue-600 px-8 py-4 rounded-lg text-lg font-semibold hover:bg-gray-100 transition-colors shadow-lg"
-            >
-              Go to Dashboard
-            </Link>
-          ) : (
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
               href="/register"
-              className="inline-block bg-white text-blue-600 px-8 py-4 rounded-lg text-lg font-semibold hover:bg-gray-100 transition-colors shadow-lg"
+              className="bg-white text-blue-600 px-8 py-4 rounded-lg text-lg font-semibold hover:shadow-2xl transition-all duration-300 hover:scale-105 inline-flex items-center justify-center gap-2"
             >
-              Get Started Free
+              <CheckCircle className="w-5 h-5" />
+              Start Free Trial
             </Link>
-          )}
+            <Link
+              href="/login"
+              className="bg-transparent border-2 border-white text-white px-8 py-4 rounded-lg text-lg font-semibold hover:bg-white hover:text-blue-600 transition-all duration-300 hover:scale-105"
+            >
+              Sign In
+            </Link>
+          </div>
         </div>
       </section>
 
