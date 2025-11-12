@@ -24,9 +24,11 @@ model User {
   updatedAt     DateTime @updatedAt
 
   // Relations
-  documents     Document[]
-  shareLinks    ShareLink[]
-  subscriptions Subscription[]
+  documents            Document[]
+  shareLinks           ShareLink[]
+  subscriptions        Subscription[]
+  emailSharesCreated   DocumentShare[] @relation("SharedByUser")
+  emailSharesReceived  DocumentShare[] @relation("SharedWithUser")
 
   @@index([email])
   @@map("users")
@@ -46,33 +48,63 @@ model Document {
   updatedAt   DateTime @updatedAt
 
   // Relations
-  shareLinks ShareLink[]
-  analytics  ViewAnalytics[]
+  shareLinks    ShareLink[]
+  emailShares   DocumentShare[]
+  analytics     ViewAnalytics[]
 
   @@index([userId])
   @@index([createdAt])
   @@map("documents")
 }
 
-// ShareLink model for secure document sharing
+// ShareLink model for secure document sharing (link-based)
 model ShareLink {
-  id         String    @id @default(cuid())
-  shareKey   String    @unique
-  documentId String
-  document   Document  @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  userId     String
-  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  expiresAt  DateTime?
-  isActive   Boolean   @default(true)
-  password   String?
-  maxViews   Int?
-  viewCount  Int       @default(0)
-  createdAt  DateTime  @default(now())
+  id              String    @id @default(cuid())
+  shareKey        String    @unique
+  documentId      String
+  document        Document  @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt       DateTime?
+  isActive        Boolean   @default(true)
+  password        String? // bcrypt hash if password-protected
+  maxViews        Int?
+  viewCount       Int       @default(0)
+  restrictToEmail String? // Optional email restriction for link shares
+  canDownload     Boolean   @default(false)
+  createdAt       DateTime  @default(now())
 
   @@index([shareKey])
   @@index([documentId])
   @@index([userId])
+  @@index([restrictToEmail])
   @@map("share_links")
+}
+
+// DocumentShare model for email-specific sharing
+model DocumentShare {
+  id               String    @id @default(cuid())
+  documentId       String
+  document         Document  @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  sharedByUserId   String
+  sharedBy         User      @relation("SharedByUser", fields: [sharedByUserId], references: [id], onDelete: Cascade)
+  
+  // Targeted share (email-based)
+  sharedWithUserId String?
+  sharedWithUser   User?     @relation("SharedWithUser", fields: [sharedWithUserId], references: [id])
+  sharedWithEmail  String? // Used if recipient not registered yet
+  
+  // Optional controls
+  expiresAt        DateTime?
+  canDownload      Boolean   @default(false)
+  note             String?   @db.Text
+  createdAt        DateTime  @default(now())
+
+  @@index([documentId])
+  @@index([sharedByUserId])
+  @@index([sharedWithUserId])
+  @@index([sharedWithEmail])
+  @@map("document_shares")
 }
 
 // ViewAnalytics model for tracking document views
