@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import PDFViewer from '@/components/pdf/PDFViewer';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
+import { PasswordModal } from '@/components/share/PasswordModal';
 
 interface DocumentData {
   document: {
@@ -34,53 +33,57 @@ export default function ViewerClient({ shareKey, userEmail }: ViewerClientProps)
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [documentData, setDocumentData] = useState<DocumentData | null>(null);
-  
-  // Password prompt state
   const [requiresPassword, setRequiresPassword] = useState(false);
-  const [password, setPassword] = useState('');
-  const [passwordError, setPasswordError] = useState('');
-  const [validatingPassword, setValidatingPassword] = useState(false);
+  const [canDownload, setCanDownload] = useState(false);
+
+  // Track analytics on mount
+  useEffect(() => {
+    const trackView = async () => {
+      try {
+        await fetch(`/api/share/${shareKey}/track`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({}),
+        });
+      } catch (err) {
+        // Silently fail - analytics shouldn't block viewing
+        console.error('Failed to track view:', err);
+      }
+    };
+
+    if (shareKey && documentData) {
+      trackView();
+    }
+  }, [shareKey, documentData]);
 
   // Validate share link
-  const validateShareLink = async (pwd?: string) => {
+  const validateShareLink = async () => {
     try {
       setLoading(true);
       setError(null);
-      setPasswordError('');
 
-      const url = new URL(`/api/share/${shareKey}`, window.location.origin);
-      if (pwd) {
-        url.searchParams.set('password', pwd);
-      }
-
-      const response = await fetch(url.toString());
+      const response = await fetch(`/api/share/${shareKey}`);
       const data = await response.json();
 
       if (!response.ok) {
-        if (response.status === 401 && data.requiresPassword) {
+        if (data.requiresPassword) {
           setRequiresPassword(true);
           setLoading(false);
           return;
         }
 
-        if (response.status === 401 && pwd) {
-          setPasswordError('Invalid password');
-          setValidatingPassword(false);
-          return;
-        }
-
-        throw new Error(data.error || 'Failed to validate share link');
+        throw new Error(data.error?.message || 'Failed to validate share link');
       }
 
       // Successfully validated
       setDocumentData(data);
+      setCanDownload(data.canDownload || false);
       setRequiresPassword(false);
       setLoading(false);
     } catch (err) {
       console.error('Share link validation error:', err);
       setError(err instanceof Error ? err.message : 'Failed to load document');
       setLoading(false);
-      setValidatingPassword(false);
     }
   };
 
@@ -91,18 +94,16 @@ export default function ViewerClient({ shareKey, userEmail }: ViewerClientProps)
     }
   }, [shareKey]);
 
-  // Handle password submission
-  const handlePasswordSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setPasswordError('');
+  // Handle password verification success
+  const handlePasswordSuccess = () => {
+    setRequiresPassword(false);
+    validateShareLink();
+  };
 
-    if (!password.trim()) {
-      setPasswordError('Password is required');
-      return;
-    }
-
-    setValidatingPassword(true);
-    await validateShareLink(password);
+  // Handle password modal cancel
+  const handlePasswordCancel = () => {
+    setError('Password required to access this document');
+    setRequiresPassword(false);
   };
 
   // Loading state
@@ -136,44 +137,11 @@ export default function ViewerClient({ shareKey, userEmail }: ViewerClientProps)
   // Password prompt
   if (requiresPassword) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
-        <div className="bg-white rounded-xl shadow-xl p-8 max-w-md w-full mx-4">
-          <div className="text-center mb-6">
-            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-              </svg>
-            </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Password Required</h2>
-            <p className="text-gray-600">
-              This document is password protected. Please enter the password to continue.
-            </p>
-          </div>
-          <form onSubmit={handlePasswordSubmit}>
-            <div className="mb-6">
-              <Input
-                type="password"
-                placeholder="Enter password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full"
-                autoFocus
-                disabled={validatingPassword}
-              />
-              {passwordError && (
-                <p className="text-red-600 text-sm mt-2">{passwordError}</p>
-              )}
-            </div>
-            <Button 
-              type="submit" 
-              className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
-              disabled={validatingPassword}
-            >
-              {validatingPassword ? 'Verifying...' : 'Continue to Document'}
-            </Button>
-          </form>
-        </div>
-      </div>
+      <PasswordModal
+        shareKey={shareKey}
+        onSuccess={handlePasswordSuccess}
+        onCancel={handlePasswordCancel}
+      />
     );
   }
 
