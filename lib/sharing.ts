@@ -192,19 +192,6 @@ export function formatShareUrl(shareKey: string, baseUrl: string): string {
 }
 
 /**
- * Get base URL from environment or request
- * @returns Base URL for the application
- */
-export function getBaseUrl(): string {
-  return (
-    process.env.AUTH_URL ||
-    process.env.NEXTAUTH_URL ||
-    process.env.NEXT_PUBLIC_APP_URL ||
-    'http://localhost:3000'
-  )
-}
-
-/**
  * Generate a password cookie name for a share
  * @param shareKey - The share key
  * @returns Cookie name string
