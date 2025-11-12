@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getShareLinkByKey } from '@/lib/documents';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+import { getShareLinkByKey, incrementShareViewCount } from '@/lib/documents';
 import { getSignedUrl } from '@/lib/storage';
-import { verifyPassword } from '@/lib/auth';
+import { canAccessLinkShare, getPasswordCookieName } from '@/lib/sharing';
 import { sanitizeString } from '@/lib/sanitization';
 import { logger } from '@/lib/logger';
+import { cookies } from 'next/headers';
+
+type ShareLinkWithDocument = NonNullable<Awaited<ReturnType<typeof getShareLinkByKey>>>;
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -13,10 +18,15 @@ export const runtime = 'nodejs'
  * GET /api/share/[shareKey]
  * Validate share link and return document metadata with signed URL
  * 
- * Query parameters:
- * - password: Optional password for password-protected links
+ * This endpoint validates all access controls including:
+ * - Session authentication
+ * - Share active status
+ * - Expiration date
+ * - View limits
+ * - Email restrictions
+ * - Password protection
  * 
- * Requirements: 4.2, 4.3, 4.4, 4.5, 5.5
+ * Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.8, 4.9, 4.10, 10.4
  */
 export async function GET(
   request: NextRequest,
@@ -24,108 +34,128 @@ export async function GET(
 ) {
   try {
     const { shareKey: shareKeyRaw } = await params;
-    const { searchParams } = new URL(request.url);
-    const passwordRaw = searchParams.get('password');
     
-    // Sanitize inputs
+    // Sanitize input
     const shareKey = sanitizeString(shareKeyRaw);
-    const password = passwordRaw ? sanitizeString(passwordRaw) : null;
 
-    // Find the share link using shared data access layer
-    const shareLink = await getShareLinkByKey(shareKey);
-
-    // Check if share link exists
-    if (!shareLink) {
+    // Requirement 4.1: Verify authentication
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.email) {
+      logger.warn('Unauthorized share access attempt', { shareKey });
       return NextResponse.json(
-        { error: 'Share link not found' },
+        { 
+          error: {
+            code: 'UNAUTHORIZED',
+            message: 'Authentication required to access shared documents'
+          }
+        },
+        { status: 401 }
+      );
+    }
+
+    // Find the share link
+    const shareLinkData = await getShareLinkByKey(shareKey);
+
+    if (!shareLinkData || !shareLinkData.document) {
+      logger.warn('Share link not found', { shareKey });
+      return NextResponse.json(
+        { 
+          error: {
+            code: 'NOT_FOUND',
+            message: 'Share link not found'
+          }
+        },
         { status: 404 }
       );
     }
 
-    // Requirement 4.5: Check if link is active
-    if (!shareLink.isActive) {
+    const shareLink = shareLinkData as any;
+
+    // Check for password cookie
+    const cookieStore = await cookies();
+    const passwordCookieName = getPasswordCookieName(shareKey);
+    const hasValidPasswordCookie = cookieStore.has(passwordCookieName);
+
+    // Validate access using utility function
+    const accessValidation = canAccessLinkShare(
+      shareLink,
+      session.user.email,
+      hasValidPasswordCookie
+    );
+
+    if (!accessValidation.isValid || !accessValidation.canAccess) {
+      logger.warn('Share access denied', {
+        shareKey,
+        userEmail: session.user.email,
+        reason: accessValidation.error?.code
+      });
+
       return NextResponse.json(
-        { error: 'This share link has been deactivated' },
+        { 
+          error: accessValidation.error,
+          requiresPassword: accessValidation.requiresPassword
+        },
         { status: 403 }
       );
     }
 
-    // Requirement 4.2: Check expiration date
-    if (shareLink.expiresAt && new Date(shareLink.expiresAt) < new Date()) {
-      return NextResponse.json(
-        { error: 'This share link has expired' },
-        { status: 403 }
-      );
-    }
+    // Requirement 4.8: Atomically increment view count
+    await incrementShareViewCount(shareLink.id);
 
-    // Requirement 4.4: Check max views
-    if (shareLink.maxViews && shareLink.viewCount >= shareLink.maxViews) {
-      return NextResponse.json(
-        { error: 'This share link has reached its maximum view limit' },
-        { status: 403 }
-      );
-    }
-
-    // Requirement 4.3: Verify password if required
-    if (shareLink.password) {
-      if (!password) {
-        return NextResponse.json(
-          { 
-            error: 'Password required',
-            requiresPassword: true 
-          },
-          { status: 401 }
-        );
-      }
-
-      const isPasswordValid = await verifyPassword(password, shareLink.password);
-      if (!isPasswordValid) {
-        return NextResponse.json(
-          { error: 'Invalid password' },
-          { status: 401 }
-        );
-      }
-    }
-
-    // Requirement 5.5: Generate signed URL with 1-hour expiration
+    // Requirement 4.9: Generate signed URL with 5-minute TTL
     const { url: signedUrl, error: urlError } = await getSignedUrl(
       shareLink.document.storagePath,
-      3600 // 1 hour in seconds
+      300 // 5 minutes in seconds
     );
 
     if (urlError || !signedUrl) {
-      console.error('Failed to generate signed URL:', urlError);
+      logger.error('Failed to generate signed URL', {
+        shareKey,
+        error: urlError
+      });
       return NextResponse.json(
-        { error: 'Failed to generate document access URL' },
+        { 
+          error: {
+            code: 'INTERNAL_ERROR',
+            message: 'Failed to generate document access URL'
+          }
+        },
         { status: 500 }
       );
     }
 
-    // Return document metadata and signed URL
+    logger.info('Share access granted', {
+      shareKey,
+      userEmail: session.user.email,
+      documentId: shareLink.document.id,
+      viewCount: shareLink.viewCount + 1
+    });
+
+    // Requirement 4.10: Return document metadata and signed URL
     return NextResponse.json({
       document: {
         id: shareLink.document.id,
         title: shareLink.document.title,
-        filename: shareLink.document.filename,
-        fileSize: shareLink.document.fileSize,
-        mimeType: shareLink.document.mimeType,
-        createdAt: shareLink.document.createdAt
+        filename: shareLink.document.filename
       },
-      shareLink: {
-        id: shareLink.id,
-        shareKey: shareLink.shareKey,
-        expiresAt: shareLink.expiresAt,
-        maxViews: shareLink.maxViews,
-        viewCount: shareLink.viewCount,
-        requiresPassword: !!shareLink.password
-      },
-      signedUrl
+      signedUrl,
+      canDownload: shareLink.canDownload,
+      requiresPassword: false // Already validated
     });
 
   } catch (error) {
-    logger.error('Share link validation error', error);
+    logger.error('Share link validation error', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    });
+    
     return NextResponse.json(
-      { error: 'Failed to validate share link' },
+      { 
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Failed to validate share link'
+        }
+      },
       { status: 500 }
     );
   }
