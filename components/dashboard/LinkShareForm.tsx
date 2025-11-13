@@ -45,15 +45,32 @@ export const LinkShareForm: React.FC<LinkShareFormProps> = ({
       };
 
       if (formData.expiresAt) {
-        payload.expiresAt = new Date(formData.expiresAt).toISOString();
+        // Ensure the date is in the future
+        const expirationDate = new Date(formData.expiresAt);
+        if (expirationDate <= new Date()) {
+          throw new Error('Expiration date must be in the future');
+        }
+        payload.expiresAt = expirationDate.toISOString();
       }
-      if (formData.maxViews) {
-        payload.maxViews = parseInt(formData.maxViews, 10);
+      if (formData.maxViews && formData.maxViews.trim() !== '') {
+        const maxViewsNum = parseInt(formData.maxViews, 10);
+        if (isNaN(maxViewsNum) || maxViewsNum < 1 || maxViewsNum > 10000) {
+          throw new Error('Maximum views must be between 1 and 10,000');
+        }
+        payload.maxViews = maxViewsNum;
       }
-      if (formData.password) {
+      if (formData.password && formData.password.trim() !== '') {
+        if (formData.password.length < 8) {
+          throw new Error('Password must be at least 8 characters');
+        }
         payload.password = formData.password;
       }
-      if (formData.restrictToEmail) {
+      if (formData.restrictToEmail && formData.restrictToEmail.trim() !== '') {
+        // Basic email validation
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(formData.restrictToEmail)) {
+          throw new Error('Invalid email format');
+        }
         payload.restrictToEmail = formData.restrictToEmail;
       }
 
