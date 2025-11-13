@@ -6,10 +6,10 @@ import { z } from 'zod'
 
 export const createLinkShareSchema = z.object({
   documentId: z.string().cuid('Invalid document ID format'),
-  expiresAt: z.string().datetime().optional(),
-  maxViews: z.number().int().min(1).max(10000).optional(),
-  password: z.string().min(8, 'Password must be at least 8 characters').max(100).optional(),
-  restrictToEmail: z.string().email('Invalid email format').optional(),
+  expiresAt: z.string().datetime().optional().or(z.literal('')).transform(val => val === '' ? undefined : val),
+  maxViews: z.number().int().min(1).max(10000).optional().or(z.null()).transform(val => val === null ? undefined : val),
+  password: z.string().min(8, 'Password must be at least 8 characters').max(100).optional().or(z.literal('')).transform(val => val === '' ? undefined : val),
+  restrictToEmail: z.string().email('Invalid email format').optional().or(z.literal('')).transform(val => val === '' ? undefined : val),
   canDownload: z.boolean().optional().default(false),
 })
 
