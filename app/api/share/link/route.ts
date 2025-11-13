@@ -29,11 +29,15 @@ export async function POST(request: NextRequest) {
     const validation = createLinkShareSchema.safeParse(body)
     
     if (!validation.success) {
+      // Extract the first error message for better UX
+      const firstError = validation.error.issues[0]
+      const errorMessage = firstError?.message || 'Invalid input data'
+      
       return NextResponse.json(
         {
           error: {
             code: 'VALIDATION_ERROR',
-            message: 'Invalid input data',
+            message: errorMessage,
             details: validation.error.issues
           }
         },

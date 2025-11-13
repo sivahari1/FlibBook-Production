@@ -42,11 +42,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  // Prevent flash of unstyled content
-  if (!mounted) {
-    return <>{children}</>
-  }
-
+  // Always provide the context, even before mount
+  // This prevents "useTheme must be used within a ThemeProvider" errors
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme }}>
       {children}
@@ -57,11 +54,14 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 export function useTheme() {
   const context = useContext(ThemeContext)
   if (context === undefined) {
-    // Return a default value instead of throwing during SSR or before mount
+    // Return a safe default value during SSR or if provider is missing
     if (typeof window === 'undefined') {
       return { theme: 'light' as Theme, toggleTheme: () => {} }
     }
-    throw new Error('useTheme must be used within a ThemeProvider')
+    // In browser, still return default instead of throwing
+    // This prevents crashes if component is used outside provider
+    console.warn('useTheme: ThemeProvider not found in component tree, using default theme')
+    return { theme: 'light' as Theme, toggleTheme: () => {} }
   }
   return context
 }
