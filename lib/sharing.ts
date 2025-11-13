@@ -188,7 +188,7 @@ export function canAccessEmailShare(
  * @returns Complete share URL
  */
 export function formatShareUrl(shareKey: string, baseUrl: string): string {
-  return `${baseUrl}/share/${shareKey}`
+  return `${baseUrl}/view/${shareKey}`
 }
 
 /**

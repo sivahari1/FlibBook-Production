@@ -2,7 +2,16 @@
 
 ## Issues Fixed
 
-### 1. Share Link Validation Error (400 "Invalid input data")
+### 1. Share Link 404 Error and Path Mismatch
+
+**Problem**: Generated share links were using `/share/[shareKey]` path, but the app only has `/view/[shareKey]` implemented, causing 404 errors.
+
+**Solution**: Updated `lib/sharing.ts` to generate URLs with the correct `/view/` path that matches the existing viewer implementation.
+
+**Changes Made**:
+- Fixed `formatShareUrl()` function to return `/view/${shareKey}` instead of `/share/${shareKey}`
+
+### 2. Share Link Validation Error (400 "Invalid input data")
 
 **Problem**: The Zod validation schema was too strict and had complex transform chains that were failing when optional fields were empty strings or undefined.
 
@@ -35,6 +44,14 @@
 - Changed error handling to graceful degradation with warnings
 
 ## Testing
+
+### Test Share Link Path
+
+1. Create a new share link from the dashboard
+2. Verify the generated URL uses the format: `https://flib-book-production.vercel.app/view/[shareKey]`
+3. Open the link in a new browser window
+4. Should redirect to login if not authenticated
+5. After login, should show the PDF viewer with the document
 
 ### Test Share Link Creation
 
