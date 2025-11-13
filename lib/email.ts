@@ -3,12 +3,17 @@ import { render } from '@react-email/render';
 import { logger } from './logger';
 
 // Email configuration
-const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'noreply@flipbook-drm.com';
+const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
 const APP_NAME = 'FlipBook DRM';
 
 // Lazy initialize Resend client
 let resendClient: Resend | null = null;
-function getResendClient(): Resend {
+function getResendClient(): Resend | null {
+  if (!process.env.RESEND_API_KEY) {
+    logger.warn('RESEND_API_KEY not configured - email sending disabled');
+    return null;
+  }
+  
   if (!resendClient) {
     resendClient = new Resend(process.env.RESEND_API_KEY);
   }
@@ -48,13 +53,24 @@ export interface PasswordResetEmailData {
  */
 export async function sendEmail(options: EmailOptions): Promise<boolean> {
   try {
-    // Validate required environment variables
-    if (!process.env.RESEND_API_KEY) {
-      logger.error('RESEND_API_KEY is not configured');
+    const resend = getResendClient();
+    
+    // If Resend is not configured, log warning but don't crash
+    if (!resend) {
+      logger.warn('Email not sent - Resend not configured', {
+        to: options.to,
+        subject: options.subject
+      });
       return false;
     }
 
-    const resend = getResendClient();
+    // Validate FROM_EMAIL
+    if (!FROM_EMAIL || FROM_EMAIL === 'noreply@flipbook-drm.com') {
+      logger.warn('Using default FROM_EMAIL - configure RESEND_FROM_EMAIL for production', {
+        currentFrom: FROM_EMAIL
+      });
+    }
+
     const { data, error } = await resend.emails.send({
       from: `${APP_NAME} <${FROM_EMAIL}>`,
       to: options.to,
@@ -64,23 +80,40 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
     });
 
     if (error) {
-      logger.error('Email sending failed', { 
-        error: error.message,
-        to: options.to,
-        subject: options.subject 
-      });
+      // Handle specific Resend errors
+      if (error.message?.includes('403') || error.message?.includes('forbidden')) {
+        logger.error('Resend domain not verified - emails cannot be sent', { 
+          error: error.message,
+          from: FROM_EMAIL,
+          to: options.to,
+          hint: 'Use onboarding@resend.dev or verify your custom domain in Resend dashboard'
+        });
+      } else if (error.message?.includes('401') || error.message?.includes('unauthorized')) {
+        logger.error('Invalid Resend API key', { 
+          error: error.message,
+          hint: 'Check RESEND_API_KEY environment variable'
+        });
+      } else {
+        logger.error('Email sending failed', { 
+          error: error.message,
+          to: options.to,
+          subject: options.subject 
+        });
+      }
       return false;
     }
 
     logger.info('Email sent successfully', { 
       emailId: data?.id,
       to: options.to,
-      subject: options.subject 
+      subject: options.subject,
+      from: FROM_EMAIL
     });
     return true;
   } catch (error) {
     logger.error('Email service error', { 
       error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
       to: options.to 
     });
     return false;

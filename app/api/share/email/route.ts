@@ -7,8 +7,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { createEmailShareSchema } from '@/lib/validation/sharing'
-import { sanitizeNote } from '@/lib/sharing'
+import { sanitizeNote, formatShareUrl, getBaseUrl } from '@/lib/sharing'
 import { getDocumentById, createEmailShare, findUserByEmail } from '@/lib/documents'
+import { sendShareEmail } from '@/lib/email-share'
 import { prisma } from '@/lib/db'
 import { logger } from '@/lib/logger'
 
@@ -102,6 +103,27 @@ export async function POST(request: NextRequest) {
     })
 
     logger.info('Email share created', { shareId: emailShare.id, documentId, email })
+
+    // Send notification email (don't block on failure)
+    const baseUrl = getBaseUrl(request.headers)
+    const shareUrl = `${baseUrl}/inbox` // User will see the share in their inbox
+    
+    sendShareEmail({
+      recipientEmail: email,
+      recipientName: recipientUser?.name || undefined,
+      senderName: session.user.name || session.user.email || 'A user',
+      documentTitle: document.title,
+      shareUrl,
+      expiresAt: expirationDate,
+      note: sanitizedNote,
+      canDownload: canDownload ?? false
+    }).catch(err => {
+      // Log but don't fail the request if email fails
+      logger.warn('Failed to send share notification email', { 
+        error: err.message,
+        shareId: emailShare.id 
+      });
+    });
 
     return NextResponse.json(
       { success: true, shareId: emailShare.id },
