@@ -13,13 +13,13 @@ export default function LoginPage({
   const callbackUrl = params.callbackUrl;
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50 px-4 py-12">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 px-4 py-12">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
             FlipBook DRM
           </h1>
-          <p className="mt-2 text-gray-600">Welcome back</p>
+          <p className="mt-2 text-gray-600 dark:text-gray-300">Welcome back</p>
         </div>
 
         {showSignupMessage && (
@@ -42,17 +42,17 @@ export default function LoginPage({
 
         <Card className="shadow-xl">
           <CardHeader>
-            <h2 className="text-xl font-semibold text-gray-900">Login</h2>
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Login</h2>
           </CardHeader>
           <CardContent>
             <LoginForm />
             
             <div className="mt-6 text-center">
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
                 Don't have an account?{' '}
                 <Link 
                   href={callbackUrl ? `/register?callbackUrl=${encodeURIComponent(callbackUrl)}` : '/register'}
-                  className="text-blue-600 hover:text-blue-700 font-medium"
+                  className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium"
                 >
                   Create free account
                 </Link>

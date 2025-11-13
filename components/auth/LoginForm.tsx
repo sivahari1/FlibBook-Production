@@ -89,7 +89,7 @@ export const LoginForm: React.FC = () => {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {serverError && (
-        <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+        <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-400 text-sm">
           {serverError}
         </div>
       )}
@@ -126,7 +126,7 @@ export const LoginForm: React.FC = () => {
       <div className="flex items-center justify-end mb-4">
         <a 
           href="/forgot-password" 
-          className="text-sm text-blue-600 hover:text-blue-700 hover:underline"
+          className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 hover:underline"
         >
           Forgot Password?
         </a>
