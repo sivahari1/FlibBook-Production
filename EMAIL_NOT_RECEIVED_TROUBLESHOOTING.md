@@ -1,10 +1,17 @@
 # Email Not Received - Troubleshooting Guide
 
-## Issue
+## Issues
+
+### 1. Registration Email Not Received
 You registered successfully but didn't receive the verification email at `hodcsm@necg.ac.in`.
 
-## Most Likely Cause
-The Resend API key is not configured in your production environment (Vercel).
+### 2. Password Reset Error
+Getting error: "Failed to send password reset email. Please try again later."
+
+## Root Cause
+**The Resend API key is not configured in your production environment (Vercel).**
+
+Both issues are caused by the same problem - the email service cannot send emails without a valid API key.
 
 ## Quick Fix Steps
 
@@ -56,12 +63,16 @@ After adding the environment variables:
 
 ## Alternative: Resend Verification Email
 
-Since you already registered, you can resend the verification email:
+Since you already registered, you can resend the verification email **after configuring the API key**:
 
-1. Go to the login page
-2. Try to login with your credentials
-3. You'll be redirected to the verification pending page
-4. Click "Resend Verification Email"
+1. Configure the Resend API key in Vercel (see steps above)
+2. Redeploy the application
+3. Go to the login page
+4. Try to login with your credentials
+5. You'll be redirected to the verification pending page
+6. Click "Resend Verification Email"
+
+**Note:** The resend will also fail until you configure the API key!
 
 ## Check Vercel Logs
 
@@ -106,6 +117,17 @@ npm run test:email-delivery
 This will send test emails and show you if there are any configuration issues.
 
 ## Common Issues
+
+### Issue: "Failed to send password reset email"
+**Error Message:** "Failed to send password reset email. Please try again later."
+
+**Cause:** Resend API key is not configured.
+
+**Solution:** 
+1. Add `RESEND_API_KEY` to Vercel environment variables
+2. Redeploy the application
+3. Try the password reset again
+4. The email will be sent successfully
 
 ### Issue: "RESEND_API_KEY is not configured"
 **Solution:** Add the API key to Vercel environment variables and redeploy.
