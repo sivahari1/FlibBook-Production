@@ -22,7 +22,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning className="h-full">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <script
           dangerouslySetInnerHTML={{
@@ -40,7 +40,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className={`${inter.variable} font-sans antialiased h-full bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100`}>
+      <body className={`${inter.variable} font-sans antialiased`}>
         <ErrorBoundary>
           <SessionProvider>
             <ThemeProvider>
