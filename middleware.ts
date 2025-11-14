@@ -98,7 +98,8 @@ export async function middleware(request: NextRequest) {
     }
     
     // Check email verification status for authenticated users
-    if (token && !token.emailVerified && !isVerificationPath) {
+    // Only redirect if emailVerified is explicitly false (not just falsy)
+    if (token && token.emailVerified === false && !isVerificationPath) {
       // For API routes, return 403 with specific message
       if (pathname.startsWith('/api/')) {
         return NextResponse.json(

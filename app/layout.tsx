@@ -28,7 +28,7 @@ export default function RootLayout({
   }
 
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning className="h-full">
       <head>
         <script
           dangerouslySetInnerHTML={{
@@ -38,13 +38,15 @@ export default function RootLayout({
                   (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
                 if (theme === 'dark') {
                   document.documentElement.classList.add('dark');
+                } else {
+                  document.documentElement.classList.remove('dark');
                 }
               } catch (e) {}
             `,
           }}
         />
       </head>
-      <body className={`${inter.variable} font-sans antialiased`}>
+      <body className={`${inter.variable} font-sans antialiased h-full bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100`}>
         <ErrorBoundary>
           <SessionProvider>
             <ThemeProvider>

@@ -99,9 +99,9 @@ export const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({ token }) =
       setIsSuccess(true);
       showToast('success', 'Password reset successful! Redirecting to login...');
       
-      // Redirect to login after 2 seconds
+      // Redirect to login with success parameter after 2 seconds
       setTimeout(() => {
-        router.push('/login');
+        router.push('/login?reset=success');
       }, 2000);
     } catch (error) {
       const errorMsg = 'An unexpected error occurred. Please try again.';

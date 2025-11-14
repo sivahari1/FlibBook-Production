@@ -81,9 +81,14 @@ export async function POST(request: NextRequest) {
     const passwordHash = await hashPassword(password);
 
     // Update user password in database
+    // IMPORTANT: Only update passwordHash, do NOT modify emailVerified
     await prisma.user.update({
       where: { id: userId },
-      data: { passwordHash },
+      data: { 
+        passwordHash,
+        // Explicitly preserve emailVerified status
+        // Do not set emailVerified to null or false
+      },
     });
 
     // Invalidate the used reset token (Requirement 4.4)

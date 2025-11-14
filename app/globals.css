@@ -46,6 +46,18 @@ body {
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
+/* Ensure dark mode has distinct colors */
+.dark body {
+  background: #0f172a;
+  color: #f1f5f9;
+}
+
+/* Light mode explicit colors */
+body:not(.dark) {
+  background: #ffffff;
+  color: #0f172a;
+}
+
 /* Custom animations */
 @keyframes fadeIn {
   from {

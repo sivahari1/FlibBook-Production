@@ -87,8 +87,23 @@ export async function GET(
       logger.warn('Share access denied', {
         shareKey,
         userEmail: session.user.email,
+        restrictedEmail: shareLink.restrictToEmail,
         reason: accessValidation.error?.code
       });
+
+      // Provide specific error message for email mismatch
+      if (accessValidation.error?.code === 'EMAIL_MISMATCH' && shareLink.restrictToEmail) {
+        return NextResponse.json(
+          { 
+            error: {
+              code: 'EMAIL_MISMATCH',
+              message: `Access denied: This share is restricted to ${shareLink.restrictToEmail}. You are logged in as ${session.user.email}.`
+            },
+            requiresPassword: false
+          },
+          { status: 403 }
+        );
+      }
 
       return NextResponse.json(
         { 

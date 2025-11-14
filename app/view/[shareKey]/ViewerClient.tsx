@@ -109,10 +109,10 @@ export default function ViewerClient({ shareKey, userEmail }: ViewerClientProps)
   // Loading state
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-100">
+      <div className="flex items-center justify-center min-h-screen bg-gray-100 dark:bg-slate-900">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Validating share link...</p>
+          <p className="text-gray-600 dark:text-gray-300">Validating share link...</p>
         </div>
       </div>
     );
@@ -121,12 +121,12 @@ export default function ViewerClient({ shareKey, userEmail }: ViewerClientProps)
   // Error state
   if (error) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-100">
-        <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full mx-4 text-center">
-          <div className="text-red-600 text-6xl mb-4">⚠️</div>
-          <h2 className="text-2xl font-bold mb-2 text-gray-900">Access Denied</h2>
-          <p className="text-gray-600 mb-6">{error}</p>
-          <p className="text-sm text-gray-500">
+      <div className="flex items-center justify-center min-h-screen bg-gray-100 dark:bg-slate-900">
+        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-8 max-w-md w-full mx-4 text-center">
+          <div className="text-red-600 dark:text-red-400 text-6xl mb-4">⚠️</div>
+          <h2 className="text-2xl font-bold mb-2 text-gray-900 dark:text-white">Access Denied</h2>
+          <p className="text-gray-600 dark:text-gray-300 mb-6">{error}</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
             Please contact the document owner if you believe this is an error.
           </p>
         </div>
