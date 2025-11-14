@@ -5,7 +5,6 @@ import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { SessionProvider } from "@/components/providers/SessionProvider";
 import { ErrorBoundary } from "@/components/providers/ErrorBoundary";
 import { ToastProvider } from "@/components/ui/Toast";
-import { validateEnv } from "@/lib/env";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -22,11 +21,6 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // Validate environment variables on server side
-  if (typeof window === 'undefined') {
-    validateEnv();
-  }
-
   return (
     <html lang="en" suppressHydrationWarning className="h-full">
       <head>
