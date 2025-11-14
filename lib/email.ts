@@ -3,7 +3,7 @@ import { render } from '@react-email/render';
 import { logger } from './logger';
 
 // Email configuration
-const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
+const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'support@jstudyroom.dev';
 const APP_NAME = 'FlipBook DRM';
 
 // Lazy initialize Resend client
@@ -64,12 +64,12 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
       return false;
     }
 
-    // Validate FROM_EMAIL
-    if (!FROM_EMAIL || FROM_EMAIL === 'noreply@flipbook-drm.com') {
-      logger.warn('Using default FROM_EMAIL - configure RESEND_FROM_EMAIL for production', {
-        currentFrom: FROM_EMAIL
-      });
-    }
+    // Log FROM_EMAIL for debugging
+    logger.info('Sending email', {
+      from: FROM_EMAIL,
+      to: options.to,
+      subject: options.subject
+    });
 
     const { data, error } = await resend.emails.send({
       from: `${APP_NAME} <${FROM_EMAIL}>`,
@@ -86,7 +86,7 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
           error: error.message,
           from: FROM_EMAIL,
           to: options.to,
-          hint: 'Use onboarding@resend.dev or verify your custom domain in Resend dashboard'
+          hint: 'Verify your domain in Resend dashboard at https://resend.com/domains'
         });
       } else if (error.message?.includes('401') || error.message?.includes('unauthorized')) {
         logger.error('Invalid Resend API key', { 
@@ -97,7 +97,8 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
         logger.error('Email sending failed', { 
           error: error.message,
           to: options.to,
-          subject: options.subject 
+          subject: options.subject,
+          from: FROM_EMAIL
         });
       }
       return false;
