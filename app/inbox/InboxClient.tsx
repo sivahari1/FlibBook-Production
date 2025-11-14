@@ -36,6 +36,8 @@ export function InboxClient({ initialShares }: InboxClientProps) {
   const [sortField, setSortField] = useState<SortField>('createdAt');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [loadingShareId, setLoadingShareId] = useState<string | null>(null);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -61,9 +63,37 @@ export function InboxClient({ initialShares }: InboxClientProps) {
     }
   };
 
-  const handleViewDocument = (shareId: string, documentId: string) => {
-    // Navigate to the shared document viewer
-    router.push(`/view/${shareId}`);
+  const handleViewDocument = async (shareId: string, documentId: string) => {
+    setLoadingShareId(shareId);
+    setError(null);
+    
+    try {
+      // Create a temporary view session for this email share
+      const response = await fetch(`/api/share/email/${shareId}/view`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.viewUrl) {
+          // Redirect to the secure view URL
+          router.push(data.viewUrl);
+        } else {
+          setError('Failed to generate view URL');
+        }
+      } else {
+        const errorData = await response.json();
+        setError(errorData.error || 'Failed to access document');
+      }
+    } catch (err) {
+      setError('Failed to access document');
+      console.error('Error accessing shared document:', err);
+    } finally {
+      setLoadingShareId(null);
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -146,6 +176,28 @@ export function InboxClient({ initialShares }: InboxClientProps) {
 
   return (
     <div className="space-y-4">
+      {/* Error Message */}
+      {error && (
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+          <div className="flex">
+            <svg className="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+            </svg>
+            <div className="ml-3">
+              <p className="text-sm text-red-800 dark:text-red-200">{error}</p>
+            </div>
+            <button
+              onClick={() => setError(null)}
+              className="ml-auto text-red-500 hover:text-red-700"
+            >
+              <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Actions Bar */}
       <div className="flex justify-between items-center">
         <p className="text-sm text-gray-600 dark:text-gray-400">
@@ -336,8 +388,10 @@ export function InboxClient({ initialShares }: InboxClientProps) {
                         onClick={() =>
                           handleViewDocument(share.id, share.document.id)
                         }
+                        isLoading={loadingShareId === share.id}
+                        disabled={loadingShareId !== null}
                       >
-                        View
+                        {loadingShareId === share.id ? 'Loading...' : 'View'}
                       </Button>
                     </td>
                   </tr>
@@ -422,8 +476,10 @@ export function InboxClient({ initialShares }: InboxClientProps) {
                 onClick={() =>
                   handleViewDocument(share.id, share.document.id)
                 }
+                isLoading={loadingShareId === share.id}
+                disabled={loadingShareId !== null}
               >
-                View Document
+                {loadingShareId === share.id ? 'Loading...' : 'View Document'}
               </Button>
             </div>
           </Card>
