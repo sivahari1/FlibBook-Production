@@ -120,12 +120,29 @@ export default function ViewerClient({ shareKey, userEmail }: ViewerClientProps)
 
   // Error state
   if (error) {
+    const isRevokedError = error.toLowerCase().includes('revoked') || error.toLowerCase().includes('no longer available');
+    const isExpiredError = error.toLowerCase().includes('expired');
+    
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-100 dark:bg-slate-900">
         <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-8 max-w-md w-full mx-4 text-center">
-          <div className="text-red-600 dark:text-red-400 text-6xl mb-4">⚠️</div>
-          <h2 className="text-2xl font-bold mb-2 text-gray-900 dark:text-white">Access Denied</h2>
+          <div className="text-red-600 dark:text-red-400 text-6xl mb-4">
+            {isRevokedError ? '🚫' : isExpiredError ? '⏰' : '⚠️'}
+          </div>
+          <h2 className="text-2xl font-bold mb-2 text-gray-900 dark:text-white">
+            {isRevokedError ? 'Share Revoked' : isExpiredError ? 'Share Expired' : 'Access Denied'}
+          </h2>
           <p className="text-gray-600 dark:text-gray-300 mb-6">{error}</p>
+          {isRevokedError && (
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+              The document owner has revoked access to this document. It is no longer available for viewing.
+            </p>
+          )}
+          {isExpiredError && (
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+              This share link has expired. Please request a new share link from the document owner.
+            </p>
+          )}
           <p className="text-sm text-gray-500 dark:text-gray-400">
             Please contact the document owner if you believe this is an error.
           </p>

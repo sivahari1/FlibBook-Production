@@ -354,20 +354,52 @@ export async function revokeLinkShare(shareId: string, userId: string) {
 
 /**
  * Revoke an email share (delete)
+ * Also cleans up any temporary ShareLinks created for this email share
  */
 export async function revokeEmailShare(shareId: string, userId: string) {
-  // First verify ownership
+  // First verify ownership and get share details
   const share = await prisma.documentShare.findUnique({
     where: { id: shareId },
-    select: { sharedByUserId: true },
+    select: { 
+      sharedByUserId: true,
+      documentId: true,
+      sharedWithEmail: true,
+      sharedWithUser: {
+        select: { email: true }
+      }
+    },
   })
 
   if (!share || share.sharedByUserId !== userId) {
     return null
   }
 
-  return prisma.documentShare.delete({
-    where: { id: shareId },
+  // Get the recipient's email (either direct email or from user)
+  const recipientEmail = share.sharedWithEmail || share.sharedWithUser?.email
+
+  // Use a transaction to delete both the share and temporary links
+  return prisma.$transaction(async (tx) => {
+    // Delete the email share
+    const deletedShare = await tx.documentShare.delete({
+      where: { id: shareId },
+    })
+
+    // If there's a recipient email, deactivate any temporary ShareLinks created for viewing
+    if (recipientEmail) {
+      await tx.shareLink.updateMany({
+        where: {
+          documentId: share.documentId,
+          userId: userId,
+          restrictToEmail: recipientEmail.toLowerCase(),
+          isActive: true,
+        },
+        data: {
+          isActive: false,
+        },
+      })
+    }
+
+    return deletedShare
   })
 }
 
