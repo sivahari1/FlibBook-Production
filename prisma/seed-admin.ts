@@ -15,6 +15,7 @@ const prisma = new PrismaClient()
 
 const ADMIN_ACCOUNTS = [
   { email: 'sivaramj83@gmail.com', name: 'Admin' },
+  { email: 'jsrkrishna3@gmail.com', name: 'Admin' },
   { email: 'support@jstudyroom.dev', name: 'jstudyroom Support' }
 ]
 
