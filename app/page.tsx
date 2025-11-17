@@ -25,7 +25,12 @@ export default async function LandingPage() {
               <ThemeToggle />
               {session ? (
                 <Link
-                  href="/dashboard"
+                  href={
+                    session.user.userRole === 'ADMIN' ? '/admin' :
+                    session.user.userRole === 'MEMBER' ? '/member' :
+                    session.user.userRole === 'READER_USER' ? '/reader' :
+                    '/dashboard'
+                  }
                   className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-2 rounded-lg font-medium hover:shadow-lg transition-all duration-300 hover:scale-105"
                 >
                   Dashboard

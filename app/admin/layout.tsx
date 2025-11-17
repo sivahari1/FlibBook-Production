@@ -43,6 +43,12 @@ export default async function AdminLayout({
               </span>
             </div>
             <div className="flex items-center space-x-4">
+              <Link
+                href="/"
+                className="text-sm text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+              >
+                🏠 Home
+              </Link>
               <span className="text-sm text-gray-600 dark:text-gray-400">
                 {session.user.email}
               </span>
