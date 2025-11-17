@@ -72,7 +72,7 @@ describe('Email Delivery Tests', () => {
 
       expect(mockSend).toHaveBeenCalledWith(
         expect.objectContaining({
-          from: expect.stringContaining('flipbook-drm.com'),
+          from: expect.stringContaining('jstudyroom.dev'),
         })
       );
     });

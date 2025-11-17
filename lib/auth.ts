@@ -19,9 +19,34 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Email and password are required");
         }
 
+        // Rate limiting for login attempts
+        const { checkRateLimit, RATE_LIMITS } = await import('./rate-limit');
+        const rateLimitResult = checkRateLimit(
+          `login:${credentials.email}`,
+          RATE_LIMITS.LOGIN_ATTEMPT
+        );
+
+        if (!rateLimitResult.success) {
+          logger.logRateLimitViolation('login', credentials.email, {
+            retryAfter: rateLimitResult.retryAfter,
+          });
+          throw new Error(`Too many login attempts. Please try again in ${rateLimitResult.retryAfter} seconds.`);
+        }
+
         // Find user by email
         const user = await prisma.user.findUnique({
-          where: { email: credentials.email }
+          where: { email: credentials.email },
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            passwordHash: true,
+            subscription: true,
+            role: true,
+            userRole: true,
+            emailVerified: true,
+            isActive: true
+          }
         });
 
         if (!user) {
@@ -38,14 +63,21 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Invalid email or password");
         }
 
-        // Return user object for session (including emailVerified status)
+        // Check if user is active
+        if (!user.isActive) {
+          throw new Error("Account is inactive. Please contact support.");
+        }
+
+        // Return user object for session (including emailVerified status and userRole)
         return {
           id: user.id,
           email: user.email,
           name: user.name,
           subscription: user.subscription,
           role: user.role,
-          emailVerified: user.emailVerified
+          userRole: user.userRole,
+          emailVerified: user.emailVerified,
+          isActive: user.isActive
         };
       }
     })
@@ -81,17 +113,25 @@ export const authOptions: NextAuthOptions = {
         token.name = user.name;
         token.subscription = (user as any).subscription;
         token.role = (user as any).role;
+        token.userRole = (user as any).userRole;
         token.emailVerified = (user as any).emailVerified;
+        token.isActive = (user as any).isActive;
       }
       
-      // Refresh emailVerified status on update trigger
+      // Refresh emailVerified status and userRole on update trigger
       if (trigger === "update" && token.id) {
         const dbUser = await prisma.user.findUnique({
           where: { id: token.id as string },
-          select: { emailVerified: true }
+          select: { 
+            emailVerified: true,
+            userRole: true,
+            isActive: true
+          }
         });
         if (dbUser) {
           token.emailVerified = dbUser.emailVerified;
+          token.userRole = dbUser.userRole;
+          token.isActive = dbUser.isActive;
         }
       }
       
@@ -105,7 +145,9 @@ export const authOptions: NextAuthOptions = {
         session.user.name = token.name as string;
         session.user.subscription = token.subscription as string;
         session.user.role = token.role as string;
+        session.user.userRole = token.userRole as string;
         session.user.emailVerified = token.emailVerified as boolean;
+        session.user.isActive = token.isActive as boolean;
       }
       return session;
     },
@@ -117,7 +159,49 @@ export const authOptions: NextAuthOptions = {
           email: user.email 
         });
       }
+      
+      // Log role-based login for audit
+      if (user) {
+        logger.info('User login', {
+          userId: user.id,
+          email: user.email,
+          userRole: (user as any).userRole
+        });
+        
+        // Log audit event for admin logins
+        if ((user as any).userRole === 'ADMIN') {
+          // Import dynamically to avoid circular dependencies
+          import('./audit-log').then(({ logAuditEvent }) => {
+            logAuditEvent({
+              action: 'admin_login',
+              userId: user.id,
+              userEmail: user.email,
+              success: true,
+            }).catch(err => {
+              logger.error('Failed to log admin login audit event', err);
+            });
+          });
+        }
+      }
+      
       return true;
+    },
+    async redirect({ url, baseUrl }) {
+      // Handle role-based redirects after sign in
+      // If the URL is the base URL or login page, redirect based on role
+      if (url === baseUrl || url.startsWith(baseUrl + '/login')) {
+        // Get the user's role from the session (this is called after JWT callback)
+        // We'll use a query parameter approach or check the token
+        return baseUrl;
+      }
+      
+      // If there's a callbackUrl, use it
+      if (url.startsWith(baseUrl)) {
+        return url;
+      }
+      
+      // Default to base URL
+      return baseUrl;
     }
   },
   secret: process.env.NEXTAUTH_SECRET,

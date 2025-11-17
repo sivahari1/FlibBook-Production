@@ -46,6 +46,17 @@ export async function sendShareEmail(data: ShareEmailData): Promise<boolean> {
     const noteSection = note
       ? `\n\nMessage from ${senderName}:\n"${note}"\n`
       : '';
+    
+    // Determine if this is a link share with email restriction or an email share
+    const isInboxShare = shareUrl.includes('/inbox');
+    const loginInstructions = isInboxShare
+      ? 'You need to be logged in to view this document. If you don\'t have an account, you can register as a Member at jstudyroom.'
+      : 'You need to be logged in with this email address to view this document. Please ensure you sign in with the correct account.';
+    
+    // Registration URL for Members
+    const baseUrl = shareUrl.split('/view/')[0] || shareUrl.split('/inbox')[0];
+    const registerUrl = `${baseUrl}/register`;
+    const loginUrl = `${baseUrl}/login`;
 
     // HTML email
     const html = `
@@ -99,6 +110,37 @@ export async function sendShareEmail(data: ShareEmailData): Promise<boolean> {
       </ul>
     </div>
     
+    <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0; border-radius: 4px;">
+      <p style="margin: 0 0 10px 0; font-size: 14px; color: #856404;">
+        <strong>🔐 Access Requirements:</strong><br>
+        ${loginInstructions}
+      </p>
+    </div>
+    
+    <div style="background: #e3f2fd; padding: 15px; border-radius: 6px; margin: 20px 0;">
+      <p style="margin: 0 0 10px 0; font-size: 14px; color: #1976d2;">
+        <strong>📝 How to Access:</strong>
+      </p>
+      <ol style="margin: 0; padding-left: 20px; font-size: 14px; color: #555;">
+        <li>Click the "View Document" button above</li>
+        <li>If you're not logged in, you'll be redirected to the login page</li>
+        <li>Sign in with <strong>${recipientEmail}</strong> (the email this was sent to)</li>
+        <li>If you don't have an account yet, <a href="${registerUrl}" style="color: #667eea; text-decoration: none; font-weight: 600;">register as a Member</a> - it's free!</li>
+        <li>After logging in, you'll be automatically redirected to view the document</li>
+      </ol>
+    </div>
+    
+    <div style="text-align: center; margin: 20px 0;">
+      <p style="font-size: 14px; color: #666; margin-bottom: 10px;">Don't have an account?</p>
+      <a href="${registerUrl}" style="display: inline-block; background: #f3f4f6; color: #374151; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 14px; border: 1px solid #d1d5db;">
+        Register as a Member
+      </a>
+      <p style="font-size: 12px; color: #999; margin-top: 5px;">or</p>
+      <a href="${loginUrl}" style="display: inline-block; color: #667eea; text-decoration: none; font-weight: 600; font-size: 14px;">
+        Sign in to existing account
+      </a>
+    </div>
+    
     <p style="font-size: 14px; color: #666; margin-top: 30px;">
       If you have any questions, please contact ${senderName} directly.
     </p>
@@ -128,6 +170,20 @@ View the document: ${shareUrl}
 Share Details:
 - ${downloadText}
 - ${expiryText}
+
+🔐 Access Requirements:
+${loginInstructions}
+
+📝 How to Access:
+1. Click the link above to view the document
+2. If you're not logged in, you'll be redirected to the login page
+3. Sign in with ${recipientEmail} (the email this was sent to)
+4. If you don't have an account yet, register as a Member - it's free!
+5. After logging in, you'll be automatically redirected to view the document
+
+Don't have an account?
+Register: ${registerUrl}
+Sign in: ${loginUrl}
 
 If you have any questions, please contact ${senderName} directly.
 

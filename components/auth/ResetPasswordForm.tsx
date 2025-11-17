@@ -99,7 +99,8 @@ export const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({ token }) =
       setIsSuccess(true);
       showToast('success', 'Password reset successful! Redirecting to login...');
       
-      // Redirect to login with success parameter after 2 seconds
+      // Redirect to login with success parameter after 2 seconds (Requirement 14.4, 14.5)
+      // Do NOT redirect to verification page - go directly to login
       setTimeout(() => {
         router.push('/login?reset=success');
       }, 2000);
@@ -142,7 +143,7 @@ export const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({ token }) =
       <EmailSentMessage
         email=""
         title="Password Reset Successful"
-        message="Your password has been successfully reset. Redirecting to login..."
+        message="Your password has been successfully reset. You can now log in with your new password. Redirecting to login..."
       />
     );
   }

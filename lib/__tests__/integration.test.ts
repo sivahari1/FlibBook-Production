@@ -277,6 +277,94 @@ describe('Integration Tests - Email Verification and Password Reset', () => {
       expect(secondValidation.valid).toBe(false);
       expect(secondValidation.error).toBe('Invalid token');
     });
+
+    it('should maintain emailVerified status after password reset for verified users', async () => {
+      // Step 1: Set user as verified
+      await prisma.user.update({
+        where: { id: TEST_USER.id },
+        data: { 
+          emailVerified: true,
+          emailVerifiedAt: new Date(),
+        },
+      });
+
+      // Verify user is verified
+      const verifiedUser = await prisma.user.findUnique({
+        where: { id: TEST_USER.id },
+      });
+      expect(verifiedUser?.emailVerified).toBe(true);
+      expect(verifiedUser?.emailVerifiedAt).toBeDefined();
+
+      // Step 2: Generate password reset token
+      const { token } = await generateVerificationToken(
+        TEST_USER.id,
+        'PASSWORD_RESET'
+      );
+
+      // Step 3: Validate token
+      const validation = await validateToken(token, 'PASSWORD_RESET');
+      expect(validation.valid).toBe(true);
+
+      // Step 4: Reset password (simulating API behavior)
+      const newPasswordHash = await hash('NewSecurePassword123!', 10);
+      await prisma.user.update({
+        where: { id: TEST_USER.id },
+        data: { passwordHash: newPasswordHash },
+        // Explicitly NOT modifying emailVerified
+      });
+
+      // Step 5: Verify emailVerified status is maintained
+      const userAfterReset = await prisma.user.findUnique({
+        where: { id: TEST_USER.id },
+      });
+      expect(userAfterReset?.emailVerified).toBe(true);
+      expect(userAfterReset?.emailVerifiedAt).toBeDefined();
+      expect(userAfterReset?.passwordHash).toBe(newPasswordHash);
+    });
+
+    it('should maintain emailVerified status after password reset for unverified users', async () => {
+      // Step 1: Ensure user is unverified
+      await prisma.user.update({
+        where: { id: TEST_USER.id },
+        data: { 
+          emailVerified: false,
+          emailVerifiedAt: null,
+        },
+      });
+
+      // Verify user is unverified
+      const unverifiedUser = await prisma.user.findUnique({
+        where: { id: TEST_USER.id },
+      });
+      expect(unverifiedUser?.emailVerified).toBe(false);
+      expect(unverifiedUser?.emailVerifiedAt).toBeNull();
+
+      // Step 2: Generate password reset token
+      const { token } = await generateVerificationToken(
+        TEST_USER.id,
+        'PASSWORD_RESET'
+      );
+
+      // Step 3: Validate token
+      const validation = await validateToken(token, 'PASSWORD_RESET');
+      expect(validation.valid).toBe(true);
+
+      // Step 4: Reset password (simulating API behavior)
+      const newPasswordHash = await hash('NewSecurePassword456!', 10);
+      await prisma.user.update({
+        where: { id: TEST_USER.id },
+        data: { passwordHash: newPasswordHash },
+        // Explicitly NOT modifying emailVerified
+      });
+
+      // Step 5: Verify emailVerified status remains false (not changed to true)
+      const userAfterReset = await prisma.user.findUnique({
+        where: { id: TEST_USER.id },
+      });
+      expect(userAfterReset?.emailVerified).toBe(false);
+      expect(userAfterReset?.emailVerifiedAt).toBeNull();
+      expect(userAfterReset?.passwordHash).toBe(newPasswordHash);
+    });
   });
 
   describe('Token Type Isolation', () => {

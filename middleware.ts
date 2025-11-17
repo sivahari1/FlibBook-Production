@@ -68,8 +68,24 @@ export async function middleware(request: NextRequest) {
   }
   
   // Protected routes that require authentication
-  const protectedPaths = ['/dashboard', '/api/documents', '/api/analytics', '/api/subscription'];
+  const protectedPaths = ['/dashboard', '/api/documents', '/api/analytics', '/api/subscription', '/admin', '/api/admin', '/inbox', '/reader', '/member', '/api/member'];
   const isProtectedPath = protectedPaths.some(path => pathname.startsWith(path));
+  
+  // Admin-only routes
+  const adminPaths = ['/admin', '/api/admin'];
+  const isAdminPath = adminPaths.some(path => pathname.startsWith(path));
+  
+  // Platform User-only routes
+  const platformUserPaths = ['/dashboard', '/inbox'];
+  const isPlatformUserPath = platformUserPaths.some(path => pathname.startsWith(path));
+  
+  // Member-only routes
+  const memberPaths = ['/member', '/api/member'];
+  const isMemberPath = memberPaths.some(path => pathname.startsWith(path));
+  
+  // Reader-only routes
+  const readerPaths = ['/reader'];
+  const isReaderPath = readerPaths.some(path => pathname.startsWith(path));
   
   // Allow access to verification-related pages without email verification
   const verificationPaths = ['/verify-email', '/verify'];
@@ -95,6 +111,100 @@ export async function middleware(request: NextRequest) {
       const loginUrl = new URL('/login', request.url);
       loginUrl.searchParams.set('callbackUrl', pathname);
       return NextResponse.redirect(loginUrl);
+    }
+    
+    // Check if user is active
+    if (token && token.isActive === false) {
+      // For API routes, return 403
+      if (pathname.startsWith('/api/')) {
+        return NextResponse.json(
+          { error: 'Account is inactive. Please contact support.' },
+          { status: 403 }
+        );
+      }
+      
+      // For pages, redirect to login with error
+      const loginUrl = new URL('/login', request.url);
+      loginUrl.searchParams.set('error', 'inactive');
+      return NextResponse.redirect(loginUrl);
+    }
+    
+    // Check admin access for admin routes
+    if (isAdminPath && token.userRole !== 'ADMIN') {
+      // For API routes, return 403
+      if (pathname.startsWith('/api/')) {
+        return NextResponse.json(
+          { error: 'Forbidden - Admin access required' },
+          { status: 403 }
+        );
+      }
+      
+      // For pages, redirect to appropriate dashboard based on role
+      if (token.userRole === 'PLATFORM_USER') {
+        return NextResponse.redirect(new URL('/dashboard', request.url));
+      } else if (token.userRole === 'MEMBER') {
+        return NextResponse.redirect(new URL('/member', request.url));
+      } else if (token.userRole === 'READER_USER') {
+        return NextResponse.redirect(new URL('/reader', request.url));
+      } else {
+        return NextResponse.redirect(new URL('/login', request.url));
+      }
+    }
+    
+    // Check Platform User access for platform user routes
+    if (isPlatformUserPath && token.userRole !== 'PLATFORM_USER' && token.userRole !== 'ADMIN') {
+      // For API routes, return 403
+      if (pathname.startsWith('/api/')) {
+        return NextResponse.json(
+          { error: 'Forbidden - Platform User access required' },
+          { status: 403 }
+        );
+      }
+      
+      // For pages, redirect to appropriate dashboard based on role
+      if (token.userRole === 'MEMBER') {
+        return NextResponse.redirect(new URL('/member', request.url));
+      } else if (token.userRole === 'READER_USER') {
+        return NextResponse.redirect(new URL('/reader', request.url));
+      } else {
+        return NextResponse.redirect(new URL('/login', request.url));
+      }
+    }
+    
+    // Check Member access for member routes
+    if (isMemberPath && token.userRole !== 'MEMBER') {
+      // For API routes, return 403
+      if (pathname.startsWith('/api/')) {
+        return NextResponse.json(
+          { error: 'Forbidden - Member access required' },
+          { status: 403 }
+        );
+      }
+      
+      // For pages, redirect to appropriate dashboard based on role
+      if (token.userRole === 'ADMIN') {
+        return NextResponse.redirect(new URL('/admin', request.url));
+      } else if (token.userRole === 'PLATFORM_USER') {
+        return NextResponse.redirect(new URL('/dashboard', request.url));
+      } else if (token.userRole === 'READER_USER') {
+        return NextResponse.redirect(new URL('/reader', request.url));
+      } else {
+        return NextResponse.redirect(new URL('/login', request.url));
+      }
+    }
+    
+    // Check reader access for reader routes
+    if (isReaderPath && token.userRole !== 'READER_USER') {
+      // Redirect to appropriate dashboard based on role
+      if (token.userRole === 'ADMIN') {
+        return NextResponse.redirect(new URL('/admin', request.url));
+      } else if (token.userRole === 'PLATFORM_USER') {
+        return NextResponse.redirect(new URL('/dashboard', request.url));
+      } else if (token.userRole === 'MEMBER') {
+        return NextResponse.redirect(new URL('/member', request.url));
+      } else {
+        return NextResponse.redirect(new URL('/login', request.url));
+      }
     }
     
     // Check email verification status for authenticated users

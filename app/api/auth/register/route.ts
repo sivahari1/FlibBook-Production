@@ -5,43 +5,57 @@ import { sanitizeString, sanitizeEmail } from '@/lib/sanitization';
 import { logger } from '@/lib/logger';
 import { generateVerificationToken } from '@/lib/tokens';
 import { sendVerificationEmail } from '@/lib/email';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+import { memberRegistrationSchema } from '@/lib/validation/jstudyroom';
+import { ZodError } from 'zod';
+import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 export const runtime = 'nodejs'
 
 export async function POST(request: NextRequest) {
+  // Public registration is ENABLED for MEMBER role only
+  // Platform Users must request access through the admin approval process
   try {
     const body = await request.json();
-    const { name: nameRaw, email: emailRaw, password: passwordRaw } = body;
     
-    // Sanitize inputs
-    const name = sanitizeString(nameRaw);
-    const email = sanitizeEmail(emailRaw);
-    const password = passwordRaw; // Don't sanitize password, just validate length
-
-    // Validate required fields
-    if (!name || !email || !password) {
-      return NextResponse.json(
-        { error: 'Name, email, and password are required' },
-        { status: 400 }
-      );
+    // Validate and sanitize inputs using Zod schema
+    let validatedData;
+    try {
+      validatedData = memberRegistrationSchema.parse(body);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return NextResponse.json(
+          { error: error.issues[0].message },
+          { status: 400 }
+        );
+      }
+      throw error;
     }
 
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      return NextResponse.json(
-        { error: 'Invalid email format' },
-        { status: 400 }
-      );
-    }
+    const { name, email, password } = validatedData;
 
-    // Validate password length
-    if (password.length < 8) {
+    // Apply rate limiting per email
+    const rateLimitResult = checkRateLimit(
+      `registration:${email}`,
+      RATE_LIMITS.REGISTRATION
+    );
+
+    if (!rateLimitResult.success) {
+      logger.warn('Registration rate limit exceeded', { email });
       return NextResponse.json(
-        { error: 'Password must be at least 8 characters' },
-        { status: 400 }
+        { 
+          error: 'Too many registration attempts. Please try again later.',
+          retryAfter: rateLimitResult.retryAfter 
+        },
+        { 
+          status: 429,
+          headers: {
+            'Retry-After': rateLimitResult.retryAfter?.toString() || '3600'
+          }
+        }
       );
     }
 
@@ -60,15 +74,18 @@ export async function POST(request: NextRequest) {
     // Hash password with bcrypt (12 rounds)
     const hashedPassword = await hash(password, 12);
 
-    // Create user (unverified by default)
+    // Create user with MEMBER role (unverified by default)
     const user = await prisma.user.create({
       data: {
         name,
         email,
         passwordHash: hashedPassword,
+        userRole: 'MEMBER', // Explicitly set to MEMBER for self-registration
         subscription: 'free',
         storageUsed: 0,
         emailVerified: false, // Explicitly set to false
+        freeDocumentCount: 0, // Initialize document counts
+        paidDocumentCount: 0,
       },
     });
 

@@ -64,8 +64,25 @@ export const LoginForm: React.FC = () => {
 
       if (result?.ok) {
         showToast('success', 'Login successful! Redirecting...');
-        // Redirect to dashboard after successful login
-        router.push('/dashboard');
+        
+        // Get session to determine redirect based on role
+        const response = await fetch('/api/auth/session');
+        const session = await response.json();
+        
+        // Role-based redirect
+        if (session?.user?.userRole === 'ADMIN') {
+          router.push('/admin');
+        } else if (session?.user?.userRole === 'PLATFORM_USER') {
+          router.push('/dashboard');
+        } else if (session?.user?.userRole === 'MEMBER') {
+          router.push('/member');
+        } else if (session?.user?.userRole === 'READER_USER') {
+          router.push('/reader');
+        } else {
+          // Fallback to dashboard
+          router.push('/dashboard');
+        }
+        
         router.refresh();
       }
     } catch (error) {

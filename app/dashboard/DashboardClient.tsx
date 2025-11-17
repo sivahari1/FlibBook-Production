@@ -22,6 +22,7 @@ interface DashboardClientProps {
   storageUsed: string;
   storageLimit: string;
   storagePercentage: number;
+  userRole?: string;
 }
 
 export function DashboardClient({
@@ -32,8 +33,12 @@ export function DashboardClient({
   storageUsed,
   storageLimit,
   storagePercentage,
+  userRole,
 }: DashboardClientProps) {
   const router = useRouter();
+
+  // Check if user is a reader (should not see this page, but handle gracefully)
+  const isReader = userRole === 'READER_USER';
 
   const handleDocumentsChange = () => {
     router.refresh();
@@ -58,6 +63,24 @@ export function DashboardClient({
 
   return (
     <div className="space-y-6">
+      {/* Reader User Message */}
+      {isReader && (
+        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-6">
+          <h2 className="text-xl font-semibold text-yellow-900 dark:text-yellow-100 mb-2">
+            Reader Account
+          </h2>
+          <p className="text-yellow-700 dark:text-yellow-300 mb-4">
+            Your account is configured as a Reader. You can view documents shared with you, but cannot upload or manage documents.
+          </p>
+          <Link
+            href="/reader"
+            className="inline-flex items-center px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg transition-colors"
+          >
+            Go to Reader Dashboard
+          </Link>
+        </div>
+      )}
+
       {/* Header Section */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -66,7 +89,7 @@ export function DashboardClient({
             Manage and share your PDF documents securely
           </p>
         </div>
-        <UploadButton onUploadSuccess={handleDocumentsChange} />
+        {!isReader && <UploadButton onUploadSuccess={handleDocumentsChange} />}
       </div>
 
       {/* Storage and Subscription Info */}

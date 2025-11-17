@@ -66,7 +66,7 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
             <div className="flex items-center space-x-3 mb-3">
               <div className="flex-shrink-0">
                 <svg
-                  className="w-10 h-10 text-red-500"
+                  className="w-10 h-10 text-red-500 dark:text-red-400"
                   fill="currentColor"
                   viewBox="0 0 20 20"
                 >
@@ -78,15 +78,15 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
                 </svg>
               </div>
               <div className="flex-1 min-w-0">
-                <h3 className="text-lg font-semibold text-gray-900 truncate">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white truncate">
                   {document.title}
                 </h3>
-                <p className="text-sm text-gray-500 truncate">{document.filename}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{document.filename}</p>
               </div>
             </div>
 
             {/* Document Metadata */}
-            <div className="flex items-center space-x-4 text-sm text-gray-600 mb-4">
+            <div className="flex items-center space-x-4 text-sm text-gray-600 dark:text-gray-400 mb-4">
               <div className="flex items-center">
                 <svg
                   className="w-4 h-4 mr-1"

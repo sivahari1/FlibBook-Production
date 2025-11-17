@@ -76,6 +76,32 @@ export async function GET(
     const passwordCookieName = getPasswordCookieName(shareKey);
     const hasValidPasswordCookie = cookieStore.has(passwordCookieName);
 
+    // Requirement 12.4: Check if user's email matches the share recipient email
+    if (shareLink.restrictToEmail) {
+      const userEmail = session.user.email.toLowerCase()
+      const restrictedEmail = shareLink.restrictToEmail.toLowerCase()
+
+      if (userEmail !== restrictedEmail) {
+        // Requirement 12.5: Display "Access Denied" for email mismatch
+        logger.warn('Share access denied - email mismatch', {
+          shareKey,
+          userEmail: session.user.email,
+          restrictedEmail: shareLink.restrictToEmail
+        });
+
+        return NextResponse.json(
+          { 
+            error: {
+              code: 'EMAIL_MISMATCH',
+              message: 'Access Denied - This document was shared with a different email address'
+            },
+            requiresPassword: false
+          },
+          { status: 403 }
+        );
+      }
+    }
+
     // Validate access using utility function
     const accessValidation = canAccessLinkShare(
       shareLink,
@@ -90,20 +116,6 @@ export async function GET(
         restrictedEmail: shareLink.restrictToEmail,
         reason: accessValidation.error?.code
       });
-
-      // Provide specific error message for email mismatch
-      if (accessValidation.error?.code === 'EMAIL_MISMATCH' && shareLink.restrictToEmail) {
-        return NextResponse.json(
-          { 
-            error: {
-              code: 'EMAIL_MISMATCH',
-              message: `Access denied: This share is restricted to ${shareLink.restrictToEmail}. You are logged in as ${session.user.email}.`
-            },
-            requiresPassword: false
-          },
-          { status: 403 }
-        );
-      }
 
       return NextResponse.json(
         { 

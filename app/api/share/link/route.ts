@@ -10,6 +10,7 @@ import { createLinkShareSchema } from '@/lib/validation/sharing'
 import { generateShareKey, hashPassword, getBaseUrl, formatShareUrl } from '@/lib/sharing'
 import { getDocumentById, createLinkShare } from '@/lib/documents'
 import { logger } from '@/lib/logger'
+import { requirePlatformUser } from '@/lib/role-check'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -17,6 +18,10 @@ export const runtime = 'nodejs'
 
 export async function POST(request: NextRequest) {
   try {
+    // Verify authentication and role (PLATFORM_USER or ADMIN only)
+    const roleCheck = await requirePlatformUser()
+    if (roleCheck) return roleCheck
+
     const session = await getServerSession(authOptions)
     if (!session?.user?.id) {
       return NextResponse.json(

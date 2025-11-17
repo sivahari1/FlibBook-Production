@@ -101,20 +101,20 @@ export function VerifyClient({ token }: VerifyClientProps) {
   // Verifying state
   if (state.status === 'verifying') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50 px-4 py-12">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 px-4 py-12">
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              FlipBook DRM
+              jstudyroom
             </h1>
-            <p className="mt-2 text-gray-600">Verifying your email</p>
+            <p className="mt-2 text-gray-600 dark:text-gray-300">Verifying your email</p>
           </div>
 
           <Card className="shadow-xl">
             <CardContent className="pt-6">
               <div className="flex flex-col items-center justify-center space-y-4">
-                <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
-                <p className="text-gray-600">Verifying your email address...</p>
+                <div className="w-16 h-16 border-4 border-blue-200 dark:border-blue-800 border-t-blue-600 dark:border-t-blue-400 rounded-full animate-spin"></div>
+                <p className="text-gray-600 dark:text-gray-400">Verifying your email address...</p>
               </div>
             </CardContent>
           </Card>
@@ -126,21 +126,21 @@ export function VerifyClient({ token }: VerifyClientProps) {
   // Success state
   if (state.status === 'success') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50 px-4 py-12">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 px-4 py-12">
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              FlipBook DRM
+              jstudyroom
             </h1>
-            <p className="mt-2 text-gray-600">Email Verified</p>
+            <p className="mt-2 text-gray-600 dark:text-gray-300">Email Verified</p>
           </div>
 
           <Card className="shadow-xl">
             <CardHeader>
               <div className="flex items-center justify-center mb-4">
-                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
+                <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
                   <svg 
-                    className="w-8 h-8 text-green-600" 
+                    className="w-8 h-8 text-green-600 dark:text-green-400" 
                     fill="none" 
                     stroke="currentColor" 
                     viewBox="0 0 24 24"
@@ -154,30 +154,30 @@ export function VerifyClient({ token }: VerifyClientProps) {
                   </svg>
                 </div>
               </div>
-              <h2 className="text-xl font-semibold text-gray-900 text-center">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 text-center">
                 Email Verified Successfully!
               </h2>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                <div className="bg-green-50 border-l-4 border-green-500 p-4 rounded-r-lg">
-                  <p className="text-sm text-green-900">
+                <div className="bg-green-50 dark:bg-green-900/20 border-l-4 border-green-500 p-4 rounded-r-lg">
+                  <p className="text-sm text-green-900 dark:text-green-100">
                     {state.message}
                   </p>
                 </div>
 
-                <div className="text-sm text-gray-600 text-center">
-                  <p>Redirecting you to the dashboard...</p>
+                <div className="text-sm text-gray-600 dark:text-gray-400 text-center">
+                  <p>Redirecting you to login...</p>
                 </div>
 
                 <div className="pt-4">
                   <Button
-                    onClick={() => router.push('/dashboard')}
+                    onClick={() => router.push('/login')}
                     variant="primary"
                     size="lg"
                     className="w-full"
                   >
-                    Go to Dashboard
+                    Go to Login
                   </Button>
                 </div>
               </div>
@@ -190,21 +190,21 @@ export function VerifyClient({ token }: VerifyClientProps) {
 
   // Error state
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50 px-4 py-12">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 px-4 py-12">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-            FlipBook DRM
+            jstudyroom
           </h1>
-          <p className="mt-2 text-gray-600">Email Verification</p>
+          <p className="mt-2 text-gray-600 dark:text-gray-300">Email Verification</p>
         </div>
 
         <Card className="shadow-xl">
           <CardHeader>
             <div className="flex items-center justify-center mb-4">
-              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
+              <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center">
                 <svg 
-                  className="w-8 h-8 text-red-600" 
+                  className="w-8 h-8 text-red-600 dark:text-red-400" 
                   fill="none" 
                   stroke="currentColor" 
                   viewBox="0 0 24 24"
@@ -218,26 +218,26 @@ export function VerifyClient({ token }: VerifyClientProps) {
                 </svg>
               </div>
             </div>
-            <h2 className="text-xl font-semibold text-gray-900 text-center">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 text-center">
               Verification Failed
             </h2>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-lg">
-                <p className="text-sm font-semibold text-red-900 mb-1">
+              <div className="bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 p-4 rounded-r-lg">
+                <p className="text-sm font-semibold text-red-900 dark:text-red-100 mb-1">
                   {state.code === 'TOKEN_EXPIRED' && 'Link Expired'}
                   {state.code === 'INVALID_TOKEN' && 'Invalid Link'}
                   {state.code === 'MISSING_TOKEN' && 'Missing Token'}
                   {!['TOKEN_EXPIRED', 'INVALID_TOKEN', 'MISSING_TOKEN'].includes(state.code) && 'Verification Error'}
                 </p>
-                <p className="text-sm text-red-800">
+                <p className="text-sm text-red-800 dark:text-red-200">
                   {state.message}
                 </p>
               </div>
 
               {state.code === 'TOKEN_EXPIRED' && (
-                <div className="text-sm text-gray-600">
+                <div className="text-sm text-gray-600 dark:text-gray-400">
                   <p>
                     Your verification link has expired. Verification links are valid for 24 hours.
                   </p>
@@ -248,7 +248,7 @@ export function VerifyClient({ token }: VerifyClientProps) {
               )}
 
               {state.code === 'INVALID_TOKEN' && (
-                <div className="text-sm text-gray-600">
+                <div className="text-sm text-gray-600 dark:text-gray-400">
                   <p>
                     The verification link is invalid or has already been used.
                   </p>
@@ -259,7 +259,7 @@ export function VerifyClient({ token }: VerifyClientProps) {
               )}
 
               {state.code === 'MISSING_TOKEN' && (
-                <div className="text-sm text-gray-600">
+                <div className="text-sm text-gray-600 dark:text-gray-400">
                   <p>
                     The verification link appears to be incomplete.
                   </p>
@@ -273,8 +273,8 @@ export function VerifyClient({ token }: VerifyClientProps) {
                 <div 
                   className={`p-3 rounded-lg text-sm ${
                     resendMessage.type === 'success' 
-                      ? 'bg-green-50 border border-green-200 text-green-700' 
-                      : 'bg-red-50 border border-red-200 text-red-700'
+                      ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-300' 
+                      : 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300'
                   }`}
                 >
                   {resendMessage.text}
@@ -304,8 +304,8 @@ export function VerifyClient({ token }: VerifyClientProps) {
                 </Button>
               </div>
 
-              <div className="pt-4 border-t border-gray-200">
-                <p className="text-xs text-gray-500 text-center">
+              <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
                   Need help? Contact support for assistance.
                 </p>
               </div>

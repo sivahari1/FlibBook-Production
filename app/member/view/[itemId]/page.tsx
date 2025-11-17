@@ -1,0 +1,52 @@
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+import { redirect } from 'next/navigation';
+import { prisma } from '@/lib/db';
+import { MyJstudyroomViewerClient } from '@/app/member/view/[itemId]/MyJstudyroomViewerClient';
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+export default async function MyJstudyroomViewerPage({
+  params,
+}: {
+  params: Promise<{ itemId: string }>;
+}) {
+  const session = await getServerSession(authOptions);
+  const { itemId } = await params;
+
+  if (!session?.user) {
+    redirect('/login');
+  }
+
+  if (session.user.userRole !== 'MEMBER') {
+    redirect('/dashboard');
+  }
+
+  // Verify the item belongs to the user
+  const item = await prisma.myJstudyroomItem.findUnique({
+    where: { id: itemId },
+    include: {
+      bookShopItem: {
+        include: {
+          document: true,
+        },
+      },
+    },
+  });
+
+  if (!item) {
+    redirect('/member/my-jstudyroom');
+  }
+
+  if (item.userId !== session.user.id) {
+    redirect('/member/my-jstudyroom');
+  }
+
+  return (
+    <MyJstudyroomViewerClient
+      document={item.bookShopItem.document}
+      bookShopTitle={item.bookShopItem.title}
+    />
+  );
+}

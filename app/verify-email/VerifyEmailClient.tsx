@@ -89,21 +89,21 @@ export function VerifyEmailClient({ email }: VerifyEmailClientProps) {
   }, [update, router]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50 px-4 py-12">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 px-4 py-12">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-            FlipBook DRM
+            jstudyroom
           </h1>
-          <p className="mt-2 text-gray-600">Email Verification Required</p>
+          <p className="mt-2 text-gray-600 dark:text-gray-300">Email Verification Required</p>
         </div>
 
         <Card className="shadow-xl">
           <CardHeader>
             <div className="flex items-center justify-center mb-4">
-              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
+              <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
                 <svg 
-                  className="w-8 h-8 text-blue-600" 
+                  className="w-8 h-8 text-blue-600 dark:text-blue-400" 
                   fill="none" 
                   stroke="currentColor" 
                   viewBox="0 0 24 24"
@@ -117,26 +117,26 @@ export function VerifyEmailClient({ email }: VerifyEmailClientProps) {
                 </svg>
               </div>
             </div>
-            <h2 className="text-xl font-semibold text-gray-900 text-center">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 text-center">
               Verify Your Email
             </h2>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r-lg">
-                <p className="text-sm text-blue-900">
+              <div className="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500 p-4 rounded-r-lg">
+                <p className="text-sm text-blue-900 dark:text-blue-100">
                   We've sent a verification email to:
                 </p>
-                <p className="text-sm font-semibold text-blue-900 mt-1">
+                <p className="text-sm font-semibold text-blue-900 dark:text-blue-100 mt-1">
                   {email}
                 </p>
               </div>
 
-              <div className="text-sm text-gray-600 space-y-2">
+              <div className="text-sm text-gray-600 dark:text-gray-400 space-y-2">
                 <p>
                   Please check your inbox and click the verification link to activate your account.
                 </p>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-gray-500 dark:text-gray-500">
                   Don't forget to check your spam folder if you don't see the email.
                 </p>
               </div>
@@ -145,8 +145,8 @@ export function VerifyEmailClient({ email }: VerifyEmailClientProps) {
                 <div 
                   className={`p-3 rounded-lg text-sm ${
                     message.type === 'success' 
-                      ? 'bg-green-50 border border-green-200 text-green-700' 
-                      : 'bg-red-50 border border-red-200 text-red-700'
+                      ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-300' 
+                      : 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300'
                   }`}
                 >
                   {message.text}
@@ -178,8 +178,8 @@ export function VerifyEmailClient({ email }: VerifyEmailClientProps) {
                 </Button>
               </div>
 
-              <div className="pt-4 border-t border-gray-200">
-                <p className="text-xs text-gray-500 text-center">
+              <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
                   This page will automatically redirect once your email is verified.
                 </p>
               </div>

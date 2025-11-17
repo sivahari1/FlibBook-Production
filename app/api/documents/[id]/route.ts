@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db'
 import { getDocumentById } from '@/lib/documents'
 import { deleteFile } from '@/lib/storage'
 import { logger } from '@/lib/logger'
+import { requirePlatformUser } from '@/lib/role-check'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -75,7 +76,10 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // Verify authentication
+    // Verify authentication and role (PLATFORM_USER or ADMIN only)
+    const roleCheck = await requirePlatformUser()
+    if (roleCheck) return roleCheck
+
     const session = await getServerSession(authOptions)
     if (!session?.user?.id) {
       return NextResponse.json(

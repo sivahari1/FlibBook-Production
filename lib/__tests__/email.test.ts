@@ -30,7 +30,14 @@ vi.mock('../logger', () => ({
 }));
 
 // Import after mocks are set up
-const { sendEmail, sendVerificationEmail, sendPasswordResetEmail } = await import('../email');
+const { 
+  sendEmail, 
+  sendVerificationEmail, 
+  sendPasswordResetEmail,
+  sendPurchaseConfirmationEmail,
+  sendUserApprovalEmail,
+  sendPasswordResetByAdmin
+} = await import('../email');
 
 describe('Email Service', () => {
   beforeEach(() => {
@@ -139,6 +146,120 @@ describe('Email Service', () => {
       });
 
       expect(result).toBe(false);
+    });
+  });
+
+  describe('sendPurchaseConfirmationEmail', () => {
+    it('should send purchase confirmation email successfully', async () => {
+      const result = await sendPurchaseConfirmationEmail({
+        email: 'member@example.com',
+        name: 'Test Member',
+        documentTitle: 'Advanced Mathematics',
+        category: 'Education',
+        price: 29900, // ₹299.00 in paise
+        myJstudyroomUrl: 'https://example.com/member/my-jstudyroom',
+        viewDocumentUrl: 'https://example.com/member/view/doc123',
+      });
+
+      expect(result).toBe(true);
+      expect(mockSend).toHaveBeenCalledWith(
+        expect.objectContaining({
+          to: 'member@example.com',
+          subject: 'Purchase confirmed: Advanced Mathematics',
+        })
+      );
+    });
+
+    it('should format price correctly in email', async () => {
+      await sendPurchaseConfirmationEmail({
+        email: 'member@example.com',
+        documentTitle: 'Test Document',
+        category: 'Test',
+        price: 10050, // ₹100.50 in paise
+        myJstudyroomUrl: 'https://example.com/member/my-jstudyroom',
+        viewDocumentUrl: 'https://example.com/member/view/doc123',
+      });
+
+      const callArgs = mockSend.mock.calls[0][0];
+      expect(callArgs.html).toContain('₹100.50');
+      expect(callArgs.text).toContain('₹100.50');
+    });
+
+    it('should handle errors gracefully', async () => {
+      mockSend.mockResolvedValueOnce({
+        data: null,
+        error: { message: 'Email sending failed', name: 'Error' },
+      });
+
+      const result = await sendPurchaseConfirmationEmail({
+        email: 'member@example.com',
+        documentTitle: 'Test Document',
+        category: 'Test',
+        price: 29900,
+        myJstudyroomUrl: 'https://example.com/member/my-jstudyroom',
+        viewDocumentUrl: 'https://example.com/member/view/doc123',
+      });
+
+      expect(result).toBe(false);
+    });
+  });
+
+  describe('sendUserApprovalEmail', () => {
+    it('should send user approval email successfully', async () => {
+      const result = await sendUserApprovalEmail({
+        email: 'newuser@example.com',
+        name: 'New User',
+        password: 'TempPass123!',
+        userRole: 'PLATFORM_USER',
+        pricePlan: 'Basic',
+        loginUrl: 'https://example.com/login',
+      });
+
+      expect(result).toBe(true);
+      expect(mockSend).toHaveBeenCalledWith(
+        expect.objectContaining({
+          to: 'newuser@example.com',
+          subject: 'Your jstudyroom FlipBook DRM access is approved',
+        })
+      );
+    });
+  });
+
+  describe('sendPasswordResetByAdmin', () => {
+    it('should send password reset by admin email successfully', async () => {
+      const result = await sendPasswordResetByAdmin({
+        email: 'user@example.com',
+        name: 'Test User',
+        newPassword: 'NewPass123!',
+        loginUrl: 'https://example.com/login',
+      });
+
+      expect(result).toBe(true);
+      expect(mockSend).toHaveBeenCalledWith(
+        expect.objectContaining({
+          to: 'user@example.com',
+          subject: 'Your jstudyroom password has been reset',
+        })
+      );
+    });
+  });
+
+  describe('Email FROM address', () => {
+    it('should use support@jstudyroom.dev as FROM address', async () => {
+      process.env.RESEND_FROM_EMAIL = 'support@jstudyroom.dev';
+
+      await sendEmail({
+        to: 'user@example.com',
+        subject: 'Test',
+        html: '<p>Test</p>',
+        text: 'Test',
+      });
+
+      expect(mockSend).toHaveBeenCalledWith(
+        expect.objectContaining({
+          from: 'FlipBook DRM <support@jstudyroom.dev>',
+        })
+      );
     });
   });
 });

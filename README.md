@@ -1,20 +1,52 @@
-# FlipBook DRM - Production Ready Application
+# jstudyroom Platform
 
-A secure PDF sharing platform with DRM protection, watermarking, analytics, and subscription management.
+A comprehensive document sharing and management platform with DRM protection, member self-registration, curated Book Shop, and personal virtual bookshelf system.
+
+## Access Model
+
+The jstudyroom platform supports two access models:
+
+1. **Member Self-Registration** - Public users can register as Members to access shared documents and the Book Shop
+2. **Admin-Managed Access** - Platform Users require admin approval for document upload and sharing capabilities
+
+### User Roles
+
+- **👑 Admin** - Full platform control, manages users, access requests, and Book Shop
+- **📤 Platform User** - Can upload, manage, and share protected documents (admin-approved)
+- **📚 Member** - Can self-register, access shared documents, browse Book Shop, and maintain personal bookshelf (My jstudyroom)
 
 ## Features
 
-- 🔐 **Secure Authentication** - User registration and login with NextAuth
-- ✉️ **Email Verification** - Verify email addresses during registration
-- 🔑 **Password Reset** - Secure password recovery via email
+### Member Features
+- 📚 **Self-Registration** - Public registration with email verification
+- 📖 **My jstudyroom** - Personal virtual bookshelf (max 10 documents: 5 free + 5 paid)
+- 🛒 **Book Shop** - Browse curated catalog of documents by category
+- 💳 **Secure Payments** - Purchase paid documents via Razorpay integration
+- 📥 **Files Shared With Me** - Access documents shared by Platform Users
+- 🔐 **Email-Based Access Control** - Secure access to shared documents
+
+### Platform User Features
 - 📄 **PDF Upload & Management** - Upload and organize PDF documents
 - 🔗 **Advanced Sharing** - Link shares and email shares with access controls
 - 📥 **Inbox System** - View all documents shared with you
 - 💧 **Dynamic Watermarking** - Automatic watermarks with viewer information
 - 📊 **View Analytics** - Track who viewed your documents and when
 - 🛡️ **DRM Protection** - Prevent unauthorized copying and downloading
-- 💳 **Subscription Plans** - Free, Pro, and Enterprise tiers with Razorpay
+
+### Admin Features
+- 🎛️ **Admin Dashboard** - Comprehensive user and access request management
+- 📧 **Access Request System** - Approve Platform User access requests
+- 🛒 **Book Shop Management** - Create and manage catalog items with categories
+- 👥 **Member Management** - View Members, purchase history, and My jstudyroom contents
+- 💰 **Payment Tracking** - Monitor all transactions and payment status
+- 🔑 **Password Management** - Admin-controlled password generation and reset
+- ✉️ **Email Notifications** - Automated emails for all platform events
+
+### Platform Features
+- 🌓 **Dark Mode** - Full theme support with light/dark toggle
 - 🚀 **Production Ready** - Built for deployment on Vercel with Supabase
+- 🔒 **Security First** - Role-based access control, input validation, rate limiting
+- 📧 **Email Service** - Resend integration for all transactional emails
 
 ## Tech Stack
 
@@ -33,6 +65,7 @@ A secure PDF sharing platform with DRM protection, watermarking, analytics, and 
 - Node.js 18+ installed
 - A Supabase account (free tier works)
 - A Razorpay account (for payments)
+- Admin email: sivaramj83@gmail.com
 
 ### Installation
 
@@ -54,14 +87,17 @@ npm install
    - Get your API key from the dashboard
    - Add and verify your domain (or use Resend's test domain for development)
    - Configure DNS records (SPF, DKIM, DMARC) for production
+   - Use support@jstudyroom.dev as the FROM address
    - See detailed setup in the "Email Service Setup" section below
 
 4. **Configure environment variables**:
    - Copy `.env.example` to `.env.local`
    - Update all values with your Supabase credentials
-   - Add your Resend API key and from email address
+   - Add your Resend API key: `RESEND_API_KEY`
+   - Set from email: `RESEND_FROM_EMAIL=support@jstudyroom.dev`
    - Generate a NextAuth secret: `openssl rand -base64 32`
    - Generate a cron secret: `openssl rand -hex 32`
+   - **Set admin password**: `ADMIN_SEED_PASSWORD=your_secure_password`
    - Add your Razorpay keys
 
 5. **Set up the database**:
@@ -70,44 +106,96 @@ npx prisma generate
 npx prisma db push
 ```
 
-6. **Mark existing users as verified** (if migrating):
+6. **Create admin account**:
 ```bash
-npx tsx prisma/mark-existing-users-verified.ts
+npx tsx prisma/seed-admin.ts
 ```
 
-7. **Run the development server**:
+7. **Update existing users** (if migrating):
+```bash
+npx tsx prisma/update-existing-users.ts
+```
+
+8. **Run the development server**:
 ```bash
 npm run dev
 ```
 
-8. **Open your browser**:
-   - Visit `http://localhost:3000`
-   - Register a new account
-   - Check your email for verification link
-   - Start uploading and sharing PDFs!
+9. **Access the platform**:
+   - Visit `http://localhost:3000` - Landing page with access request form
+   - Login as admin at `/login` with sivaramj83@gmail.com
+   - Access admin dashboard at `/admin`
+   - Review and approve access requests
+   - Create user accounts with appropriate roles
 
 ## Project Structure
 
 ```
-flipbook-production/
+jstudyroom-platform/
 ├── app/                    # Next.js App Router pages
 │   ├── api/               # API routes
-│   ├── auth/              # Authentication pages
-│   ├── dashboard/         # User dashboard
+│   │   ├── access-request/    # Public access request endpoint
+│   │   ├── admin/             # Admin-only API endpoints
+│   │   │   ├── bookshop/      # Book Shop management
+│   │   │   ├── members/       # Member management
+│   │   │   └── payments/      # Payment tracking
+│   │   ├── auth/              # Authentication endpoints
+│   │   ├── bookshop/          # Public Book Shop catalog
+│   │   ├── member/            # Member-only endpoints
+│   │   │   ├── shared/        # Files shared with member
+│   │   │   └── my-jstudyroom/ # Personal bookshelf
+│   │   ├── payment/           # Razorpay payment endpoints
+│   │   └── ...
+│   ├── (auth)/            # Authentication pages (login, register)
+│   ├── admin/             # Admin dashboard (ADMIN role only)
+│   │   ├── bookshop/      # Book Shop management
+│   │   ├── members/       # Member management
+│   │   └── payments/      # Payment tracking
+│   ├── dashboard/         # Platform user dashboard
+│   ├── member/            # Member dashboard (MEMBER role only)
+│   │   ├── bookshop/      # Book Shop catalog
+│   │   ├── my-jstudyroom/ # Personal bookshelf
+│   │   └── shared/        # Files shared with me
+│   ├── inbox/             # Shared documents inbox
 │   ├── view/              # Public document viewer
-│   └── page.tsx           # Landing page
+│   └── page.tsx           # Public landing page
 ├── components/            # React components
+│   ├── admin/            # Admin dashboard components
+│   │   ├── BookShopTable.tsx
+│   │   ├── BookShopItemForm.tsx
+│   │   ├── MembersTable.tsx
+│   │   └── MemberDetails.tsx
+│   ├── member/           # Member dashboard components
+│   │   ├── BookShop.tsx
+│   │   ├── BookShopItemCard.tsx
+│   │   ├── MyJstudyroom.tsx
+│   │   ├── FilesSharedWithMe.tsx
+│   │   └── PaymentModal.tsx
+│   ├── landing/          # Landing page components
 │   ├── auth/             # Authentication components
 │   ├── pdf/              # PDF viewer components
 │   ├── security/         # DRM protection components
+│   ├── theme/            # Theme provider and toggle
 │   ├── ui/               # UI components
 │   └── layout/           # Layout components
 ├── lib/                   # Utility functions
 │   ├── db.ts             # Database connection
-│   ├── auth.ts           # NextAuth configuration
+│   ├── auth.ts           # NextAuth with role-based auth
+│   ├── role-check.ts     # Role verification utilities
+│   ├── audit-log.ts      # Admin action logging
+│   ├── my-jstudyroom.ts  # My jstudyroom business logic
+│   ├── password-generator.ts  # Secure password generation
+│   ├── email.ts          # Email service (Resend)
 │   └── storage.ts        # Supabase Storage utilities
 ├── prisma/               # Database schema
-│   └── schema.prisma     # Prisma schema definition
+│   ├── schema.prisma     # Prisma schema with all models
+│   ├── seed-admin.ts     # Admin account seeding
+│   ├── seed-bookshop.ts  # Book Shop sample data
+│   └── migrations/       # Database migrations
+├── emails/               # Email templates
+│   ├── VerificationEmail.tsx
+│   ├── PasswordResetEmail.tsx
+│   └── ...
 ├── types/                # TypeScript type definitions
 └── hooks/                # Custom React hooks
 ```
@@ -156,31 +244,151 @@ Required environment variables (see `.env.example` for details):
 - `SUPABASE_SERVICE_ROLE_KEY` - Supabase service role key
 - `NEXTAUTH_URL` - Your app URL
 - `NEXTAUTH_SECRET` - Random secret for NextAuth
+- `ADMIN_SEED_PASSWORD` - **Required** - Initial password for admin account
 - `RAZORPAY_KEY_ID` - Razorpay API key
 - `RAZORPAY_KEY_SECRET` - Razorpay secret key
 - `NEXT_PUBLIC_RAZORPAY_KEY_ID` - Razorpay public key
 - `RESEND_API_KEY` - Resend API key for email service
-- `RESEND_FROM_EMAIL` - Email address for sending emails
+- `RESEND_FROM_EMAIL` - Email address for sending emails (support@jstudyroom.dev)
 - `CRON_SECRET` - Secret for securing cron job endpoints
+- `NEXT_PUBLIC_APP_URL` - Your application URL (for email links)
 
 ## Features in Detail
 
-### Authentication & Email Verification
-- Secure registration with email and password
-- Email verification with 24-hour token expiration
-- Password reset via email with 1-hour token expiration
-- Resend verification email functionality
-- Rate limiting on email endpoints (prevents abuse)
-- Password hashing with bcrypt (12 rounds)
-- Session management with NextAuth
-- Protected routes and API endpoints
-- Unverified users redirected to verification page
+### Access Request & Onboarding
 
-### Document Management
+**For Members (Self-Registration):**
+1. Visit the landing page at `/`
+2. Click "Become a Member" or "Register"
+3. Fill out registration form with email, password, and name
+4. Submit and receive verification email
+5. Click verification link in email
+6. Login and access Member dashboard at `/member`
+7. Browse Book Shop, add documents to My jstudyroom
+
+**For Platform Users (Admin-Approved):**
+1. Visit the landing page at `/`
+2. Fill out the access request form with:
+   - Email address (required)
+   - Name (optional)
+   - Purpose/use case (required)
+   - Estimated documents and users (optional)
+   - Select "Platform User" role
+3. Submit request and receive confirmation
+4. Wait for admin approval
+
+**For Admin:**
+1. Receive email notification for new access requests
+2. Login to admin dashboard at `/admin`
+3. Review access request details
+4. Approve and create user account with:
+   - Selected role (Platform User or Reader User)
+   - Generated secure password
+   - Custom price plan
+   - Internal notes
+5. User receives approval email with login credentials
+
+### Authentication & Role-Based Access
+- **No public registration** - All access is admin-approved
+- Role-based authentication with NextAuth
+- Three user roles: ADMIN, PLATFORM_USER, READER_USER
+- Automatic role-based routing after login:
+  - Admin → `/admin` (Admin Dashboard)
+  - Platform User → `/dashboard` (Full Features)
+  - Reader User → `/reader` (View Only)
+- Password hashing with bcrypt (12 rounds)
+- Session management with role in JWT
+- Protected routes and API endpoints with role verification
+- Audit logging for all admin actions
+
+### Admin Dashboard
+- **Access Request Management:**
+  - View all access requests with filtering by status
+  - Detailed request information
+  - Approve, reject, or close requests
+  - Add internal admin notes
+- **User Management:**
+  - View all users with role filtering
+  - Edit user details (role, price plan, notes)
+  - Reset user passwords
+  - Deactivate/activate users
+  - Search by email
+- **Email Notifications:**
+  - Automatic notifications for new access requests
+  - Approval emails with login credentials
+  - Password reset notifications
+
+### User Roles & Permissions
+
+| Feature | Admin | Platform User | Member |
+|---------|-------|---------------|--------|
+| View Admin Dashboard | ✅ | ❌ | ❌ |
+| Manage Access Requests | ✅ | ❌ | ❌ |
+| Manage Users | ✅ | ❌ | ❌ |
+| Manage Book Shop | ✅ | ❌ | ❌ |
+| View Payment Tracking | ✅ | ❌ | ❌ |
+| Upload Documents | ✅ | ✅ | ❌ |
+| Share Documents | ✅ | ✅ | ❌ |
+| View Analytics | ✅ | ✅ | ❌ |
+| View Shared Documents | ✅ | ✅ | ✅ |
+| Browse Book Shop | ✅ | ✅ | ✅ |
+| My jstudyroom | ❌ | ❌ | ✅ |
+| Purchase Documents | ❌ | ❌ | ✅ |
+| Self-Register | ❌ | ❌ | ✅ |
+
+### Member Self-Registration & Verification
+- Public registration form for Members
+- Email verification required before login
+- Secure password hashing with bcrypt
+- Automated verification emails via Resend
+- Verification token expiration (24 hours)
+- Resend verification option
+
+### Book Shop
+**For Members:**
+- Browse curated catalog of documents
+- Filter by category (Academic, Professional, Fiction, etc.)
+- Search by title or description
+- View document details and pricing
+- Add free documents to My jstudyroom (up to 5)
+- Purchase paid documents via Razorpay (up to 5)
+- Automatic addition to My jstudyroom after purchase
+
+**For Admin:**
+- Create Book Shop items linked to existing documents
+- Set title, description, category
+- Mark as free or paid with price in ₹
+- Publish/unpublish items
+- Edit and delete Book Shop items
+- Create custom categories
+- View all items with filtering
+
+### My jstudyroom (Personal Bookshelf)
+- Maximum 10 documents per Member
+- 5 free documents limit
+- 5 paid documents limit
+- View all documents in personal collection
+- Access documents in FlipBook viewer
+- Return documents to free up space
+- Document counters (X/5 free, Y/5 paid, Z/10 total)
+- Automatic limit enforcement
+
+### Payment Integration
+- Razorpay payment gateway integration
+- Secure checkout interface
+- Payment verification with signature validation
+- Automatic document addition after successful payment
+- Purchase confirmation emails
+- Payment tracking for admin
+- Transaction logging for audit
+- Failed payment handling
+
+### Document Management (Platform Users & Admin)
 - Upload PDFs up to 50MB
 - Automatic file validation
 - Storage in Supabase Storage
 - Organized by user folders
+- Full document management features
 
 ### Advanced Sharing & Inbox
 
@@ -247,14 +455,20 @@ Required environment variables (see `.env.example` for details):
 
 ## Security Best Practices
 
-- All passwords are hashed with bcrypt
-- JWT tokens with secure HTTP-only cookies
-- HTTPS enforced in production
-- Input validation on all forms
-- SQL injection prevention with Prisma
-- XSS protection with React
-- CSRF protection with NextAuth
-- Automated token cleanup for expired verification tokens
+- **Admin-Managed Access** - No public registration, all users approved by admin
+- **Role-Based Access Control** - Three distinct roles with appropriate permissions
+- **Password Security** - All passwords hashed with bcrypt (12 rounds)
+- **Secure Password Generation** - Cryptographically secure random passwords
+- **Role Verification** - Server-side role checks on all protected endpoints
+- **Audit Logging** - All admin actions logged for accountability
+- **Rate Limiting** - Access request endpoint limited to 5 per hour per IP
+- **JWT Tokens** - Secure HTTP-only cookies with role information
+- **HTTPS Enforced** - Production requires secure connections
+- **Input Validation** - All forms validated and sanitized
+- **SQL Injection Prevention** - Prisma ORM with parameterized queries
+- **XSS Protection** - React automatic escaping
+- **CSRF Protection** - NextAuth built-in protection
+- **Automated Token Cleanup** - Expired verification tokens removed daily
 
 ## Email Service Setup
 
@@ -282,13 +496,15 @@ The application uses [Resend](https://resend.com) for sending transactional emai
 4. Update environment variables:
    ```
    RESEND_API_KEY="re_your_production_key"
-   RESEND_FROM_EMAIL="noreply@yourdomain.com"
+   RESEND_FROM_EMAIL="support@jstudyroom.dev"
    ```
 
 **Email Templates:**
-- Verification emails use branded React Email templates
-- Password reset emails include secure one-time links
-- All emails include plain text fallbacks
+- Access request notifications to admin
+- User approval emails with login credentials
+- Password reset emails from admin
+- All emails use branded React Email templates
+- Plain text fallbacks included
 - Templates located in `/emails` directory
 
 **Rate Limiting:**
@@ -313,6 +529,35 @@ The application includes an automated cron job that cleans up expired verificati
 3. Deploy - Vercel will automatically configure the cron job
 
 For detailed documentation, see `TOKEN_CLEANUP_CRON.md`
+
+## API Documentation
+
+### Member Endpoints
+- `POST /api/auth/register` - Member self-registration
+- `GET /api/member/shared` - Get documents shared with Member
+- `GET /api/member/my-jstudyroom` - Get My jstudyroom contents
+- `POST /api/member/my-jstudyroom` - Add document to My jstudyroom
+- `DELETE /api/member/my-jstudyroom/[id]` - Return document from My jstudyroom
+
+### Book Shop Endpoints
+- `GET /api/bookshop` - Get published Book Shop items (public/member)
+- `POST /api/admin/bookshop` - Create Book Shop item (admin only)
+- `PATCH /api/admin/bookshop/[id]` - Update Book Shop item (admin only)
+- `DELETE /api/admin/bookshop/[id]` - Delete Book Shop item (admin only)
+- `GET /api/admin/bookshop/categories` - Get all categories (admin only)
+
+### Payment Endpoints
+- `POST /api/payment/create-order` - Create Razorpay order
+- `POST /api/payment/verify` - Verify payment and add to My jstudyroom
+- `GET /api/admin/payments` - Get all payments (admin only)
+
+### Admin Endpoints
+- `GET /api/admin/members` - Get all Members
+- `GET /api/admin/members/[id]` - Get Member details
+- `POST /api/admin/members/[id]/toggle-active` - Activate/deactivate Member
+- `POST /api/admin/members/[id]/reset-password` - Reset Member password
+
+For complete API documentation, see the design document in `.kiro/specs/jstudyroom-platform/design.md`
 
 ## Support
 

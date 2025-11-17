@@ -15,6 +15,16 @@ export default async function DashboardPage() {
     redirect('/login');
   }
 
+  // Redirect READER_USER to reader dashboard
+  if (session.user.userRole === 'READER_USER') {
+    redirect('/reader');
+  }
+
+  // Redirect ADMIN to admin dashboard
+  if (session.user.userRole === 'ADMIN') {
+    redirect('/admin');
+  }
+
   // Fetch user with documents using shared data access layer
   const user = await getUserWithDocuments(session.user.id);
 
@@ -61,6 +71,7 @@ export default async function DashboardPage() {
       storageUsed={storageUsedFormatted}
       storageLimit={storageLimitFormatted}
       storagePercentage={storagePercentage}
+      userRole={session.user.userRole}
     />
   );
 }

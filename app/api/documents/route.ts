@@ -8,6 +8,7 @@ import { validateFile, validateStorageQuota } from '@/lib/validation'
 import { SUBSCRIPTION_PLANS, SubscriptionTier } from '@/lib/razorpay'
 import { sanitizeString, sanitizeFilename } from '@/lib/sanitization'
 import { logger } from '@/lib/logger'
+import { requirePlatformUser } from '@/lib/role-check'
 
 // Force dynamic rendering - don't try to statically analyze this route
 export const dynamic = 'force-dynamic'
@@ -55,7 +56,10 @@ export async function GET() {
  */
 export async function POST(request: NextRequest) {
   try {
-    // Verify authentication
+    // Verify authentication and role (PLATFORM_USER or ADMIN only)
+    const roleCheck = await requirePlatformUser()
+    if (roleCheck) return roleCheck
+
     const session = await getServerSession(authOptions)
     if (!session?.user?.id) {
       return NextResponse.json(

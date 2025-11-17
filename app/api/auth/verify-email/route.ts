@@ -7,6 +7,8 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 export const runtime = 'nodejs';
 
+// Verify user's email address using a verification token
+
 /**
  * POST /api/auth/verify-email
  * Verify user's email address using a verification token
@@ -69,8 +71,9 @@ export async function POST(request: NextRequest) {
       select: { 
         id: true, 
         email: true, 
-        emailVerified: true 
-      },
+        emailVerified: true,
+        userRole: true,
+      } as any, // Type assertion for newly added field
     });
 
     if (!user) {
@@ -88,6 +91,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Determine redirect URL based on user role
+    const redirectUrl = (user as any).userRole === 'MEMBER' ? '/login' : '/dashboard';
+
     // If already verified, return success (idempotent)
     if (user.emailVerified) {
       logger.logAuthAttempt('verify_email', true, {
@@ -103,7 +109,7 @@ export async function POST(request: NextRequest) {
         {
           success: true,
           message: 'Email already verified',
-          redirectUrl: '/dashboard',
+          redirectUrl,
         },
         { status: 200 }
       );
@@ -125,13 +131,14 @@ export async function POST(request: NextRequest) {
     logger.logAuthAttempt('verify_email', true, {
       userId,
       email: user.email,
+      userRole: (user as any).userRole,
     });
 
     return NextResponse.json(
       {
         success: true,
-        message: 'Email verified successfully! You can now access your account.',
-        redirectUrl: '/dashboard',
+        message: 'Email verified successfully! You can now log in to your account.',
+        redirectUrl,
       },
       { status: 200 }
     );

@@ -122,15 +122,16 @@ export default function ViewerClient({ shareKey, userEmail }: ViewerClientProps)
   if (error) {
     const isRevokedError = error.toLowerCase().includes('revoked') || error.toLowerCase().includes('no longer available');
     const isExpiredError = error.toLowerCase().includes('expired');
+    const isEmailMismatchError = error.toLowerCase().includes('different email') || error.toLowerCase().includes('email mismatch');
     
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-100 dark:bg-slate-900">
         <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-8 max-w-md w-full mx-4 text-center">
           <div className="text-red-600 dark:text-red-400 text-6xl mb-4">
-            {isRevokedError ? '🚫' : isExpiredError ? '⏰' : '⚠️'}
+            {isRevokedError ? '🚫' : isExpiredError ? '⏰' : isEmailMismatchError ? '✉️' : '⚠️'}
           </div>
           <h2 className="text-2xl font-bold mb-2 text-gray-900 dark:text-white">
-            {isRevokedError ? 'Share Revoked' : isExpiredError ? 'Share Expired' : 'Access Denied'}
+            {isRevokedError ? 'Share Revoked' : isExpiredError ? 'Share Expired' : isEmailMismatchError ? 'Wrong Account' : 'Access Denied'}
           </h2>
           <p className="text-gray-600 dark:text-gray-300 mb-6">{error}</p>
           {isRevokedError && (
@@ -143,9 +144,21 @@ export default function ViewerClient({ shareKey, userEmail }: ViewerClientProps)
               This share link has expired. Please request a new share link from the document owner.
             </p>
           )}
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            Please contact the document owner if you believe this is an error.
-          </p>
+          {isEmailMismatchError && (
+            <div className="text-sm text-gray-500 dark:text-gray-400 mb-4 space-y-2">
+              <p>
+                This document was shared with a specific email address. You are currently logged in with a different account.
+              </p>
+              <p className="font-medium text-gray-700 dark:text-gray-300">
+                Please log out and sign in with the correct email address to access this document.
+              </p>
+            </div>
+          )}
+          {!isEmailMismatchError && (
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Please contact the document owner if you believe this is an error.
+            </p>
+          )}
         </div>
       </div>
     );

@@ -136,4 +136,28 @@ export const RATE_LIMITS = {
     maxRequests: 3,
     windowMs: 60 * 60 * 1000, // 3 requests per hour
   },
+  LOGIN_ATTEMPT: {
+    maxRequests: 10,
+    windowMs: 60 * 60 * 1000, // 10 requests per hour
+  },
+  PASSWORD_RESET_SUBMIT: {
+    maxRequests: 5,
+    windowMs: 60 * 60 * 1000, // 5 requests per hour
+  },
+  REGISTRATION: {
+    maxRequests: 3,
+    windowMs: 60 * 60 * 1000, // 3 registrations per hour per email
+  },
+  PAYMENT_CREATE_ORDER: {
+    maxRequests: 10,
+    windowMs: 60 * 1000, // 10 payment attempts per minute per user
+  },
+  PAYMENT_VERIFY: {
+    maxRequests: 20,
+    windowMs: 60 * 1000, // 20 verification attempts per minute per user
+  },
+  ACCESS_REQUEST: {
+    maxRequests: 2,
+    windowMs: 24 * 60 * 60 * 1000, // 2 access requests per day per email
+  },
 } as const;

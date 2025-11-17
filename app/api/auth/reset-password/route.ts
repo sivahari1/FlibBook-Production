@@ -49,6 +49,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Rate limiting for password reset submissions (5 per hour per token)
+    const { checkRateLimit, RATE_LIMITS } = await import('@/lib/rate-limit');
+    const rateLimitResult = checkRateLimit(
+      `password-reset-submit:${token}`,
+      RATE_LIMITS.PASSWORD_RESET_SUBMIT
+    );
+
+    if (!rateLimitResult.success) {
+      logger.logRateLimitViolation('password-reset-submit', token, {
+        retryAfter: rateLimitResult.retryAfter,
+      });
+
+      return NextResponse.json(
+        {
+          success: false,
+          message: `Too many password reset attempts. Please try again in ${rateLimitResult.retryAfter} seconds.`,
+        },
+        { status: 429 }
+      );
+    }
+
     // Validate reset token (Requirement 4.1)
     const tokenValidation = await validateToken(token, 'PASSWORD_RESET');
 
@@ -80,14 +101,14 @@ export async function POST(request: NextRequest) {
     // Hash the new password (Requirement 4.3)
     const passwordHash = await hashPassword(password);
 
-    // Update user password in database
-    // IMPORTANT: Only update passwordHash, do NOT modify emailVerified
+    // Update user password in database (Requirement 14.3, 14.5)
+    // IMPORTANT: Only update passwordHash, maintain emailVerified status
+    // Do NOT set emailVerified to false or null - preserve existing verification status
     await prisma.user.update({
       where: { id: userId },
       data: { 
         passwordHash,
-        // Explicitly preserve emailVerified status
-        // Do not set emailVerified to null or false
+        // Explicitly NOT modifying emailVerified - it maintains its current value
       },
     });
 
