@@ -7,12 +7,14 @@ export default async function AdminDashboard() {
     pendingRequests,
     totalUsers,
     platformUsers,
-    readerUsers
+    members,
+    admins
   ] = await Promise.all([
     prisma.accessRequest.count({ where: { status: 'PENDING' } }),
     prisma.user.count(),
     prisma.user.count({ where: { userRole: 'PLATFORM_USER' } }),
-    prisma.user.count({ where: { userRole: 'READER_USER' } })
+    prisma.user.count({ where: { userRole: 'MEMBER' } }),
+    prisma.user.count({ where: { userRole: 'ADMIN' } })
   ])
 
   return (
@@ -86,16 +88,15 @@ export default async function AdminDashboard() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                Reader Users
+                Members
               </p>
               <p className="text-3xl font-bold text-gray-900 dark:text-white mt-2">
-                {readerUsers}
+                {members}
               </p>
             </div>
             <div className="bg-purple-100 dark:bg-purple-900 rounded-full p-3">
               <svg className="w-6 h-6 text-purple-600 dark:text-purple-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
               </svg>
             </div>
           </div>
@@ -103,7 +104,7 @@ export default async function AdminDashboard() {
       </div>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <Link
           href="/admin/access-requests"
           className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 hover:shadow-lg transition-shadow"
@@ -112,7 +113,7 @@ export default async function AdminDashboard() {
             Access Requests
           </h2>
           <p className="text-gray-600 dark:text-gray-400 mb-4">
-            Review and approve user access requests
+            Review and approve Platform User requests
           </p>
           {pendingRequests > 0 && (
             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
@@ -126,13 +127,58 @@ export default async function AdminDashboard() {
           className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 hover:shadow-lg transition-shadow"
         >
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-            Users Management
+            Platform Users
           </h2>
           <p className="text-gray-600 dark:text-gray-400 mb-4">
-            Manage existing users, roles, and permissions
+            Manage Platform Users and permissions
           </p>
           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-            {totalUsers} total users
+            {platformUsers} users
+          </span>
+        </Link>
+
+        <Link
+          href="/admin/bookshop"
+          className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 hover:shadow-lg transition-shadow"
+        >
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+            Book Shop
+          </h2>
+          <p className="text-gray-600 dark:text-gray-400 mb-4">
+            Manage Book Shop catalog and items
+          </p>
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+            Manage catalog
+          </span>
+        </Link>
+
+        <Link
+          href="/admin/members"
+          className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 hover:shadow-lg transition-shadow"
+        >
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+            Members
+          </h2>
+          <p className="text-gray-600 dark:text-gray-400 mb-4">
+            View and manage Member accounts
+          </p>
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
+            {members} members
+          </span>
+        </Link>
+
+        <Link
+          href="/admin/payments"
+          className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 hover:shadow-lg transition-shadow"
+        >
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+            Payments
+          </h2>
+          <p className="text-gray-600 dark:text-gray-400 mb-4">
+            Track payment transactions
+          </p>
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200">
+            View transactions
           </span>
         </Link>
       </div>
