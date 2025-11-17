@@ -181,7 +181,25 @@ export default async function AdminDashboard() {
             View transactions
           </span>
         </Link>
+
+        <Link
+          href="/dashboard"
+          className="bg-gradient-to-br from-blue-500 to-blue-600 dark:from-blue-600 dark:to-blue-700 rounded-lg shadow p-6 hover:shadow-lg transition-shadow"
+        >
+          <h2 className="text-lg font-semibold text-white mb-2">
+            📄 My Documents
+          </h2>
+          <p className="text-blue-50 mb-4">
+            Upload, manage, and share documents with watermarks
+          </p>
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-white/20 text-white">
+            Full access
+          </span>
+        </Link>
       </div>
+    </div>
+  )
+}
     </div>
   )
 }

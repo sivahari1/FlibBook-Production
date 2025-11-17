@@ -47,12 +47,6 @@ export default async function AdminLayout({
                 {session.user.email}
               </span>
               <ThemeToggle />
-              <Link
-                href="/dashboard"
-                className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-              >
-                Go to Dashboard
-              </Link>
             </div>
           </div>
         </div>
@@ -98,6 +92,18 @@ export default async function AdminLayout({
             >
               Payments
             </Link>
+            
+            <div className="pt-4 mt-4 border-t border-gray-200 dark:border-gray-700">
+              <p className="px-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+                Document Management
+              </p>
+              <Link
+                href="/dashboard"
+                className="block px-4 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-md"
+              >
+                📄 My Documents
+              </Link>
+            </div>
           </nav>
         </aside>
 
