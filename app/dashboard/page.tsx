@@ -20,10 +20,8 @@ export default async function DashboardPage() {
     redirect('/reader');
   }
 
-  // Redirect ADMIN to admin dashboard
-  if (session.user.userRole === 'ADMIN') {
-    redirect('/admin');
-  }
+  // Allow ADMIN users to access dashboard for document management
+  // ADMIN users can access both /admin and /dashboard
 
   // Fetch user with documents using shared data access layer
   const user = await getUserWithDocuments(session.user.id);
