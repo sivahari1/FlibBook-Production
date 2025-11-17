@@ -75,8 +75,8 @@ export async function middleware(request: NextRequest) {
   const adminPaths = ['/admin', '/api/admin'];
   const isAdminPath = adminPaths.some(path => pathname.startsWith(path));
   
-  // Platform User-only routes
-  const platformUserPaths = ['/dashboard', '/inbox'];
+  // Platform User-only routes (ADMIN users also have access to these)
+  const platformUserPaths = ['/dashboard', '/inbox', '/api/documents', '/api/analytics', '/api/subscription'];
   const isPlatformUserPath = platformUserPaths.some(path => pathname.startsWith(path));
   
   // Member-only routes
@@ -152,6 +152,7 @@ export async function middleware(request: NextRequest) {
     }
     
     // Check Platform User access for platform user routes
+    // Allow ADMIN users to access dashboard for document management
     if (isPlatformUserPath && token.userRole !== 'PLATFORM_USER' && token.userRole !== 'ADMIN') {
       // For API routes, return 403
       if (pathname.startsWith('/api/')) {
