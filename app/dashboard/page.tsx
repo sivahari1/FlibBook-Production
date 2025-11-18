@@ -24,18 +24,25 @@ export default async function DashboardPage() {
   // ADMIN users can access both /admin and /dashboard
 
   // Fetch user with documents using shared data access layer
-  const user = await getUserWithDocuments(session.user.id);
+  let user;
+  try {
+    user = await getUserWithDocuments(session.user.id);
+  } catch (error) {
+    console.error('Error fetching user with documents:', error);
+    throw new Error(`Failed to fetch user data: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
 
   if (!user) {
+    console.error('User not found:', session.user.id);
     redirect('/login');
   }
 
-  // Get subscription limits
+  // Get subscription limits - ensure subscription field exists
   const subscription = (user.subscription as SubscriptionTier) || 'free';
   const limits = SUBSCRIPTION_PLANS[subscription];
 
-  // Calculate storage usage
-  const storageUsed = Number(user.storageUsed);
+  // Calculate storage usage - handle null/undefined storageUsed
+  const storageUsed = user.storageUsed ? Number(user.storageUsed) : 0;
   const storageLimit = limits.storage;
   const storagePercentage = storageLimit === Infinity 
     ? 0 
@@ -53,23 +60,23 @@ export default async function DashboardPage() {
   const storageUsedFormatted = formatStorage(storageUsed);
   const storageLimitFormatted = formatStorage(storageLimit);
 
-  // Serialize documents for client component
-  const documents = user.documents.map(doc => ({
+  // Serialize documents for client component - handle null/undefined documents
+  const documents = (user.documents || []).map(doc => ({
     ...doc,
-    fileSize: doc.fileSize.toString(),
-    createdAt: doc.createdAt.toISOString(),
+    fileSize: doc.fileSize ? doc.fileSize.toString() : '0',
+    createdAt: doc.createdAt ? doc.createdAt.toISOString() : new Date().toISOString(),
   }));
 
   return (
     <DashboardClient
       documents={documents}
       subscription={subscription}
-      documentCount={user.documents.length}
+      documentCount={user.documents ? user.documents.length : 0}
       maxDocuments={limits.maxDocuments}
       storageUsed={storageUsedFormatted}
       storageLimit={storageLimitFormatted}
       storagePercentage={storagePercentage}
-      userRole={session.user.userRole}
+      userRole={session.user.userRole || 'MEMBER'}
     />
   );
 }
