@@ -20,7 +20,7 @@ export default function Footer() {
               Designed and Developed by
             </p>
             <p className="text-base font-semibold text-white mb-1">
-              J. Siva Ramakrishna & R. Hariharan
+              JYOSRIK & WIKWIL
             </p>
             <p className="text-sm text-gray-400 flex items-center justify-center space-x-2">
               <span>Powered by</span>
