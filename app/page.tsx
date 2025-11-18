@@ -3,7 +3,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import ThemeToggle from '@/components/theme/ThemeToggle';
 import Footer from '@/components/layout/Footer';
-import LandingHero from '@/components/landing/LandingHero';
+import PremiumHero from '@/components/landing/PremiumHero';
+import UserRolesSection from '@/components/landing/UserRolesSection';
 import FeaturesSection from '@/components/landing/FeaturesSection';
 import MemberCTA from '@/components/landing/MemberCTA';
 import AccessRequestForm from '@/components/landing/AccessRequestForm';
@@ -48,8 +49,11 @@ export default async function LandingPage() {
         </div>
       </nav>
 
-      {/* Hero Section */}
-      <LandingHero />
+      {/* Premium Hero Section */}
+      <PremiumHero />
+
+      {/* User Roles Section */}
+      <UserRolesSection />
 
       {/* Features Section */}
       <FeaturesSection />
