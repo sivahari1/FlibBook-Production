@@ -1,5 +1,14 @@
 # Fix Admin Dashboard Error
 
+## 🚀 Quick Fix (2 minutes)
+
+1. Go to Supabase → SQL Editor
+2. Copy and run the SQL from `prisma/fix-admin-dashboard.sql`
+3. Refresh your admin dashboard
+4. Click "My Documents" - it should work now!
+
+---
+
 ## Problem
 When clicking "My Documents" in the Admin page, you get a "Something went wrong" error.
 
@@ -12,25 +21,18 @@ The admin user in the database might be missing required fields like:
 
 ## Solution
 
-### Option 1: Run the Fix Script (Recommended)
+### Solution: Fix via Supabase SQL Editor
 
-1. **Run the fix script:**
-   ```bash
-   npx tsx prisma/fix-admin-user-fields.ts
-   ```
+Since the script requires local database access, use the SQL approach instead:
 
-2. **Verify the fix:**
-   - Log in as admin
-   - Click "My Documents"
-   - You should now see the dashboard without errors
+1. **Go to Supabase Dashboard**
+   - Open your project at https://supabase.com
+   - Click on "SQL Editor" in the left sidebar
 
-### Option 2: Manual Database Fix
+2. **Run the Fix SQL**
+   - Copy the contents of `prisma/fix-admin-dashboard.sql`
+   - Or copy this SQL:
 
-If you prefer to fix it manually in Supabase:
-
-1. **Go to Supabase SQL Editor**
-
-2. **Run this SQL:**
    ```sql
    -- Fix admin users with missing fields
    UPDATE users
@@ -39,11 +41,14 @@ If you prefer to fix it manually in Supabase:
      "storageUsed" = COALESCE("storageUsed", 0),
      "emailVerified" = true,
      "emailVerifiedAt" = COALESCE("emailVerifiedAt", NOW()),
-     "isActive" = true
+     "isActive" = true,
+     "updatedAt" = NOW()
    WHERE "userRole" = 'ADMIN';
    ```
 
-3. **Verify the update:**
+3. **Click "Run" to execute the SQL**
+
+4. **Verify the fix:**
    ```sql
    SELECT 
      email, 
@@ -55,6 +60,12 @@ If you prefer to fix it manually in Supabase:
    FROM users
    WHERE "userRole" = 'ADMIN';
    ```
+
+   You should see:
+   - subscription = 'free'
+   - storageUsed = 0
+   - emailVerified = true
+   - isActive = true
 
 ## What Was Fixed in the Code
 
