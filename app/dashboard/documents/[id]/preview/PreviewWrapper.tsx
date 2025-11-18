@@ -18,6 +18,7 @@ interface PreviewWrapperProps {
   documentTitle: string;
   pdfUrl: string;
   userEmail: string;
+  documentId: string;
 }
 
 export default function PreviewWrapper(props: PreviewWrapperProps) {

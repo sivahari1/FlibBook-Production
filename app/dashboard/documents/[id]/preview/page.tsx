@@ -43,6 +43,7 @@ export default async function PreviewPage({
       documentTitle={document.title}
       pdfUrl={signedUrl}
       userEmail={session.user.email || ''}
+      documentId={documentId}
     />
   );
 }

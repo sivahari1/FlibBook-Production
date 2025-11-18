@@ -13,6 +13,7 @@ interface FormData {
   expiresAt: string;
   canDownload: boolean;
   note: string;
+  watermarkText: string;
 }
 
 export const EmailShareForm: React.FC<EmailShareFormProps> = ({
@@ -24,6 +25,7 @@ export const EmailShareForm: React.FC<EmailShareFormProps> = ({
     expiresAt: '',
     canDownload: false,
     note: '',
+    watermarkText: '',
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -48,6 +50,9 @@ export const EmailShareForm: React.FC<EmailShareFormProps> = ({
       if (formData.note) {
         payload.note = formData.note;
       }
+      if (formData.watermarkText && formData.watermarkText.trim() !== '') {
+        payload.watermarkText = formData.watermarkText.trim();
+      }
 
       const response = await fetch('/api/share/email', {
         method: 'POST',
@@ -67,6 +72,7 @@ export const EmailShareForm: React.FC<EmailShareFormProps> = ({
         expiresAt: '',
         canDownload: false,
         note: '',
+        watermarkText: '',
       });
 
       // Auto-close after 2 seconds
@@ -88,6 +94,7 @@ export const EmailShareForm: React.FC<EmailShareFormProps> = ({
       expiresAt: '',
       canDownload: false,
       note: '',
+      watermarkText: '',
     });
   };
 
@@ -171,6 +178,26 @@ export const EmailShareForm: React.FC<EmailShareFormProps> = ({
         />
         <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
           Leave empty for no expiration
+        </p>
+      </div>
+
+      {/* Watermark Text */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          Watermark Text (Optional)
+        </label>
+        <input
+          type="text"
+          value={formData.watermarkText}
+          onChange={(e) =>
+            setFormData({ ...formData, watermarkText: e.target.value })
+          }
+          placeholder="e.g., CONFIDENTIAL, FOR REVIEW ONLY"
+          maxLength={50}
+          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        />
+        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+          This text will appear on each page of the shared document
         </p>
       </div>
 

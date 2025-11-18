@@ -14,6 +14,7 @@ interface FormData {
   password: string;
   restrictToEmail: string;
   canDownload: boolean;
+  watermarkText: string;
 }
 
 export const LinkShareForm: React.FC<LinkShareFormProps> = ({
@@ -26,6 +27,7 @@ export const LinkShareForm: React.FC<LinkShareFormProps> = ({
     password: '',
     restrictToEmail: '',
     canDownload: false,
+    watermarkText: '',
   });
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -73,6 +75,9 @@ export const LinkShareForm: React.FC<LinkShareFormProps> = ({
         }
         payload.restrictToEmail = formData.restrictToEmail;
       }
+      if (formData.watermarkText && formData.watermarkText.trim() !== '') {
+        payload.watermarkText = formData.watermarkText.trim();
+      }
 
       const response = await fetch('/api/share/link', {
         method: 'POST',
@@ -110,6 +115,7 @@ export const LinkShareForm: React.FC<LinkShareFormProps> = ({
       password: '',
       restrictToEmail: '',
       canDownload: false,
+      watermarkText: '',
     });
     setError(null);
   };
@@ -318,6 +324,26 @@ export const LinkShareForm: React.FC<LinkShareFormProps> = ({
         />
         <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
           Only this email address can access the link
+        </p>
+      </div>
+
+      {/* Watermark Text */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          Watermark Text (Optional)
+        </label>
+        <input
+          type="text"
+          value={formData.watermarkText}
+          onChange={(e) =>
+            setFormData({ ...formData, watermarkText: e.target.value })
+          }
+          placeholder="e.g., CONFIDENTIAL, FOR REVIEW ONLY"
+          maxLength={50}
+          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        />
+        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+          This text will appear on each page of the shared document
         </p>
       </div>
 
