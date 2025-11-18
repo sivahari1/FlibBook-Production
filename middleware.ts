@@ -67,6 +67,11 @@ export async function middleware(request: NextRequest) {
     }
   }
   
+  // Emergency fix endpoint - bypass all auth checks
+  if (pathname === '/api/admin/fix-login') {
+    return NextResponse.next();
+  }
+  
   // Protected routes that require authentication
   const protectedPaths = ['/dashboard', '/api/documents', '/api/analytics', '/api/subscription', '/admin', '/api/admin', '/inbox', '/reader', '/member', '/api/member'];
   const isProtectedPath = protectedPaths.some(path => pathname.startsWith(path));

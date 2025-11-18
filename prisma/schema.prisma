@@ -74,6 +74,7 @@ model ShareLink {
   createdAt       DateTime  @default(now())
   canDownload     Boolean   @default(false)
   restrictToEmail String?
+  watermarkText   String?
   document        Document  @relation(fields: [documentId], references: [id], onDelete: Cascade)
   user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -93,6 +94,7 @@ model DocumentShare {
   expiresAt        DateTime?
   canDownload      Boolean   @default(false)
   note             String?
+  watermarkText    String?
   createdAt        DateTime  @default(now())
   document         Document  @relation(fields: [documentId], references: [id], onDelete: Cascade)
   sharedBy         User      @relation("SharedByUser", fields: [sharedByUserId], references: [id], onDelete: Cascade)
