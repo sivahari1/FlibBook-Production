@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import UsersTable from '@/components/admin/UsersTable'
 import UserEditModal from '@/components/admin/UserEditModal'
+import { ResetPasswordModal } from '@/components/admin/ResetPasswordModal'
 import { Button } from '@/components/ui/Button'
 
 interface User {
@@ -32,6 +33,7 @@ export default function UsersPage() {
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
   const [showEditModal, setShowEditModal] = useState(false)
   const [resetPasswordUser, setResetPasswordUser] = useState<User | null>(null)
+  const [showResetPasswordModal, setShowResetPasswordModal] = useState(false)
   const [resetPasswordResult, setResetPasswordResult] = useState<{ password: string; email: string } | null>(null)
   
   // Filters
@@ -125,18 +127,21 @@ export default function UsersPage() {
     }
   }
 
-  const handleResetPassword = async (user: User) => {
-    if (!confirm(`Reset password for ${user.email}?`)) {
-      return
-    }
+  const handleResetPassword = (user: User) => {
+    setResetPasswordUser(user)
+    setShowResetPasswordModal(true)
+  }
+
+  const confirmResetPassword = async (password: string) => {
+    if (!resetPasswordUser) return
 
     try {
-      const response = await fetch(`/api/admin/users/${user.id}/reset-password`, {
+      const response = await fetch(`/api/admin/users/${resetPasswordUser.id}/reset-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({})
+        body: JSON.stringify({ password })
       })
 
       if (!response.ok) {
@@ -144,9 +149,15 @@ export default function UsersPage() {
       }
 
       const data = await response.json()
+      
+      // Close modal
+      setShowResetPasswordModal(false)
+      setResetPasswordUser(null)
+      
+      // Show success with the password
       setResetPasswordResult({
         password: data.password,
-        email: user.email
+        email: resetPasswordUser.email
       })
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Failed to reset password')
@@ -311,6 +322,19 @@ export default function UsersPage() {
             setShowEditModal(false)
             setSelectedUser(null)
           }}
+        />
+      )}
+
+      {/* Reset Password Modal */}
+      {showResetPasswordModal && resetPasswordUser && (
+        <ResetPasswordModal
+          isOpen={showResetPasswordModal}
+          onClose={() => {
+            setShowResetPasswordModal(false)
+            setResetPasswordUser(null)
+          }}
+          userEmail={resetPasswordUser.email}
+          onConfirm={confirmResetPassword}
         />
       )}
 
