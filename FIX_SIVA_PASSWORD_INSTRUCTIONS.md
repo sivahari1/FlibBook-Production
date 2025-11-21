@@ -39,7 +39,7 @@ The password hash needs to be regenerated with the correct bcrypt algorithm (12 
 If you prefer to run just the UPDATE statement:
 
 ```sql
-UPDATE "User"
+UPDATE users
 SET "passwordHash" = '$2b$12$tfuSdLdklWEGGsge16p8l.Hy.lgr6mQjMyiH3wRnoSifkk4I1cqmu'
 WHERE email = 'sivaramj83@gmail.com';
 ```
@@ -86,7 +86,7 @@ If login still fails after running the SQL:
    ```sql
    SELECT email, "userRole", "isActive", "emailVerified", 
           LEFT("passwordHash", 30) as hash_preview
-   FROM "User"
+   FROM users
    WHERE email = 'sivaramj83@gmail.com';
    ```
    - Verify `isActive` is `true`

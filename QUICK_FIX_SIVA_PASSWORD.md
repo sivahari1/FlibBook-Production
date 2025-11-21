@@ -7,7 +7,7 @@ Go to: https://supabase.com/dashboard → Your Project → SQL Editor
 
 ### Step 2: Run This SQL
 ```sql
-UPDATE "User"
+UPDATE users
 SET "passwordHash" = '$2b$12$tfuSdLdklWEGGsge16p8l.Hy.lgr6mQjMyiH3wRnoSifkk4I1cqmu'
 WHERE email = 'sivaramj83@gmail.com';
 ```
@@ -34,7 +34,7 @@ The password will work on both local and Vercel immediately after running the SQ
 Run this SQL to check:
 ```sql
 SELECT email, "userRole", "isActive", LEFT("passwordHash", 30) as hash
-FROM "User"
+FROM users
 WHERE email = 'sivaramj83@gmail.com';
 ```
 

@@ -12,7 +12,7 @@ async function generateHash() {
   console.log('✅ Generated Hash:');
   console.log(hash);
   console.log('\n📋 SQL Update Statement:');
-  console.log(`UPDATE "User"`);
+  console.log(`UPDATE users`);
   console.log(`SET "passwordHash" = '${hash}'`);
   console.log(`WHERE email = 'sivaramj83@gmail.com';`);
   

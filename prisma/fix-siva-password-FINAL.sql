@@ -13,13 +13,13 @@ SELECT
     "isActive", 
     "emailVerified",
     LEFT("passwordHash", 30) as "current_hash_preview"
-FROM "User"
+FROM users
 WHERE email = 'sivaramj83@gmail.com';
 
 -- Step 2: Update password with correct bcrypt hash (12 rounds)
 -- Password: Jsrk@9985
 -- Hash verified and tested
-UPDATE "User"
+UPDATE users
 SET "passwordHash" = '$2b$12$tfuSdLdklWEGGsge16p8l.Hy.lgr6mQjMyiH3wRnoSifkk4I1cqmu'
 WHERE email = 'sivaramj83@gmail.com';
 
@@ -32,7 +32,7 @@ SELECT
     "emailVerified",
     LEFT("passwordHash", 30) as "new_hash_preview",
     LENGTH("passwordHash") as "hash_length"
-FROM "User"
+FROM users
 WHERE email = 'sivaramj83@gmail.com';
 
 -- ============================================
