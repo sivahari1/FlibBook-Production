@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth'
 import Link from 'next/link'
 import { logger } from '@/lib/logger'
 import ThemeToggle from '@/components/theme/ThemeToggle'
+import { LogoutButton } from '@/components/admin/LogoutButton'
 
 export default async function AdminLayout({
   children,
@@ -53,6 +54,7 @@ export default async function AdminLayout({
                 {session.user.email}
               </span>
               <ThemeToggle />
+              <LogoutButton />
             </div>
           </div>
         </div>
