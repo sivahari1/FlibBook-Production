@@ -6,27 +6,38 @@ import { logger } from '@/lib/logger'
 import ThemeToggle from '@/components/theme/ThemeToggle'
 import { LogoutButton } from '@/components/admin/LogoutButton'
 
+// Force dynamic rendering for admin routes
+export const dynamic = 'force-dynamic'
+
 export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  const session = await getServerSession(authOptions)
+  let session
+  
+  try {
+    session = await getServerSession(authOptions)
 
-  // Check if user is authenticated
-  if (!session?.user) {
-    logger.warn('Unauthorized admin access attempt - no session')
+    // Check if user is authenticated
+    if (!session?.user) {
+      logger.warn('Unauthorized admin access attempt - no session')
+      redirect('/login')
+    }
+
+    // Check if user has ADMIN role
+    if (session.user.userRole !== 'ADMIN') {
+      logger.warn('Unauthorized admin access attempt', {
+        userId: session.user.id,
+        email: session.user.email,
+        role: session.user.userRole
+      })
+      redirect('/dashboard')
+    }
+  } catch (error: any) {
+    // Log the error but redirect to login for security
+    logger.error('Admin layout authentication error', error)
     redirect('/login')
-  }
-
-  // Check if user has ADMIN role
-  if (session.user.userRole !== 'ADMIN') {
-    logger.warn('Unauthorized admin access attempt', {
-      userId: session.user.id,
-      email: session.user.email,
-      role: session.user.userRole
-    })
-    redirect('/dashboard')
   }
 
   return (
@@ -51,7 +62,7 @@ export default async function AdminLayout({
                 🏠 Home
               </Link>
               <span className="text-sm text-gray-600 dark:text-gray-400">
-                {session.user.email}
+                {session?.user?.email || 'Admin'}
               </span>
               <ThemeToggle />
               <LogoutButton />

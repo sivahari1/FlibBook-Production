@@ -1,21 +1,48 @@
 import Link from 'next/link'
 import { prisma } from '@/lib/db'
+import { logger } from '@/lib/logger'
 
 export default async function AdminDashboard() {
-  // Fetch summary statistics
-  const [
-    pendingRequests,
-    totalUsers,
-    platformUsers,
-    members,
-    admins
-  ] = await Promise.all([
-    prisma.accessRequest.count({ where: { status: 'PENDING' } }),
-    prisma.user.count(),
-    prisma.user.count({ where: { userRole: 'PLATFORM_USER' } }),
-    prisma.user.count({ where: { userRole: 'MEMBER' } }),
-    prisma.user.count({ where: { userRole: 'ADMIN' } })
-  ])
+  // Fetch summary statistics with error handling
+  let pendingRequests = 0
+  let totalUsers = 0
+  let platformUsers = 0
+  let members = 0
+  let admins = 0
+  let hasError = false
+  let errorMessage = ''
+
+  try {
+    const results = await Promise.allSettled([
+      prisma.accessRequest.count({ where: { status: 'PENDING' } }),
+      prisma.user.count(),
+      prisma.user.count({ where: { userRole: 'PLATFORM_USER' } }),
+      prisma.user.count({ where: { userRole: 'MEMBER' } }),
+      prisma.user.count({ where: { userRole: 'ADMIN' } })
+    ])
+
+    // Process results safely
+    if (results[0].status === 'fulfilled') pendingRequests = results[0].value
+    if (results[1].status === 'fulfilled') totalUsers = results[1].value
+    if (results[2].status === 'fulfilled') platformUsers = results[2].value
+    if (results[3].status === 'fulfilled') members = results[3].value
+    if (results[4].status === 'fulfilled') admins = results[4].value
+
+    // Check if any queries failed
+    const failedResults = results.filter(r => r.status === 'rejected')
+    if (failedResults.length > 0) {
+      hasError = true
+      errorMessage = 'Some statistics could not be loaded due to database connectivity issues.'
+      logger.error('Admin dashboard database queries failed', {
+        failedCount: failedResults.length,
+        errors: failedResults.map(r => r.status === 'rejected' ? r.reason?.message : 'Unknown')
+      })
+    }
+  } catch (error: any) {
+    hasError = true
+    errorMessage = 'Unable to load dashboard statistics. Please check database connectivity.'
+    logger.error('Admin dashboard critical error', error)
+  }
 
   return (
     <div>
@@ -27,6 +54,25 @@ export default async function AdminDashboard() {
           Manage access requests and users
         </p>
       </div>
+
+      {/* Error Alert */}
+      {hasError && (
+        <div className="mb-6 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+          <div className="flex items-center">
+            <svg className="w-5 h-5 text-yellow-600 dark:text-yellow-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <div>
+              <h3 className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+                Database Connection Issue
+              </h3>
+              <p className="text-sm text-yellow-700 dark:text-yellow-300 mt-1">
+                {errorMessage}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Statistics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
