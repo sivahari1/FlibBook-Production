@@ -6,8 +6,6 @@ import Footer from '@/components/layout/Footer';
 import PremiumHero from '@/components/landing/PremiumHero';
 import UserRolesSection from '@/components/landing/UserRolesSection';
 import FeaturesSection from '@/components/landing/FeaturesSection';
-import MemberCTA from '@/components/landing/MemberCTA';
-import AccessRequestForm from '@/components/landing/AccessRequestForm';
 
 export default async function LandingPage() {
   const session = await getServerSession(authOptions);
@@ -19,7 +17,7 @@ export default async function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <Link href="/" className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent hover:scale-105 transition-transform">
-              jstudyroom
+              jStudyRoom
             </Link>
             
             <div className="flex items-center space-x-4">
@@ -52,17 +50,11 @@ export default async function LandingPage() {
       {/* Premium Hero Section */}
       <PremiumHero />
 
-      {/* User Roles Section */}
-      <UserRolesSection />
-
       {/* Features Section */}
       <FeaturesSection />
 
-      {/* Member CTA */}
-      <MemberCTA />
-
-      {/* Access Request Form */}
-      <AccessRequestForm />
+      {/* User Roles Section */}
+      <UserRolesSection />
 
       {/* Footer */}
       <Footer />

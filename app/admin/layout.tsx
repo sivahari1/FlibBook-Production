@@ -48,7 +48,7 @@ export default async function AdminLayout({
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-4">
               <h1 className="text-xl font-bold text-gray-900 dark:text-white">
-                FlipBook DRM Admin
+                jStudyRoom Admin
               </h1>
               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
                 ADMIN

@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db'
 import { logger } from '@/lib/logger'
 import { createBookShopItemSchema, bookShopQuerySchema } from '@/lib/validation/jstudyroom'
 import { ZodError } from 'zod'
+import { ContentType } from '@/lib/types/content'
 
 /**
  * GET /api/admin/bookshop
@@ -46,6 +47,12 @@ export async function GET(request: NextRequest) {
       where.category = category
     }
     
+    // Support content type filtering (Requirements: 11.3, 12.1)
+    const contentType = searchParams.get('contentType')
+    if (contentType && Object.values(ContentType).includes(contentType as ContentType)) {
+      where.contentType = contentType
+    }
+    
     if (search) {
       where.OR = [
         {
@@ -70,7 +77,7 @@ export async function GET(request: NextRequest) {
     // Get total count
     const total = await prisma.bookShopItem.count({ where })
 
-    // Get Book Shop items
+    // Get Book Shop items with multi-content type support (Requirements: 11.3, 12.1)
     const items = await prisma.bookShopItem.findMany({
       where,
       include: {
@@ -80,6 +87,10 @@ export async function GET(request: NextRequest) {
             title: true,
             filename: true,
             fileSize: true,
+            contentType: true,
+            metadata: true,
+            thumbnailUrl: true,
+            linkUrl: true,
             userId: true,
             user: {
               select: {
@@ -108,6 +119,7 @@ export async function GET(request: NextRequest) {
       limit,
       total,
       category,
+      contentType,
       search,
       isPublished
     })
@@ -136,8 +148,9 @@ export async function GET(request: NextRequest) {
 
 /**
  * POST /api/admin/bookshop
- * Create a new Book Shop item
+ * Create a new Book Shop item with multi-content type support
  * Admin only
+ * Requirements: 11.3, 11.4, 11.5
  */
 export async function POST(request: NextRequest) {
   try {
@@ -163,9 +176,19 @@ export async function POST(request: NextRequest) {
 
     const { documentId, title, description, category, isFree, price, isPublished } = validatedData
 
-    // Validate document exists
+    // Validate document exists and get its content type (Requirements: 11.3)
     const document = await prisma.document.findUnique({
-      where: { id: documentId }
+      where: { id: documentId },
+      select: {
+        id: true,
+        title: true,
+        filename: true,
+        fileSize: true,
+        contentType: true,
+        metadata: true,
+        thumbnailUrl: true,
+        linkUrl: true
+      }
     })
 
     if (!document) {
@@ -175,7 +198,16 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validate price for paid items
+    // Validate content type is supported (Requirements: 11.3)
+    const validContentTypes = Object.values(ContentType)
+    if (!validContentTypes.includes(document.contentType as ContentType)) {
+      return NextResponse.json(
+        { error: `Invalid content type: ${document.contentType}` },
+        { status: 400 }
+      )
+    }
+
+    // Validate price for paid items (Requirements: 11.4)
     if (isFree === false && (!price || price <= 0)) {
       return NextResponse.json(
         { error: 'Price is required for paid items and must be greater than 0' },
@@ -183,13 +215,17 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Create Book Shop item
+    // Create Book Shop item with content type and metadata (Requirements: 11.3, 11.4, 11.5)
     const bookShopItem = await prisma.bookShopItem.create({
       data: {
         documentId,
         title,
         description: description || null,
         category,
+        contentType: document.contentType,
+        metadata: document.metadata || {},
+        previewUrl: document.thumbnailUrl || null,
+        linkUrl: document.linkUrl || null,
         isFree: isFree !== false, // Default to true if not specified
         price: isFree === false ? price : null,
         isPublished: isPublished !== false // Default to true if not specified
@@ -200,18 +236,24 @@ export async function POST(request: NextRequest) {
             id: true,
             title: true,
             filename: true,
-            fileSize: true
+            fileSize: true,
+            contentType: true,
+            metadata: true,
+            thumbnailUrl: true,
+            linkUrl: true
           }
         }
       }
     })
 
-    logger.info('Book Shop item created', {
+    logger.info('Book Shop item created with multi-content type', {
       itemId: bookShopItem.id,
       documentId,
       title,
       category,
-      isFree: bookShopItem.isFree
+      contentType: document.contentType,
+      isFree: bookShopItem.isFree,
+      isPublished: bookShopItem.isPublished
     })
 
     return NextResponse.json(bookShopItem, { status: 201 })

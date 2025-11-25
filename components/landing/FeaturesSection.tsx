@@ -48,37 +48,6 @@ export default function FeaturesSection() {
     },
   ];
 
-  const userTypes = [
-    {
-      title: 'Platform Users',
-      description: 'Full access to upload, manage, and share documents (requires admin approval)',
-      features: [
-        'Upload unlimited PDFs',
-        'Create secure share links',
-        'Set passwords and expiration',
-        'View detailed analytics',
-        'Manage document access',
-        'Revoke shares anytime'
-      ],
-      color: 'from-blue-600 to-purple-600',
-      icon: '🚀'
-    },
-    {
-      title: 'Members',
-      description: 'Self-register to access shared content and the Book Shop',
-      features: [
-        'View documents shared with you',
-        'Browse the curated Book Shop',
-        'Build your personal library (My jstudyroom)',
-        'Add up to 10 documents (5 free, 5 paid)',
-        'Purchase premium content',
-        'Secure FlipBook viewer with watermarks'
-      ],
-      color: 'from-purple-600 to-pink-600',
-      icon: '📚'
-    }
-  ];
-
   return (
     <>
       {/* Main Features Section */}
@@ -108,44 +77,6 @@ export default function FeaturesSection() {
               <p className="text-gray-600 dark:text-gray-300">
                 {feature.description}
               </p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* User Types Comparison */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-        <div className="text-center mb-16 animate-fadeIn">
-          <h2 className="text-4xl md:text-5xl font-bold mb-4 text-gray-900 dark:text-white">
-            Choose Your Access Level
-          </h2>
-          <p className="text-xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
-            Whether you need to share documents or view them, we have the right solution
-          </p>
-        </div>
-
-        <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
-          {userTypes.map((type, index) => (
-            <div
-              key={index}
-              className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden animate-slideIn"
-              style={{ animationDelay: `${index * 0.1}s` }}
-            >
-              <div className={`bg-gradient-to-r ${type.color} p-6 text-white`}>
-                <div className="text-4xl mb-3">{type.icon}</div>
-                <h3 className="text-2xl font-bold mb-2">{type.title}</h3>
-                <p className="text-white/90">{type.description}</p>
-              </div>
-              <div className="p-6">
-                <ul className="space-y-3">
-                  {type.features.map((feature, idx) => (
-                    <li key={idx} className="flex items-start gap-3">
-                      <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
-                      <span className="text-gray-700 dark:text-gray-300">{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
             </div>
           ))}
         </div>

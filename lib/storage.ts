@@ -1,6 +1,15 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
+import { ContentType } from './types/content'
 
-const BUCKET_NAME = 'documents'
+const BUCKET_NAME = 'documents' // Default bucket for PDFs
+
+// Bucket mapping for different content types
+const BUCKET_MAP: Record<ContentType, string> = {
+  [ContentType.PDF]: 'documents',
+  [ContentType.IMAGE]: 'images',
+  [ContentType.VIDEO]: 'videos',
+  [ContentType.LINK]: 'documents' // Links don't need storage
+}
 
 // Lazy-load Supabase client to avoid build-time initialization
 let _supabaseAdmin: SupabaseClient | null = null
@@ -25,21 +34,31 @@ function getSupabaseAdmin(): SupabaseClient {
 }
 
 /**
+ * Get the appropriate bucket name for a content type
+ * Requirements: 3.3, 4.3
+ */
+export function getBucketForContentType(contentType: ContentType): string {
+  return BUCKET_MAP[contentType] || BUCKET_NAME
+}
+
+/**
  * Upload a file to Supabase Storage
  * @param file - File buffer or Blob to upload
  * @param path - Storage path (e.g., "userId/documentId.pdf")
  * @param contentType - MIME type of the file
+ * @param bucketName - Optional bucket name (defaults to 'documents')
  * @returns Storage path on success
  */
 export async function uploadFile(
   file: Buffer | Blob,
   path: string,
-  contentType: string = 'application/pdf'
+  contentType: string = 'application/pdf',
+  bucketName: string = BUCKET_NAME
 ): Promise<{ path: string; error?: string }> {
   try {
     const supabaseAdmin = getSupabaseAdmin()
     const { data, error } = await supabaseAdmin.storage
-      .from(BUCKET_NAME)
+      .from(bucketName)
       .upload(path, file, {
         contentType,
         upsert: false
@@ -60,13 +79,17 @@ export async function uploadFile(
 /**
  * Download a file from Supabase Storage
  * @param path - Storage path of the file
+ * @param bucketName - Optional bucket name (defaults to 'documents')
  * @returns File blob on success
  */
-export async function downloadFile(path: string): Promise<{ data?: Blob; error?: string }> {
+export async function downloadFile(
+  path: string,
+  bucketName: string = BUCKET_NAME
+): Promise<{ data?: Blob; error?: string }> {
   try {
     const supabaseAdmin = getSupabaseAdmin()
     const { data, error } = await supabaseAdmin.storage
-      .from(BUCKET_NAME)
+      .from(bucketName)
       .download(path)
 
     if (error) {
@@ -85,16 +108,18 @@ export async function downloadFile(path: string): Promise<{ data?: Blob; error?:
  * Generate a signed URL for temporary file access
  * @param path - Storage path of the file
  * @param expiresIn - Expiration time in seconds (default: 3600 = 1 hour)
+ * @param bucketName - Optional bucket name (defaults to 'documents')
  * @returns Signed URL on success
  */
 export async function getSignedUrl(
   path: string,
-  expiresIn: number = 3600
+  expiresIn: number = 3600,
+  bucketName: string = BUCKET_NAME
 ): Promise<{ url?: string; error?: string }> {
   try {
     const supabaseAdmin = getSupabaseAdmin()
     const { data, error } = await supabaseAdmin.storage
-      .from(BUCKET_NAME)
+      .from(bucketName)
       .createSignedUrl(path, expiresIn)
 
     if (error) {
@@ -112,13 +137,17 @@ export async function getSignedUrl(
 /**
  * Delete a file from Supabase Storage
  * @param path - Storage path of the file
+ * @param bucketName - Optional bucket name (defaults to 'documents')
  * @returns Success status
  */
-export async function deleteFile(path: string): Promise<{ success: boolean; error?: string }> {
+export async function deleteFile(
+  path: string,
+  bucketName: string = BUCKET_NAME
+): Promise<{ success: boolean; error?: string }> {
   try {
     const supabaseAdmin = getSupabaseAdmin()
     const { error } = await supabaseAdmin.storage
-      .from(BUCKET_NAME)
+      .from(bucketName)
       .remove([path])
 
     if (error) {
@@ -136,12 +165,13 @@ export async function deleteFile(path: string): Promise<{ success: boolean; erro
 /**
  * Get public URL for a file (for public buckets only)
  * @param path - Storage path of the file
+ * @param bucketName - Optional bucket name (defaults to 'documents')
  * @returns Public URL
  */
-export function getPublicUrl(path: string): string {
+export function getPublicUrl(path: string, bucketName: string = BUCKET_NAME): string {
   const supabaseAdmin = getSupabaseAdmin()
   const { data } = supabaseAdmin.storage
-    .from(BUCKET_NAME)
+    .from(bucketName)
     .getPublicUrl(path)
 
   return data.publicUrl
@@ -150,13 +180,17 @@ export function getPublicUrl(path: string): string {
 /**
  * List files in a directory
  * @param path - Directory path (e.g., "userId/")
+ * @param bucketName - Optional bucket name (defaults to 'documents')
  * @returns List of files
  */
-export async function listFiles(path: string): Promise<{ files?: any[]; error?: string }> {
+export async function listFiles(
+  path: string,
+  bucketName: string = BUCKET_NAME
+): Promise<{ files?: any[]; error?: string }> {
   try {
     const supabaseAdmin = getSupabaseAdmin()
     const { data, error } = await supabaseAdmin.storage
-      .from(BUCKET_NAME)
+      .from(bucketName)
       .list(path)
 
     if (error) {

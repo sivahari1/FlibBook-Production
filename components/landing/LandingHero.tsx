@@ -16,21 +16,20 @@ export default function LandingHero() {
       <div className="text-center animate-fadeIn">
         <div className="inline-flex items-center gap-2 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-4 py-2 rounded-full text-sm font-medium mb-6 animate-scaleIn">
           <Sparkles className="w-4 h-4" />
-          <span>Welcome to jstudyroom</span>
+          <span>Welcome to jStudyRoom</span>
         </div>
         
         <h1 className="text-5xl md:text-7xl font-bold mb-6 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent animate-slideIn">
-          Your Digital Library
+          Your Personal Study Room
           <br />
           <span className="text-4xl md:text-6xl">Secure & Accessible</span>
         </h1>
         
         <p className="text-xl text-gray-600 dark:text-gray-300 mb-8 max-w-3xl mx-auto animate-slideIn" style={{ animationDelay: '0.1s' }}>
-          jstudyroom is a secure document sharing platform with DRM protection, 
-          dynamic watermarking, and a curated Book Shop for Members.
+          jStudyRoom is a secure document sharing and Personal Learning Space.          
         </p>
 
-        <div className="mb-8 max-w-2xl mx-auto text-left bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 animate-slideIn" style={{ animationDelay: '0.2s' }}>
+        <div className="mb-8 max-w-2xl mx-auto text-left bg-green-50 dark:bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 animate-slideIn" style={{ animationDelay: '0.2s' }}>
           <h3 className="text-lg font-semibold mb-3 text-gray-900 dark:text-white">Three User Roles:</h3>
           <ul className="space-y-2 text-gray-600 dark:text-gray-300">
             <li className="flex items-start gap-2">
@@ -39,7 +38,7 @@ export default function LandingHero() {
             </li>
             <li className="flex items-start gap-2">
               <span className="text-purple-600 dark:text-purple-400 font-bold">•</span>
-              <span><strong className="text-gray-900 dark:text-white">Members:</strong> Self-register to access shared documents, browse the Book Shop, and build your personal library (My jstudyroom)</span>
+              <span><strong className="text-gray-900 dark:text-white">Members:</strong> Self-register to access shared documents, browse the Book Shop, and build your personal library (My jStudyRoom)</span>
             </li>
             <li className="flex items-start gap-2">
               <span className="text-pink-600 dark:text-pink-400 font-bold">•</span>

@@ -11,6 +11,9 @@ interface Document {
   filename: string;
   fileSize: bigint;
   createdAt: string;
+  contentType?: string;
+  metadata?: any;
+  linkUrl?: string;
 }
 
 interface DocumentListProps {

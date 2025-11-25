@@ -257,7 +257,7 @@ describe('Email Service', () => {
 
       expect(mockSend).toHaveBeenCalledWith(
         expect.objectContaining({
-          from: 'FlipBook DRM <support@jstudyroom.dev>',
+          from: 'jStudyRoom <support@jstudyroom.dev>',
         })
       );
     });

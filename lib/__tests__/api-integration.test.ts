@@ -153,6 +153,11 @@ describe('API Integration Tests', () => {
 
 
     it('should retrieve all published Book Shop items', async () => {
+      // Clean up any existing items first
+      await prisma.bookShopItem.deleteMany({
+        where: { documentId: testDocument.id },
+      });
+
       // Create multiple items
       await prisma.bookShopItem.createMany({
         data: [
@@ -182,7 +187,10 @@ describe('API Integration Tests', () => {
       });
 
       const publishedItems = await prisma.bookShopItem.findMany({
-        where: { isPublished: true },
+        where: { 
+          isPublished: true,
+          documentId: testDocument.id 
+        },
       });
 
       expect(publishedItems).toHaveLength(2);

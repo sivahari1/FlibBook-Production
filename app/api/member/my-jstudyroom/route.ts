@@ -42,6 +42,8 @@ export async function GET(request: NextRequest) {
                 id: true,
                 title: true,
                 filename: true,
+                contentType: true,
+                metadata: true,
               },
             },
           },
@@ -71,6 +73,8 @@ export async function GET(request: NextRequest) {
         addedAt: item.addedAt,
         documentId: item.bookShopItem.document.id,
         documentTitle: item.bookShopItem.document.title,
+        contentType: item.bookShopItem.document.contentType,
+        metadata: item.bookShopItem.document.metadata,
       })),
       counts: {
         free: user?.freeDocumentCount || 0,

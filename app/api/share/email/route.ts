@@ -7,12 +7,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { createEmailShareSchema } from '@/lib/validation/sharing'
-import { sanitizeNote, formatShareUrl, getBaseUrl } from '@/lib/sharing'
+import { sanitizeNote, getBaseUrl } from '@/lib/sharing'
 import { getDocumentById, createEmailShare, findUserByEmail } from '@/lib/documents'
 import { sendShareEmail } from '@/lib/email-share'
 import { prisma } from '@/lib/db'
 import { logger } from '@/lib/logger'
 import { requirePlatformUser } from '@/lib/role-check'
+import { checkSharePermission, type UserRole } from '@/lib/rbac/admin-privileges'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -25,12 +26,14 @@ export async function POST(request: NextRequest) {
     if (roleCheck) return roleCheck
 
     const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
+    if (!session?.user?.id || !session?.user?.role) {
       return NextResponse.json(
         { error: { code: 'UNAUTHORIZED', message: 'Authentication required' } },
         { status: 401 }
       )
     }
+
+    const userRole = session.user.role as UserRole
 
     const body = await request.json()
     const validation = createEmailShareSchema.safeParse(body)
@@ -54,6 +57,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: { code: 'VALIDATION_ERROR', message: 'Cannot share with yourself' } },
         { status: 400 }
+      )
+    }
+
+    // Check share quota for non-admin users
+    // Requirements 2.1, 2.4: Admin shares bypass quota checks
+    const currentShareCount = await prisma.documentShare.count({
+      where: { sharedByUserId: session.user.id }
+    })
+
+    const sharePermission = checkSharePermission(userRole, currentShareCount, 'email')
+    if (!sharePermission.allowed) {
+      return NextResponse.json(
+        { error: { code: 'QUOTA_EXCEEDED', message: sharePermission.reason || 'Share limit reached' } },
+        { status: 403 }
       )
     }
 

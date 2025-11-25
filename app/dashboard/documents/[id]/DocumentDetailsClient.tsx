@@ -5,16 +5,22 @@ import { useRouter } from 'next/navigation';
 import { ShareManagement } from '@/components/dashboard/ShareManagement';
 import AnalyticsClient from './AnalyticsClient';
 
+import { UserRole } from '@/lib/rbac/admin-privileges';
+
 interface DocumentDetailsClientProps {
   documentId: string;
   linkShares: any[];
   emailShares: any[];
+  userRole: UserRole;
+  totalShareCount: number;
 }
 
 export default function DocumentDetailsClient({
   documentId,
   linkShares: initialLinkShares,
   emailShares: initialEmailShares,
+  userRole,
+  totalShareCount,
 }: DocumentDetailsClientProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'analytics' | 'shares'>('analytics');
@@ -97,6 +103,8 @@ export default function DocumentDetailsClient({
             linkShares={initialLinkShares}
             emailShares={initialEmailShares}
             onSharesChange={handleSharesChange}
+            userRole={userRole}
+            totalShareCount={totalShareCount}
           />
         )}
       </div>

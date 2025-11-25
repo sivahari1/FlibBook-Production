@@ -22,6 +22,10 @@ export async function getDocumentsByUserId(userId: string) {
       mimeType: true,
       createdAt: true,
       updatedAt: true,
+      contentType: true,
+      metadata: true,
+      linkUrl: true,
+      thumbnailUrl: true,
     },
   })
 }
@@ -79,6 +83,10 @@ export async function getUserWithDocuments(userId: string) {
           filename: true,
           fileSize: true,
           createdAt: true,
+          contentType: true,
+          metadata: true,
+          linkUrl: true,
+          thumbnailUrl: true,
         },
       },
     },

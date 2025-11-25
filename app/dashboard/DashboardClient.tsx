@@ -3,8 +3,11 @@
 import { Card, CardContent, CardHeader } from '@/components/ui/Card';
 import { DocumentList } from '@/components/dashboard/DocumentList';
 import { UploadButton } from '@/components/dashboard/UploadButton';
+import { ContentFilter } from '@/components/dashboard/ContentFilter';
 import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { ContentType } from '@/lib/types/content';
 
 interface Document {
   id: string;
@@ -12,13 +15,16 @@ interface Document {
   filename: string;
   fileSize: string;
   createdAt: string;
+  contentType?: string;
+  metadata?: any;
+  linkUrl?: string;
 }
 
 interface DashboardClientProps {
   documents: Document[];
   subscription: string;
   documentCount: number;
-  maxDocuments: number;
+  maxDocuments: number | string;
   storageUsed: string;
   storageLimit: string;
   storagePercentage: number;
@@ -26,7 +32,7 @@ interface DashboardClientProps {
 }
 
 export function DashboardClient({
-  documents,
+  documents: initialDocuments,
   subscription,
   documentCount,
   maxDocuments,
@@ -36,12 +42,46 @@ export function DashboardClient({
   userRole,
 }: DashboardClientProps) {
   const router = useRouter();
+  const [documents, setDocuments] = useState(initialDocuments);
+  const [isLoading, setIsLoading] = useState(false);
+  const [filter, setFilter] = useState<{ contentType?: ContentType; searchQuery?: string }>({});
 
   // Check if user is a reader (should not see this page, but handle gracefully)
   const isReader = userRole === 'READER_USER';
 
   const handleDocumentsChange = () => {
     router.refresh();
+  };
+
+  // Fetch filtered documents
+  const fetchFilteredDocuments = async (newFilter: { contentType?: ContentType; searchQuery?: string }) => {
+    setIsLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (newFilter.contentType) {
+        params.append('contentType', newFilter.contentType);
+      }
+      if (newFilter.searchQuery) {
+        params.append('search', newFilter.searchQuery);
+      }
+
+      const response = await fetch(`/api/documents?${params.toString()}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch documents');
+      }
+
+      const data = await response.json();
+      setDocuments(data.documents);
+    } catch (error) {
+      console.error('Error fetching filtered documents:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleFilterChange = (newFilter: { contentType?: ContentType; searchQuery?: string }) => {
+    setFilter(newFilter);
+    fetchFilteredDocuments(newFilter);
   };
 
   const getSubscriptionBadgeColor = (sub: string) => {
@@ -154,7 +194,7 @@ export function DashboardClient({
               <div className="flex items-center justify-between text-sm">
                 <span className="text-gray-600">Documents</span>
                 <span className="font-medium text-gray-900">
-                  {documentCount} / {maxDocuments === Infinity ? '∞' : maxDocuments}
+                  {documentCount} / {maxDocuments === 'Unlimited' || maxDocuments === Infinity ? 'Unlimited' : maxDocuments}
                 </span>
               </div>
 
@@ -169,7 +209,7 @@ export function DashboardClient({
                 </div>
               )}
 
-              {documentCount >= maxDocuments && maxDocuments !== Infinity && (
+              {typeof maxDocuments === 'number' && documentCount >= maxDocuments && maxDocuments !== Infinity && (
                 <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mt-3">
                   <p className="text-sm text-yellow-700">
                     You've reached your document limit. Upgrade to upload more.
@@ -183,16 +223,32 @@ export function DashboardClient({
 
       {/* Documents List */}
       <div>
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">
-          Your Documents ({documentCount})
-        </h2>
-        <DocumentList
-          documents={documents.map(doc => ({
-            ...doc,
-            fileSize: BigInt(doc.fileSize),
-          }))}
-          onDocumentsChange={handleDocumentsChange}
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+            Your Documents ({documents.length})
+          </h2>
+        </div>
+
+        {/* Content Filter */}
+        <ContentFilter
+          onFilterChange={handleFilterChange}
+          currentFilter={filter}
         />
+
+        {/* Loading State */}
+        {isLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          </div>
+        ) : (
+          <DocumentList
+            documents={documents.map(doc => ({
+              ...doc,
+              fileSize: BigInt(doc.fileSize),
+            }))}
+            onDocumentsChange={handleDocumentsChange}
+          />
+        )}
       </div>
     </div>
   );

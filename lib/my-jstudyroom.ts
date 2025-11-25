@@ -76,7 +76,7 @@ export async function addDocumentToMyJstudyroom(
   userId: string,
   bookShopItemId: string,
   isFree: boolean
-): Promise<{ success: boolean; error?: string; itemId?: string }> {
+): Promise<{ success: boolean; error?: string; item?: any; itemId?: string }> {
   try {
     // Check if document can be added
     const canAdd = await canAddDocument(userId, isFree);
@@ -133,6 +133,7 @@ export async function addDocumentToMyJstudyroom(
 
     return {
       success: true,
+      item: result,
       itemId: result.id,
     };
   } catch (error) {

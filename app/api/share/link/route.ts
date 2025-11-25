@@ -9,8 +9,10 @@ import { authOptions } from '@/lib/auth'
 import { createLinkShareSchema } from '@/lib/validation/sharing'
 import { generateShareKey, hashPassword, getBaseUrl, formatShareUrl } from '@/lib/sharing'
 import { getDocumentById, createLinkShare } from '@/lib/documents'
+import { prisma } from '@/lib/db'
 import { logger } from '@/lib/logger'
 import { requirePlatformUser } from '@/lib/role-check'
+import { checkSharePermission, type UserRole } from '@/lib/rbac/admin-privileges'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -23,12 +25,14 @@ export async function POST(request: NextRequest) {
     if (roleCheck) return roleCheck
 
     const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
+    if (!session?.user?.id || !session?.user?.role) {
       return NextResponse.json(
         { error: { code: 'UNAUTHORIZED', message: 'Authentication required' } },
         { status: 401 }
       )
     }
+
+    const userRole = session.user.role as UserRole
 
     const body = await request.json()
     const validation = createLinkShareSchema.safeParse(body)
@@ -51,6 +55,20 @@ export async function POST(request: NextRequest) {
     }
 
     const { documentId, expiresAt, maxViews, password, restrictToEmail, canDownload } = validation.data
+
+    // Check share quota for non-admin users
+    // Requirements 2.1, 2.4: Admin shares bypass quota checks
+    const currentShareCount = await prisma.shareLink.count({
+      where: { userId: session.user.id }
+    })
+
+    const sharePermission = checkSharePermission(userRole, currentShareCount, 'link')
+    if (!sharePermission.allowed) {
+      return NextResponse.json(
+        { error: { code: 'QUOTA_EXCEEDED', message: sharePermission.reason || 'Share limit reached' } },
+        { status: 403 }
+      )
+    }
 
     const document = await getDocumentById(documentId, session.user.id)
     if (!document) {

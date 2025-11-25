@@ -4,6 +4,8 @@ import { authOptions } from '@/lib/auth';
 import { getUserWithDocuments } from '@/lib/documents';
 import { DashboardClient } from '@/app/dashboard/DashboardClient';
 import { SUBSCRIPTION_PLANS, SubscriptionTier } from '@/lib/razorpay';
+import { hasUnlimitedUploads, getUploadQuotaRemaining } from '@/lib/rbac/admin-privileges';
+import type { UserRole } from '@/lib/rbac/admin-privileges';
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -37,13 +39,17 @@ export default async function DashboardPage() {
     redirect('/login');
   }
 
+  // Check if user is admin for unlimited privileges
+  const userRole = (session.user.userRole as UserRole) || 'PLATFORM_USER';
+  const isAdmin = userRole === 'ADMIN';
+
   // Get subscription limits - ensure subscription field exists
   const subscription = (user.subscription as SubscriptionTier) || 'free';
   const limits = SUBSCRIPTION_PLANS[subscription];
 
   // Calculate storage usage - handle null/undefined storageUsed
   const storageUsed = user.storageUsed ? Number(user.storageUsed) : 0;
-  const storageLimit = limits.storage;
+  const storageLimit = isAdmin ? Infinity : limits.storage;
   const storagePercentage = storageLimit === Infinity 
     ? 0 
     : Math.min((storageUsed / storageLimit) * 100, 100);
@@ -65,14 +71,22 @@ export default async function DashboardPage() {
     ...doc,
     fileSize: doc.fileSize ? doc.fileSize.toString() : '0',
     createdAt: doc.createdAt ? doc.createdAt.toISOString() : new Date().toISOString(),
+    contentType: doc.contentType || 'PDF',
+    metadata: doc.metadata || {},
+    linkUrl: doc.linkUrl || undefined,
   }));
+
+  // Get document quota - unlimited for admins
+  const documentQuota = isAdmin 
+    ? 'Unlimited' 
+    : limits.maxDocuments;
 
   return (
     <DashboardClient
       documents={documents}
       subscription={subscription}
       documentCount={user.documents ? user.documents.length : 0}
-      maxDocuments={limits.maxDocuments}
+      maxDocuments={documentQuota}
       storageUsed={storageUsedFormatted}
       storageLimit={storageLimitFormatted}
       storagePercentage={storagePercentage}

@@ -4,7 +4,7 @@ import { logger } from './logger';
 
 // Email configuration
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'support@jstudyroom.dev';
-const APP_NAME = 'FlipBook DRM';
+const APP_NAME = 'jStudyRoom';
 
 // Lazy initialize Resend client
 let resendClient: Resend | null = null;

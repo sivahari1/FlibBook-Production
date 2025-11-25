@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { UserRole, getShareQuotaRemaining } from '@/lib/rbac/admin-privileges';
 
 interface LinkShare {
   id: string;
@@ -35,6 +36,8 @@ interface ShareManagementProps {
   linkShares: LinkShare[];
   emailShares: EmailShare[];
   onSharesChange: () => void;
+  userRole: UserRole;
+  totalShareCount: number;
 }
 
 export const ShareManagement: React.FC<ShareManagementProps> = ({
@@ -42,9 +45,15 @@ export const ShareManagement: React.FC<ShareManagementProps> = ({
   linkShares,
   emailShares,
   onSharesChange,
+  userRole,
+  totalShareCount,
 }) => {
   const [revokingId, setRevokingId] = useState<string | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  
+  // Calculate quota information
+  const quotaRemaining = getShareQuotaRemaining(userRole, totalShareCount);
+  const isUnlimited = quotaRemaining === 'unlimited';
 
   const formatDate = (date: Date | null) => {
     if (!date) return 'Never';
@@ -123,31 +132,70 @@ export const ShareManagement: React.FC<ShareManagementProps> = ({
 
   const hasShares = linkShares.length > 0 || emailShares.length > 0;
 
-  if (!hasShares) {
-    return (
-      <Card className="p-6">
-        <div className="text-center text-gray-500 dark:text-gray-400">
-          <svg
-            className="mx-auto h-12 w-12 mb-3"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
-            />
-          </svg>
-          <p>No active shares for this document</p>
-        </div>
-      </Card>
-    );
-  }
-
   return (
     <div className="space-y-6">
+      {/* Share Quota Status */}
+      <Card className="p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
+              Share Quota Status
+            </h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Total shares created for this document
+            </p>
+          </div>
+          <div className="text-right">
+            <div className="text-3xl font-bold text-gray-900 dark:text-white">
+              {totalShareCount}
+            </div>
+            <div className="text-sm text-gray-600 dark:text-gray-400">
+              {isUnlimited ? (
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                  <svg
+                    className="w-4 h-4 mr-1"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                  Unlimited
+                </span>
+              ) : (
+                <span>
+                  {quotaRemaining} remaining
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      </Card>
+
+      {!hasShares ? (
+        <Card className="p-6">
+          <div className="text-center text-gray-500 dark:text-gray-400">
+            <svg
+              className="mx-auto h-12 w-12 mb-3"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
+              />
+            </svg>
+            <p>No active shares for this document</p>
+          </div>
+        </Card>
+      ) : (
+        <>
       {/* Link Shares */}
       {linkShares.length > 0 && (
         <Card>
@@ -326,6 +374,8 @@ export const ShareManagement: React.FC<ShareManagementProps> = ({
             ))}
           </div>
         </Card>
+      )}
+      </>
       )}
     </div>
   );

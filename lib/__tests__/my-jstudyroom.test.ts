@@ -300,15 +300,18 @@ describe('My jstudyroom Business Logic', () => {
   });
 
   describe('removeDocumentFromMyJstudyroom', () => {
+    let itemId: string;
+
     beforeEach(async () => {
       // Add a document to remove
-      await addDocumentToMyJstudyroom(TEST_USER_ID, TEST_BOOKSHOP_ITEM_ID, true);
+      const result = await addDocumentToMyJstudyroom(TEST_USER_ID, TEST_BOOKSHOP_ITEM_ID, true);
+      itemId = result.itemId!;
     });
 
     it('should successfully remove a free document', async () => {
       const result = await removeDocumentFromMyJstudyroom(
         TEST_USER_ID,
-        TEST_BOOKSHOP_ITEM_ID
+        itemId
       );
 
       expect(result.success).toBe(true);
@@ -331,12 +334,13 @@ describe('My jstudyroom Business Logic', () => {
 
     it('should successfully remove a paid document', async () => {
       // First remove the free document and add a paid one
-      await removeDocumentFromMyJstudyroom(TEST_USER_ID, TEST_BOOKSHOP_ITEM_ID);
-      await addDocumentToMyJstudyroom(TEST_USER_ID, TEST_BOOKSHOP_ITEM_ID, false);
+      await removeDocumentFromMyJstudyroom(TEST_USER_ID, itemId);
+      const addResult = await addDocumentToMyJstudyroom(TEST_USER_ID, TEST_BOOKSHOP_ITEM_ID, false);
+      const paidItemId = addResult.itemId!;
 
       const result = await removeDocumentFromMyJstudyroom(
         TEST_USER_ID,
-        TEST_BOOKSHOP_ITEM_ID
+        paidItemId
       );
 
       expect(result.success).toBe(true);
@@ -361,7 +365,7 @@ describe('My jstudyroom Business Logic', () => {
     it('should use transaction to ensure atomicity', async () => {
       const result = await removeDocumentFromMyJstudyroom(
         TEST_USER_ID,
-        TEST_BOOKSHOP_ITEM_ID
+        itemId
       );
 
       expect(result.success).toBe(true);

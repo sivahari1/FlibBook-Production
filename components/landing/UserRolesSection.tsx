@@ -1,6 +1,7 @@
 'use client';
 
-import { Rocket, BookOpen, Shield } from 'lucide-react';
+import Link from 'next/link';
+import { Rocket, BookOpen, Shield, ArrowRight } from 'lucide-react';
 
 export default function UserRolesSection() {
   const roles = [
@@ -9,21 +10,24 @@ export default function UserRolesSection() {
       title: 'Platform Users',
       description: 'Upload, manage, and share protected documents with full control',
       color: 'from-blue-500 to-cyan-500',
-      badge: 'Requires Approval'
+      badge: 'Requires Approval',
+      link: '/roles/platform-user'
     },
     {
       icon: BookOpen,
       title: 'Members',
       description: 'Access shared documents, browse Book Shop, build your library',
       color: 'from-purple-500 to-pink-500',
-      badge: 'Self-Register'
+      badge: 'Register Now',
+      link: '/roles/member'
     },
     {
       icon: Shield,
       title: 'Admins',
-      description: 'Manage users, curate Book Shop, oversee platform operations',
+      description: 'Manage users, curate BookShop, oversee platform operations',
       color: 'from-pink-500 to-rose-500',
-      badge: 'By Invitation'
+      badge: 'By Invitation',
+      link: '/roles/admin'
     }
   ];
 
@@ -63,9 +67,20 @@ export default function UserRolesSection() {
             </h3>
 
             {/* Description */}
-            <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+            <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed mb-4">
               {role.description}
             </p>
+
+            {/* Learn More Link */}
+            {role.link && (
+              <Link
+                href={role.link}
+                className="inline-flex items-center gap-2 text-sm font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
+              >
+                Learn More
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              </Link>
+            )}
           </div>
         ))}
       </div>

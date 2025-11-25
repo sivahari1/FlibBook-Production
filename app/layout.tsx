@@ -12,7 +12,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "FlipBook DRM - Secure PDF Sharing Platform",
+  title: "jStudyRoom",
   description: "Upload, share, and protect your PDF documents with advanced DRM, dynamic watermarking, and comprehensive analytics.",
 };
 

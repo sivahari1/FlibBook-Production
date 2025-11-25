@@ -18,8 +18,10 @@ export const runtime = 'nodejs'
 /**
  * GET /api/documents
  * List all documents for the authenticated user
+ * Supports filtering by content type and search query
+ * Requirements: 10.4, 10.5
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     // Verify authentication
     const session = await getServerSession(authOptions)
@@ -30,16 +32,73 @@ export async function GET() {
       )
     }
 
-    // Fetch user's documents using shared data access layer
-    const documents = await getDocumentsByUserId(session.user.id)
+    // Get query parameters for filtering
+    const { searchParams } = new URL(request.url)
+    const contentType = searchParams.get('contentType')
+    const searchQuery = searchParams.get('search')
+
+    // Build where clause for filtering
+    const whereClause: any = {
+      userId: session.user.id
+    }
+
+    // Add content type filter if provided
+    if (contentType && contentType !== 'ALL') {
+      whereClause.contentType = contentType
+    }
+
+    // Add search filter if provided (search across title, filename, and metadata)
+    if (searchQuery) {
+      whereClause.OR = [
+        {
+          title: {
+            contains: searchQuery,
+            mode: 'insensitive'
+          }
+        },
+        {
+          filename: {
+            contains: searchQuery,
+            mode: 'insensitive'
+          }
+        }
+      ]
+    }
+
+    // Fetch filtered documents
+    const documents = await prisma.document.findMany({
+      where: whereClause,
+      orderBy: {
+        createdAt: 'desc'
+      },
+      select: {
+        id: true,
+        title: true,
+        filename: true,
+        fileSize: true,
+        contentType: true,
+        metadata: true,
+        linkUrl: true,
+        thumbnailUrl: true,
+        createdAt: true,
+        updatedAt: true
+      }
+    })
 
     // Get user's storage usage using shared data access layer
     const user = await getUserStorageInfo(session.user.id)
 
+    // Convert BigInt to string for JSON serialization
+    const documentsResponse = documents.map(doc => ({
+      ...doc,
+      fileSize: doc.fileSize.toString()
+    }))
+
     return NextResponse.json({
-      documents,
+      documents: documentsResponse,
       storageUsed: user?.storageUsed || 0,
-      subscription: user?.subscription || 'free'
+      subscription: user?.subscription || 'free',
+      totalCount: documents.length
     })
   } catch (error) {
     logger.error('Error fetching documents', error)

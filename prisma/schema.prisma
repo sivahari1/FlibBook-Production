@@ -14,26 +14,26 @@ model User {
   passwordHash        String
   name                String?
   role                Role                @default(USER)
-  userRole            UserRole            @default(MEMBER)
-  pricePlan           String?
-  notes               String?
-  isActive            Boolean             @default(true)
   subscription        String              @default("free")
   storageUsed         BigInt              @default(0)
   emailVerified       Boolean             @default(false)
   createdAt           DateTime            @default(now())
   updatedAt           DateTime            @updatedAt
   emailVerifiedAt     DateTime?
+  isActive            Boolean             @default(true)
+  notes               String?
+  pricePlan           String?
+  userRole            UserRole            @default(MEMBER)
   freeDocumentCount   Int                 @default(0)
   paidDocumentCount   Int                 @default(0)
   emailSharesCreated  DocumentShare[]     @relation("SharedByUser")
   emailSharesReceived DocumentShare[]     @relation("SharedWithUser")
   documents           Document[]
+  myJstudyroomItems   MyJstudyroomItem[]
+  payments            Payment[]
   shareLinks          ShareLink[]
   subscriptions       Subscription[]
   verificationTokens  VerificationToken[]
-  myJstudyroomItems   MyJstudyroomItem[]
-  payments            Payment[]
 
   @@index([email])
   @@index([userRole])
@@ -41,23 +41,28 @@ model User {
 }
 
 model Document {
-  id             String          @id @default(cuid())
-  title          String
-  filename       String
-  fileSize       BigInt
-  storagePath    String
-  mimeType       String          @default("application/pdf")
-  userId         String
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
-  emailShares    DocumentShare[]
-  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  shareLinks     ShareLink[]
-  analytics      ViewAnalytics[]
-  bookShopItems  BookShopItem[]
+  id            String          @id @default(cuid())
+  title         String
+  filename      String
+  fileSize      BigInt
+  storagePath   String
+  mimeType      String          @default("application/pdf")
+  contentType   String          @default("PDF")
+  metadata      Json            @default("{}")
+  thumbnailUrl  String?
+  linkUrl       String?
+  userId        String
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  bookShopItems BookShopItem[]
+  emailShares   DocumentShare[]
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  shareLinks    ShareLink[]
+  analytics     ViewAnalytics[]
 
   @@index([userId])
   @@index([createdAt])
+  @@index([contentType])
   @@map("documents")
 }
 
@@ -94,8 +99,8 @@ model DocumentShare {
   expiresAt        DateTime?
   canDownload      Boolean   @default(false)
   note             String?
-  watermarkText    String?
   createdAt        DateTime  @default(now())
+  watermarkText    String?
   document         Document  @relation(fields: [documentId], references: [id], onDelete: Cascade)
   sharedBy         User      @relation("SharedByUser", fields: [sharedByUserId], references: [id], onDelete: Cascade)
   sharedWithUser   User?     @relation("SharedWithUser", fields: [sharedWithUserId], references: [id])
@@ -184,23 +189,28 @@ model AccessRequest {
 }
 
 model BookShopItem {
-  id               String             @id @default(cuid())
-  documentId       String
-  title            String
-  description      String?
-  category         String
-  isFree           Boolean            @default(true)
-  price            Int?               // Price in paise (₹1 = 100 paise)
-  isPublished      Boolean            @default(true)
-  createdAt        DateTime           @default(now())
-  updatedAt        DateTime           @updatedAt
-  document         Document           @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  id                String             @id @default(cuid())
+  documentId        String
+  title             String
+  description       String?
+  category          String
+  contentType       String             @default("PDF")
+  metadata          Json               @default("{}")
+  previewUrl        String?
+  linkUrl           String?
+  isFree            Boolean            @default(true)
+  price             Int?
+  isPublished       Boolean            @default(true)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  document          Document           @relation(fields: [documentId], references: [id], onDelete: Cascade)
   myJstudyroomItems MyJstudyroomItem[]
-  payments         Payment[]
+  payments          Payment[]
 
   @@index([documentId])
   @@index([category])
   @@index([isPublished])
+  @@index([contentType])
   @@map("book_shop_items")
 }
 
@@ -210,8 +220,8 @@ model MyJstudyroomItem {
   bookShopItemId String
   isFree         Boolean
   addedAt        DateTime     @default(now())
-  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   bookShopItem   BookShopItem @relation(fields: [bookShopItemId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, bookShopItemId])
   @@index([userId])
@@ -223,16 +233,16 @@ model Payment {
   id                String       @id @default(cuid())
   userId            String
   bookShopItemId    String
-  amount            Int          // Amount in paise
+  amount            Int
   currency          String       @default("INR")
-  status            String       // pending, success, failed
+  status            String
   razorpayOrderId   String?      @unique
   razorpayPaymentId String?      @unique
   razorpaySignature String?
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
-  user              User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   bookShopItem      BookShopItem @relation(fields: [bookShopItemId], references: [id])
+  user              User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([bookShopItemId])

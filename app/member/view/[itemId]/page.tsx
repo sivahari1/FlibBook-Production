@@ -29,7 +29,23 @@ export default async function MyJstudyroomViewerPage({
     include: {
       bookShopItem: {
         include: {
-          document: true,
+          document: {
+            select: {
+              id: true,
+              title: true,
+              filename: true,
+              contentType: true,
+              storagePath: true,
+              linkUrl: true,
+              thumbnailUrl: true,
+              metadata: true,
+              fileSize: true,
+              mimeType: true,
+              createdAt: true,
+              updatedAt: true,
+              userId: true,
+            },
+          },
         },
       },
     },
@@ -47,6 +63,7 @@ export default async function MyJstudyroomViewerPage({
     <MyJstudyroomViewerClient
       document={item.bookShopItem.document}
       bookShopTitle={item.bookShopItem.title}
+      memberName={session.user.name || session.user.email}
     />
   );
 }

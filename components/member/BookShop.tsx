@@ -13,10 +13,18 @@ interface BookShopItem {
   price: number | null;
   isPublished: boolean;
   inMyJstudyroom: boolean;
+  contentType?: string;
+  metadata?: any;
+  previewUrl?: string;
+  linkUrl?: string;
   document: {
     id: string;
     title: string;
     filename: string;
+    contentType?: string;
+    metadata?: any;
+    thumbnailUrl?: string;
+    linkUrl?: string;
   };
 }
 
@@ -25,6 +33,7 @@ export function BookShop() {
   const [filteredItems, setFilteredItems] = useState<BookShopItem[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('');
+  const [selectedContentType, setSelectedContentType] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -35,7 +44,7 @@ export function BookShop() {
 
   useEffect(() => {
     filterItems();
-  }, [items, selectedCategory, searchQuery]);
+  }, [items, selectedCategory, selectedContentType, searchQuery]);
 
   const fetchItems = async () => {
     try {
@@ -64,6 +73,13 @@ export function BookShop() {
 
     if (selectedCategory) {
       filtered = filtered.filter((item) => item.category === selectedCategory);
+    }
+
+    if (selectedContentType) {
+      filtered = filtered.filter((item) => {
+        const contentType = item.document?.contentType || 'PDF';
+        return contentType === selectedContentType;
+      });
     }
 
     if (searchQuery) {
@@ -122,8 +138,23 @@ export function BookShop() {
           />
         </div>
 
+        {/* Content Type Filter */}
+        <div className="sm:w-48">
+          <select
+            value={selectedContentType}
+            onChange={(e) => setSelectedContentType(e.target.value)}
+            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+          >
+            <option value="">All Types</option>
+            <option value="PDF">📄 PDF</option>
+            <option value="IMAGE">🖼️ Image</option>
+            <option value="VIDEO">🎥 Video</option>
+            <option value="LINK">🔗 Link</option>
+          </select>
+        </div>
+
         {/* Category Filter */}
-        <div className="sm:w-64">
+        <div className="sm:w-48">
           <select
             value={selectedCategory}
             onChange={(e) => setSelectedCategory(e.target.value)}

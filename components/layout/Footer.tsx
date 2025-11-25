@@ -6,7 +6,7 @@ export default function Footer() {
           <div className="flex items-center justify-center space-x-2">
             <div className="h-px w-12 bg-gradient-to-r from-transparent to-blue-500"></div>
             <p className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-              FlipBook DRM
+              jStudyRoom
             </p>
             <div className="h-px w-12 bg-gradient-to-l from-transparent to-purple-500"></div>
           </div>
@@ -31,7 +31,7 @@ export default function Footer() {
           </div>
           
           <p className="text-xs text-gray-500 pt-4">
-            &copy; {new Date().getFullYear()} FlipBook DRM. All rights reserved.
+            &copy; {new Date().getFullYear()} jStudyRoom. All rights reserved.
           </p>
         </div>
       </div>

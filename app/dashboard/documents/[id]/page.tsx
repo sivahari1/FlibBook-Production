@@ -2,6 +2,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { getDocumentById, getSharesForDocument } from '@/lib/documents';
+import { UserRole } from '@/lib/rbac/admin-privileges';
+import { prisma } from '@/lib/db';
 import AnalyticsClient from './AnalyticsClient';
 import DocumentDetailsClient from './DocumentDetailsClient';
 
@@ -31,6 +33,16 @@ export default async function DocumentAnalyticsPage({
   // Fetch shares for the document
   const shares = await getSharesForDocument(id);
 
+  // Get user role from session
+  const userRole = (session.user.role || 'PLATFORM_USER') as UserRole;
+
+  // Calculate total share count for this user across all documents
+  const totalShareCount = await prisma.shareLink.count({
+    where: { userId: session.user.id }
+  }) + await prisma.emailShare.count({
+    where: { sharedById: session.user.id }
+  });
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-6">
@@ -44,6 +56,8 @@ export default async function DocumentAnalyticsPage({
         documentId={id}
         linkShares={shares.linkShares}
         emailShares={shares.emailShares}
+        userRole={userRole}
+        totalShareCount={totalShareCount}
       />
     </div>
   );

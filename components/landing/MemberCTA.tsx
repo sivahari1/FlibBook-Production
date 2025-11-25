@@ -17,7 +17,7 @@ export default function MemberCTA() {
             Become a Member Today
           </h2>
           <p className="text-xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
-            Join jstudyroom and get instant access to shared documents, a curated Book Shop, 
+            Join jStudyRoom and get instant access to shared documents, a curated Book Shop, 
             and your own personal digital library.
           </p>
         </div>
@@ -53,7 +53,7 @@ export default function MemberCTA() {
               <BookOpen className="w-6 h-6 text-white" />
             </div>
             <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">
-              My jstudyroom
+              My jStudyRoom
             </h3>
             <p className="text-gray-600 dark:text-gray-300 text-sm">
               Your personal virtual bookshelf. Store up to 10 documents (5 free, 5 paid) and access them anytime, anywhere.
@@ -73,7 +73,7 @@ export default function MemberCTA() {
               'Browse the complete Book Shop catalog',
               'Add up to 5 free documents to your library',
               'Purchase up to 5 premium documents',
-              'Secure FlipBook viewer with DRM protection',
+              'Secure jStudyRoom viewer with DRM protection',
               'Dynamic watermarks for accountability',
               'Access your library from any device'
             ].map((benefit, index) => (

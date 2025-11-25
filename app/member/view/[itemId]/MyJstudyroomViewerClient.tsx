@@ -1,45 +1,76 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import PDFViewer from '@/components/pdf/PDFViewer';
+import UniversalViewer from '@/components/viewers/UniversalViewer';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
+import { EnhancedDocument, ContentType, ContentMetadata } from '@/lib/types/content';
 
 interface Document {
   id: string;
   title: string;
   filename: string;
+  contentType: string;
   storagePath: string;
+  linkUrl: string | null;
+  thumbnailUrl: string | null;
+  metadata: any;
+  fileSize: bigint | null;
+  mimeType: string;
+  createdAt: Date;
+  updatedAt: Date;
+  userId: string;
 }
 
 interface MyJstudyroomViewerClientProps {
   document: Document;
   bookShopTitle: string;
+  memberName: string;
 }
 
 export function MyJstudyroomViewerClient({
   document,
   bookShopTitle,
+  memberName,
 }: MyJstudyroomViewerClientProps) {
-  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [enhancedDoc, setEnhancedDoc] = useState<EnhancedDocument | null>(null);
 
   useEffect(() => {
-    fetchDocument();
+    prepareDocument();
   }, [document.id]);
 
-  const fetchDocument = async () => {
+  const prepareDocument = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // Fetch the document from storage
-      // Note: You may need to create a dedicated API endpoint for this
-      // For now, we'll use the storage path directly
-      setPdfUrl(document.storagePath);
+      // Convert the document to EnhancedDocument format
+      const metadata: ContentMetadata = typeof document.metadata === 'string' 
+        ? JSON.parse(document.metadata) 
+        : document.metadata || {};
+
+      const enhanced: EnhancedDocument = {
+        id: document.id,
+        title: document.title,
+        filename: document.filename,
+        contentType: document.contentType as ContentType,
+        fileUrl: document.storagePath,
+        linkUrl: document.linkUrl || undefined,
+        thumbnailUrl: document.thumbnailUrl || undefined,
+        metadata: metadata,
+        userId: document.userId,
+        fileSize: document.fileSize || undefined,
+        storagePath: document.storagePath,
+        mimeType: document.mimeType,
+        createdAt: document.createdAt,
+        updatedAt: document.updatedAt,
+      };
+
+      setEnhancedDoc(enhanced);
     } catch (err) {
-      console.error('Error loading document:', err);
+      console.error('Error preparing document:', err);
       setError('Failed to load document');
     } finally {
       setLoading(false);
@@ -48,21 +79,30 @@ export function MyJstudyroomViewerClient({
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-gray-600 dark:text-gray-400">Loading document...</div>
+      <div className="flex items-center justify-center min-h-screen bg-gray-100 dark:bg-slate-900">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-300">Loading content...</p>
+        </div>
       </div>
     );
   }
 
-  if (error || !pdfUrl) {
+  if (error || !enhancedDoc) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen">
-        <div className="text-red-600 dark:text-red-400 mb-4">
-          {error || 'Document not found'}
+      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 dark:bg-slate-900">
+        <div className="text-center max-w-md mx-auto px-4">
+          <div className="text-red-600 dark:text-red-400 text-6xl mb-4">⚠️</div>
+          <h2 className="text-2xl font-bold mb-2 text-gray-900 dark:text-white">
+            Error Loading Content
+          </h2>
+          <p className="text-gray-600 dark:text-gray-300 mb-4">
+            {error || 'Document not found'}
+          </p>
+          <Link href="/member/my-jstudyroom">
+            <Button>Back to My jstudyroom</Button>
+          </Link>
         </div>
-        <Link href="/member/my-jstudyroom">
-          <Button>Back to My jstudyroom</Button>
-        </Link>
       </div>
     );
   }
@@ -70,13 +110,13 @@ export function MyJstudyroomViewerClient({
   return (
     <div className="h-screen flex flex-col">
       {/* Header */}
-      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3">
+      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3 flex-shrink-0">
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-lg font-semibold text-gray-900 dark:text-white">
+          <div className="flex-1 min-w-0">
+            <h1 className="text-lg font-semibold text-gray-900 dark:text-white truncate">
               {bookShopTitle}
             </h1>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
+            <p className="text-sm text-gray-600 dark:text-gray-400 truncate">
               {document.title}
             </p>
           </div>
@@ -88,17 +128,17 @@ export function MyJstudyroomViewerClient({
         </div>
       </div>
 
-      {/* PDF Viewer */}
+      {/* Universal Viewer with Watermark */}
       <div className="flex-1 overflow-hidden">
-        <PDFViewer
-          pdfUrl={pdfUrl}
-          requireEmail={false}
-          watermarkConfig={{
-            type: 'text',
-            text: 'jstudyroom Member',
+        <UniversalViewer
+          content={enhancedDoc}
+          watermark={{
+            text: `jStudyRoom Member - ${memberName}`,
             opacity: 0.3,
             fontSize: 48,
+            position: 'center',
           }}
+          requireEmail={false}
         />
       </div>
     </div>
