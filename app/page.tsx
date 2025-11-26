@@ -4,8 +4,7 @@ import { authOptions } from '@/lib/auth';
 import ThemeToggle from '@/components/theme/ThemeToggle';
 import Footer from '@/components/layout/Footer';
 import PremiumHero from '@/components/landing/PremiumHero';
-import UserRolesSection from '@/components/landing/UserRolesSection';
-import FeaturesSection from '@/components/landing/FeaturesSection';
+import FeatureModeCards from '@/components/landing/FeatureModeCards';
 
 export default async function LandingPage() {
   const session = await getServerSession(authOptions);
@@ -21,7 +20,6 @@ export default async function LandingPage() {
             </Link>
             
             <div className="flex items-center space-x-4">
-              <ThemeToggle />
               {session ? (
                 <Link
                   href={
@@ -50,11 +48,8 @@ export default async function LandingPage() {
       {/* Premium Hero Section */}
       <PremiumHero />
 
-      {/* Features Section */}
-      <FeaturesSection />
-
-      {/* User Roles Section */}
-      <UserRolesSection />
+      {/* Feature Mode Cards */}
+      <FeatureModeCards />
 
       {/* Footer */}
       <Footer />

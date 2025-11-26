@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { ArrowLeft, Users, BookOpen, ShoppingBag, Eye, CreditCard } from 'lucide-react';
 import MemberRegistrationForm from '@/components/landing/MemberRegistrationForm';
-import ThemeToggle from '@/components/theme/ThemeToggle';
 
 export default function MemberPage() {
   return (
@@ -16,7 +15,6 @@ export default function MemberPage() {
               jStudyRoom
             </Link>
             <div className="flex items-center gap-4">
-              <ThemeToggle />
               <Link href="/" className="flex items-center gap-2 text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400">
                 <ArrowLeft className="w-4 h-4" />
                 Back to Home
@@ -38,11 +36,6 @@ export default function MemberPage() {
           <p className="text-xl text-gray-600 dark:text-gray-400">
             Access premium content and build your digital library
           </p>
-          <div className="mt-4">
-            <span className="inline-block px-4 py-2 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 text-sm font-semibold">
-              Paid Membership Required
-            </span>
-          </div>
         </div>
 
         {/* Features */}

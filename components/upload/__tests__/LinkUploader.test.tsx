@@ -2,56 +2,20 @@
  * LinkUploader Component Tests
  * Tests URL validation, metadata fetching, and manual overrides
  */
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { LinkUploader } from '../LinkUploader';
 import { LinkProcessor } from '@/lib/link-processor';
-import { expect } from 'vitest';
-import { expect } from 'vitest';
-import { expect } from 'vitest';
-import { it } from 'vitest';
-import { expect } from 'vitest';
-import { expect } from 'vitest';
-import { expect } from 'vitest';
-import { it } from 'vitest';
-import { expect } from 'vitest';
-import { it } from 'vitest';
-import { expect } from 'vitest';
-import { it } from 'vitest';
-import { expect } from 'vitest';
-import { it } from 'vitest';
-import { expect } from 'vitest';
-import { expect } from 'vitest';
-import { it } from 'vitest';
-import { expect } from 'vitest';
-import { expect } from 'vitest';
-import { it } from 'vitest';
-import { expect } from 'vitest';
-import { expect } from 'vitest';
-import { it } from 'vitest';
-import { expect } from 'vitest';
-import { expect } from 'vitest';
-import { expect } from 'vitest';
-import { it } from 'vitest';
-import { expect } from 'vitest';
-import { it } from 'vitest';
-import { expect } from 'vitest';
-import { expect } from 'vitest';
-import { it } from 'vitest';
-import { expect } from 'vitest';
-import { expect } from 'vitest';
-import { it } from 'vitest';
-import { beforeEach } from 'vitest';
-import { describe } from 'vitest';
 
 // Mock the LinkProcessor
 vi.mock('@/lib/link-processor');
 
 describe('LinkUploader', () => {
-  const mockOnLinkSubmit = jest.fn();
-  const mockOnMetadataFetch = jest.fn();
+  const mockOnLinkSubmit = vi.fn();
+  const mockOnMetadataFetch = vi.fn();
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('renders URL input field', () => {

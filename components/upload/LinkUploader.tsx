@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useCallback, useEffect } from 'react';
-import { LinkProcessor } from '@/lib/link-processor';
 import { LinkMetadata } from '@/lib/types/content';
 
 /**
@@ -12,25 +11,29 @@ import { LinkMetadata } from '@/lib/types/content';
  */
 
 interface LinkUploaderProps {
-  onLinkSubmit: (url: string, title: string, description?: string) => void;
+  url?: string;
+  title?: string;
+  description?: string;
+  onUrlChange?: (url: string) => void;
+  onTitleChange?: (title: string) => void;
+  onDescriptionChange?: (description: string) => void;
   onMetadataFetch?: (metadata: LinkMetadata) => void;
   disabled?: boolean;
-  initialUrl?: string;
-  initialTitle?: string;
-  initialDescription?: string;
 }
 
 export const LinkUploader: React.FC<LinkUploaderProps> = ({
-  onLinkSubmit,
+  url: externalUrl = '',
+  title: externalTitle = '',
+  description: externalDescription = '',
+  onUrlChange,
+  onTitleChange,
+  onDescriptionChange,
   onMetadataFetch,
   disabled = false,
-  initialUrl = '',
-  initialTitle = '',
-  initialDescription = '',
 }) => {
-  const [url, setUrl] = useState(initialUrl);
-  const [title, setTitle] = useState(initialTitle);
-  const [description, setDescription] = useState(initialDescription);
+  const [url, setUrl] = useState(externalUrl);
+  const [title, setTitle] = useState(externalTitle);
+  const [description, setDescription] = useState(externalDescription);
   const [previewImage, setPreviewImage] = useState<string>('');
   const [domain, setDomain] = useState<string>('');
   const [isValidating, setIsValidating] = useState(false);
@@ -39,8 +42,6 @@ export const LinkUploader: React.FC<LinkUploaderProps> = ({
   const [urlError, setUrlError] = useState<string>('');
   const [hasManualOverride, setHasManualOverride] = useState(false);
 
-  const linkProcessor = new LinkProcessor();
-
   // Validate URL format
   const validateUrl = useCallback((urlString: string): boolean => {
     if (!urlString.trim()) {
@@ -48,16 +49,23 @@ export const LinkUploader: React.FC<LinkUploaderProps> = ({
       return false;
     }
 
-    const isValid = linkProcessor.isValidUrl(urlString);
-    if (!isValid) {
+    // Simple URL validation
+    try {
+      const url = new URL(urlString);
+      const isValid = url.protocol === 'http:' || url.protocol === 'https:';
+      if (!isValid) {
+        setUrlError('Please enter a valid HTTP or HTTPS URL');
+      } else {
+        setUrlError('');
+      }
+      return isValid;
+    } catch {
       setUrlError('Please enter a valid HTTP or HTTPS URL');
-    } else {
-      setUrlError('');
+      return false;
     }
-    return isValid;
-  }, [linkProcessor]);
+  }, []);
 
-  // Fetch metadata from URL
+  // Fetch metadata from URL via API route (server-side to avoid CORS)
   const fetchMetadata = useCallback(async (urlString: string) => {
     if (!validateUrl(urlString)) {
       return;
@@ -67,15 +75,36 @@ export const LinkUploader: React.FC<LinkUploaderProps> = ({
     setError('');
 
     try {
-      const metadata = await linkProcessor.processLink(urlString);
+      // Call API route to fetch metadata server-side
+      const response = await fetch('/api/link-metadata', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ url: urlString }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to fetch metadata');
+      }
+
+      const data = await response.json();
+      const metadata = data.metadata;
 
       // Only update if user hasn't manually overridden
       if (!hasManualOverride) {
         if (metadata.title) {
           setTitle(metadata.title);
+          if (onTitleChange) {
+            onTitleChange(metadata.title);
+          }
         }
         if (metadata.description) {
           setDescription(metadata.description);
+          if (onDescriptionChange) {
+            onDescriptionChange(metadata.description);
+          }
         }
       }
 
@@ -94,7 +123,7 @@ export const LinkUploader: React.FC<LinkUploaderProps> = ({
           description: metadata.description,
           previewImage: metadata.previewImage,
           domain: metadata.domain,
-          fetchedAt: metadata.fetchedAt,
+          fetchedAt: metadata.fetchedAt ? new Date(metadata.fetchedAt) : new Date(),
         });
       }
     } catch (err) {
@@ -103,12 +132,28 @@ export const LinkUploader: React.FC<LinkUploaderProps> = ({
     } finally {
       setIsFetchingMetadata(false);
     }
-  }, [linkProcessor, validateUrl, hasManualOverride, onMetadataFetch]);
+  }, [validateUrl, hasManualOverride, onMetadataFetch, onTitleChange, onDescriptionChange]);
+
+  // Sync external values
+  useEffect(() => {
+    setUrl(externalUrl);
+  }, [externalUrl]);
+
+  useEffect(() => {
+    setTitle(externalTitle);
+  }, [externalTitle]);
+
+  useEffect(() => {
+    setDescription(externalDescription);
+  }, [externalDescription]);
 
   // Handle URL input change
   const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newUrl = e.target.value;
     setUrl(newUrl);
+    if (onUrlChange) {
+      onUrlChange(newUrl);
+    }
     setError('');
     
     // Clear validation error as user types
@@ -132,33 +177,22 @@ export const LinkUploader: React.FC<LinkUploaderProps> = ({
 
   // Handle manual title change
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setTitle(e.target.value);
+    const newTitle = e.target.value;
+    setTitle(newTitle);
+    if (onTitleChange) {
+      onTitleChange(newTitle);
+    }
     setHasManualOverride(true);
   };
 
   // Handle manual description change
   const handleDescriptionChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setDescription(e.target.value);
+    const newDescription = e.target.value;
+    setDescription(newDescription);
+    if (onDescriptionChange) {
+      onDescriptionChange(newDescription);
+    }
     setHasManualOverride(true);
-  };
-
-  // Handle form submission
-  const handleSubmit = () => {
-    if (!url.trim()) {
-      setError('Please enter a URL');
-      return;
-    }
-
-    if (!validateUrl(url)) {
-      return;
-    }
-
-    if (!title.trim()) {
-      setError('Please enter a title for the link');
-      return;
-    }
-
-    onLinkSubmit(url, title, description || undefined);
   };
 
   // Handle refresh metadata

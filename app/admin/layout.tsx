@@ -114,13 +114,25 @@ export default async function AdminLayout({
             
             <div className="pt-4 mt-4 border-t border-gray-200 dark:border-gray-700">
               <p className="px-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
-                Document Management
+                Switch Dashboard
               </p>
+              <Link
+                href="/admin/select-dashboard"
+                className="block px-4 py-2 text-sm font-medium text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-md"
+              >
+                🔄 Select Dashboard
+              </Link>
               <Link
                 href="/dashboard"
                 className="block px-4 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-md"
               >
-                📄 My Documents
+                📄 Platform User
+              </Link>
+              <Link
+                href="/member"
+                className="block px-4 py-2 text-sm font-medium text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-md"
+              >
+                📚 Member
               </Link>
             </div>
           </nav>

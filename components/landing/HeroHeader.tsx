@@ -21,7 +21,7 @@ export default function HeroHeader() {
 
       {/* Subtitle */}
       <p className="text-xl md:text-2xl lg:text-3xl text-green-600 dark:text-green-400 mb-6 font-semibold max-w-4xl mx-auto animate-slideIn" style={{ animationDelay: '0.1s' }}>
-        Secure Document Sharing and Personal Learning Space
+        Secure Collaboration and Personal Learning Space
       </p>
 
       {/* Description */}

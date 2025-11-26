@@ -1,14 +1,16 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import Link from 'next/link';
+import { getContentTypes, getContentTypeLabel } from '@/lib/bookshop-categories';
 
 interface MyJstudyroomItem {
   id: string;
   bookShopItemId: string;
   title: string;
+  description?: string;
   category: string;
   isFree: boolean;
   addedAt: string;
@@ -90,12 +92,65 @@ export function MyJstudyroom() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [returningId, setReturningId] = useState<string | null>(null);
+  
+  // Filter states
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
+  const [selectedContentType, setSelectedContentType] = useState<string>('');
+  const [selectedPriceType, setSelectedPriceType] = useState<'all' | 'free' | 'paid'>('all');
 
   useEffect(() => {
     fetchMyJstudyroom();
   }, []);
 
-  const fetchMyJstudyroom = async () => {
+  // Debounce search query (300ms)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Filtered items based on search and filters (memoized for performance)
+  const filteredItems = useMemo(() => {
+    let filtered = [...items];
+
+    // Apply search filter with debounced query
+    if (debouncedSearchQuery.trim()) {
+      const query = debouncedSearchQuery.toLowerCase();
+      filtered = filtered.filter(item => 
+        item.title.toLowerCase().includes(query) ||
+        (item.description && item.description.toLowerCase().includes(query))
+      );
+    }
+
+    // Apply content type filter
+    if (selectedContentType) {
+      filtered = filtered.filter(item => item.contentType === selectedContentType);
+    }
+
+    // Apply price type filter
+    if (selectedPriceType !== 'all') {
+      filtered = filtered.filter(item => 
+        selectedPriceType === 'free' ? item.isFree : !item.isFree
+      );
+    }
+
+    return filtered;
+  }, [items, debouncedSearchQuery, selectedContentType, selectedPriceType]);
+
+  // Check if any filters are active
+  const hasActiveFilters = debouncedSearchQuery.trim() !== '' || selectedContentType !== '' || selectedPriceType !== 'all';
+
+  // Clear all filters
+  const clearFilters = () => {
+    setSearchQuery('');
+    setSelectedContentType('');
+    setSelectedPriceType('all');
+  };
+
+  const fetchMyJstudyroom = async (retryAttempt = 0) => {
     try {
       setLoading(true);
       setError(null);
@@ -104,6 +159,13 @@ export function MyJstudyroom() {
 
       if (!response.ok) {
         const data = await response.json();
+        
+        // Retry on server errors
+        if (response.status >= 500 && retryAttempt < 2) {
+          await new Promise(resolve => setTimeout(resolve, 1000 * (retryAttempt + 1)));
+          return fetchMyJstudyroom(retryAttempt + 1);
+        }
+        
         throw new Error(data.error || 'Failed to fetch My jstudyroom');
       }
 
@@ -112,13 +174,14 @@ export function MyJstudyroom() {
       setCounts(data.counts);
     } catch (err) {
       console.error('Error fetching My jstudyroom:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load My jstudyroom');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load My jstudyroom';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleReturn = async (itemId: string) => {
+  const handleReturn = async (itemId: string, retryAttempt = 0) => {
     if (!confirm('Are you sure you want to return this document? You can add it back later from the Book Shop.')) {
       return;
     }
@@ -133,6 +196,13 @@ export function MyJstudyroom() {
 
       if (!response.ok) {
         const data = await response.json();
+        
+        // Retry on network errors
+        if (response.status >= 500 && retryAttempt < 2) {
+          await new Promise(resolve => setTimeout(resolve, 1000 * (retryAttempt + 1)));
+          return handleReturn(itemId, retryAttempt + 1);
+        }
+        
         throw new Error(data.error || 'Failed to return document');
       }
 
@@ -140,7 +210,8 @@ export function MyJstudyroom() {
       await fetchMyJstudyroom();
     } catch (err) {
       console.error('Error returning document:', err);
-      setError(err instanceof Error ? err.message : 'Failed to return document');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to return document';
+      setError(`${errorMessage} Please try again.`);
     } finally {
       setReturningId(null);
     }
@@ -148,8 +219,37 @@ export function MyJstudyroom() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center py-12">
-        <div className="text-gray-600 dark:text-gray-400">Loading My jstudyroom...</div>
+      <div className="space-y-6">
+        {/* Document Count Indicators Skeleton */}
+        <Card className="p-6">
+          <div className="h-6 w-48 bg-gray-200 dark:bg-gray-700 rounded animate-pulse mb-4"></div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="bg-gray-100 dark:bg-gray-800 p-4 rounded-lg">
+                <div className="h-4 w-32 bg-gray-200 dark:bg-gray-700 rounded animate-pulse mb-2"></div>
+                <div className="h-8 w-16 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+              </div>
+            ))}
+          </div>
+        </Card>
+
+        {/* Items Skeleton */}
+        <div className="space-y-4">
+          {[1, 2, 3].map((i) => (
+            <Card key={i} className="p-6">
+              <div className="flex items-start justify-between">
+                <div className="flex-1 space-y-3">
+                  <div className="h-6 w-64 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+                  <div className="h-4 w-48 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+                </div>
+                <div className="flex gap-2 ml-4">
+                  <div className="h-9 w-20 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+                  <div className="h-9 w-20 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
       </div>
     );
   }
@@ -191,9 +291,131 @@ export function MyJstudyroom() {
 
       {/* Error Message */}
       {error && (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded">
-          {error}
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+          <div className="flex items-start gap-3">
+            <svg
+              className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+            <div className="flex-1">
+              <p className="text-red-700 dark:text-red-300">{error}</p>
+              <button
+                onClick={() => {
+                  setError(null);
+                  fetchMyJstudyroom();
+                }}
+                className="mt-2 text-sm text-red-600 dark:text-red-400 underline hover:no-underline"
+              >
+                Try again
+              </button>
+            </div>
+          </div>
         </div>
+      )}
+
+      {/* Filters Section */}
+      {items.length > 0 && (
+        <Card className="p-6">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                Filter Documents
+              </h3>
+              {hasActiveFilters && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={clearFilters}
+                >
+                  Clear Filters
+                </Button>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Search Input */}
+              <div>
+                <label htmlFor="search" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Search
+                </label>
+                <div className="relative">
+                  <input
+                    id="search"
+                    type="text"
+                    placeholder="Search by title or description..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full px-3 py-2 pl-10 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                  />
+                  <svg
+                    className="absolute left-3 top-2.5 w-5 h-5 text-gray-400"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                    />
+                  </svg>
+                </div>
+              </div>
+
+              {/* Content Type Filter */}
+              <div>
+                <label htmlFor="contentType" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Content Type
+                </label>
+                <select
+                  id="contentType"
+                  value={selectedContentType}
+                  onChange={(e) => setSelectedContentType(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                >
+                  <option value="">All Types</option>
+                  {getContentTypes().map(type => (
+                    <option key={type} value={type}>
+                      {getContentTypeLabel(type)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Price Type Filter */}
+              <div>
+                <label htmlFor="priceType" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Price Type
+                </label>
+                <select
+                  id="priceType"
+                  value={selectedPriceType}
+                  onChange={(e) => setSelectedPriceType(e.target.value as 'all' | 'free' | 'paid')}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                >
+                  <option value="all">All Documents</option>
+                  <option value="free">Free Only</option>
+                  <option value="paid">Paid Only</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Results Count */}
+            <div className="text-sm text-gray-600 dark:text-gray-400">
+              Showing {filteredItems.length} of {items.length} documents
+            </div>
+          </div>
+        </Card>
       )}
 
       {/* Documents List */}
@@ -224,9 +446,36 @@ export function MyJstudyroom() {
             </Link>
           </div>
         </Card>
+      ) : filteredItems.length === 0 ? (
+        <Card className="p-12 text-center">
+          <div className="text-gray-500 dark:text-gray-400">
+            <svg
+              className="mx-auto h-12 w-12 mb-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              />
+            </svg>
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+              No documents match your filters
+            </h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-4">
+              Try adjusting your search or filter criteria
+            </p>
+            {hasActiveFilters && (
+              <Button onClick={clearFilters}>Clear Filters</Button>
+            )}
+          </div>
+        </Card>
       ) : (
         <div className="space-y-4">
-          {items.map((item) => (
+          {filteredItems.map((item) => (
             <Card key={item.id} className="p-6">
               <div className="flex items-start justify-between">
                 <div className="flex-1">

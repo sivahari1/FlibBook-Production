@@ -12,14 +12,14 @@ import { ContentType } from '@/lib/types/content'
  */
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Verify admin role
     const authError = await requireAdmin()
     if (authError) return authError
 
-    const { id } = params
+    const { id } = await params
     const body = await request.json()
     const { documentId, title, description, category, isFree, price, isPublished } = body
 
@@ -145,16 +145,23 @@ export async function PATCH(
       hasExistingPurchases: existingItem._count.myJstudyroomItems > 0 || existingItem._count.payments > 0
     })
 
-    return NextResponse.json(bookShopItem)
+    // Convert BigInt to string for JSON serialization
+    const response = {
+      ...bookShopItem,
+      document: bookShopItem.document ? {
+        ...bookShopItem.document,
+        fileSize: bookShopItem.document.fileSize.toString()
+      } : null
+    }
+
+    return NextResponse.json(response)
   } catch (error) {
-    logger.error('Error updating Book Shop item', {
-      itemId: params.id,
-      error: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined
+    logger.error('Error updating Book Shop item', error, {
+      itemId: 'unknown'
     })
 
     return NextResponse.json(
-      { error: 'Failed to update Book Shop item' },
+      { error: error instanceof Error ? error.message : 'Failed to update Book Shop item' },
       { status: 500 }
     )
   }
@@ -168,14 +175,21 @@ export async function PATCH(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Verify admin role
     const authError = await requireAdmin()
     if (authError) return authError
 
-    const { id } = params
+    const { id } = await params
+
+    if (!id || typeof id !== 'string') {
+      return NextResponse.json(
+        { error: 'Invalid item ID' },
+        { status: 400 }
+      )
+    }
 
     // Check if Book Shop item exists
     const existingItem = await prisma.bookShopItem.findUnique({
@@ -218,6 +232,7 @@ export async function DELETE(
       })
 
       return NextResponse.json({
+        success: true,
         message: 'Book Shop item removed from catalog (purchases preserved)',
         deletedItem: {
           id: updatedItem.id,
@@ -241,6 +256,7 @@ export async function DELETE(
     })
 
     return NextResponse.json({
+      success: true,
       message: 'Book Shop item deleted successfully',
       deletedItem: {
         id: existingItem.id,
@@ -249,14 +265,18 @@ export async function DELETE(
       preservedPurchases: false
     })
   } catch (error) {
-    logger.error('Error deleting Book Shop item', {
-      itemId: params.id,
-      error: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined
+    logger.error('Error deleting Book Shop item', error, {
+      itemId: 'unknown'
     })
 
+    // Return a clean error response
+    const errorMessage = error instanceof Error ? error.message : 'Failed to delete Book Shop item'
+    
     return NextResponse.json(
-      { error: 'Failed to delete Book Shop item' },
+      { 
+        success: false,
+        error: errorMessage 
+      },
       { status: 500 }
     )
   }

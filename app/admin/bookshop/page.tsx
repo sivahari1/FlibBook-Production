@@ -140,6 +140,71 @@ export default function BookShopPage() {
 
   const handleFormSubmit = async (data: any) => {
     try {
+      let documentId = data.documentId
+
+      // For create mode with link or file upload, create document first
+      if (formMode === 'create' && !documentId) {
+        if (data.linkUrl) {
+          // Create document for link using FormData
+          const formData = new FormData()
+          formData.append('contentType', data.contentType)
+          formData.append('linkUrl', data.linkUrl)
+          formData.append('title', data.title)
+          if (data.description) {
+            formData.append('description', data.description)
+          }
+          // Add metadata if available
+          if (data.metadata) {
+            formData.append('metadata', JSON.stringify(data.metadata))
+          }
+
+          const linkDocResponse = await fetch('/api/documents/upload', {
+            method: 'POST',
+            body: formData
+          })
+
+          if (!linkDocResponse.ok) {
+            const errorData = await linkDocResponse.json()
+            const errorMessage = errorData.error || 'Failed to create link document'
+            console.error('Link document creation error:', errorMessage)
+            throw new Error(errorMessage)
+          }
+
+          const linkDoc = await linkDocResponse.json()
+          documentId = linkDoc.document.id
+        } else if (data.file) {
+          // Create document for file upload
+          const formData = new FormData()
+          formData.append('file', data.file)
+          formData.append('contentType', data.contentType)
+          formData.append('title', data.title)
+
+          const fileDocResponse = await fetch('/api/documents/upload', {
+            method: 'POST',
+            body: formData
+          })
+
+          if (!fileDocResponse.ok) {
+            const errorData = await fileDocResponse.json()
+            throw new Error(errorData.error || 'Failed to upload file')
+          }
+
+          const fileDoc = await fileDocResponse.json()
+          documentId = fileDoc.document.id
+        }
+      }
+
+      // Now create/update the BookShop item
+      const bookShopData = {
+        documentId,
+        title: data.title,
+        description: data.description,
+        category: data.category,
+        isFree: data.isFree,
+        price: data.price,
+        isPublished: data.isPublished
+      }
+
       const url = formMode === 'create' 
         ? '/api/admin/bookshop'
         : `/api/admin/bookshop/${selectedItem?.id}`
@@ -151,7 +216,7 @@ export default function BookShopPage() {
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(data)
+        body: JSON.stringify(bookShopData)
       })
 
       if (!response.ok) {
@@ -165,7 +230,10 @@ export default function BookShopPage() {
       setShowForm(false)
       setSelectedItem(null)
     } catch (err) {
-      throw err // Let the form component handle the error display
+      // Improve error message display
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred'
+      console.error('BookShop creation error:', errorMessage)
+      throw new Error(errorMessage)
     }
   }
 
@@ -176,18 +244,27 @@ export default function BookShopPage() {
 
     try {
       const response = await fetch(`/api/admin/bookshop/${item.id}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json'
+        }
       })
 
       if (!response.ok) {
-        const errorData = await response.json()
+        const errorData = await response.json().catch(() => ({ error: 'Failed to delete Book Shop item' }))
         throw new Error(errorData.error || 'Failed to delete Book Shop item')
       }
+
+      const result = await response.json()
+      
+      // Show success message
+      alert(result.message || 'Book Shop item deleted successfully')
 
       // Refresh items list
       await fetchItems()
       await fetchCategories()
     } catch (err) {
+      console.error('Delete error:', err)
       alert(err instanceof Error ? err.message : 'Failed to delete Book Shop item')
     }
   }

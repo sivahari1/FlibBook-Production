@@ -178,7 +178,8 @@ export async function middleware(request: NextRequest) {
     }
     
     // Check Member access for member routes
-    if (isMemberPath && token.userRole !== 'MEMBER') {
+    // Allow ADMIN users to access member routes for testing and verification
+    if (isMemberPath && token.userRole !== 'MEMBER' && token.userRole !== 'ADMIN') {
       // For API routes, return 403
       if (pathname.startsWith('/api/')) {
         return NextResponse.json(
@@ -188,9 +189,7 @@ export async function middleware(request: NextRequest) {
       }
       
       // For pages, redirect to appropriate dashboard based on role
-      if (token.userRole === 'ADMIN') {
-        return NextResponse.redirect(new URL('/admin', request.url));
-      } else if (token.userRole === 'PLATFORM_USER') {
+      if (token.userRole === 'PLATFORM_USER') {
         return NextResponse.redirect(new URL('/dashboard', request.url));
       } else if (token.userRole === 'READER_USER') {
         return NextResponse.redirect(new URL('/reader', request.url));
@@ -200,11 +199,10 @@ export async function middleware(request: NextRequest) {
     }
     
     // Check reader access for reader routes
-    if (isReaderPath && token.userRole !== 'READER_USER') {
+    // Allow ADMIN users to access reader routes for testing and verification
+    if (isReaderPath && token.userRole !== 'READER_USER' && token.userRole !== 'ADMIN') {
       // Redirect to appropriate dashboard based on role
-      if (token.userRole === 'ADMIN') {
-        return NextResponse.redirect(new URL('/admin', request.url));
-      } else if (token.userRole === 'PLATFORM_USER') {
+      if (token.userRole === 'PLATFORM_USER') {
         return NextResponse.redirect(new URL('/dashboard', request.url));
       } else if (token.userRole === 'MEMBER') {
         return NextResponse.redirect(new URL('/member', request.url));

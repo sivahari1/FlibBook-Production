@@ -109,14 +109,20 @@ export const EnhancedUploadModal: React.FC<EnhancedUploadModalProps> = ({
     setSelectedFile(null);
   }, []);
 
-  // Handle link submission from LinkUploader
-  const handleLinkSubmit = useCallback((url: string, linkTitle: string, linkDescription?: string) => {
+  // Handle link URL change
+  const handleLinkUrlChange = useCallback((url: string) => {
     setLinkUrl(url);
-    setTitle(linkTitle);
-    if (linkDescription) {
-      setDescription(linkDescription);
-    }
     setError('');
+  }, []);
+
+  // Handle link title change
+  const handleLinkTitleChange = useCallback((linkTitle: string) => {
+    setTitle(linkTitle);
+  }, []);
+
+  // Handle link description change
+  const handleLinkDescriptionChange = useCallback((linkDescription: string) => {
+    setDescription(linkDescription);
   }, []);
 
   // Handle link metadata fetch
@@ -289,13 +295,18 @@ export const EnhancedUploadModal: React.FC<EnhancedUploadModalProps> = ({
         {/* Requirement 9.2: Show appropriate input fields for links */}
         {selectedType === ContentType.LINK && (
           <LinkUploader
-            onLinkSubmit={handleLinkSubmit}
+            url={linkUrl}
+            title={title}
+            description={description}
+            onUrlChange={handleLinkUrlChange}
+            onTitleChange={handleLinkTitleChange}
+            onDescriptionChange={handleLinkDescriptionChange}
             onMetadataFetch={handleMetadataFetch}
             disabled={isUploading}
           />
         )}
 
-        {/* Title Input (for non-link types or if link hasn't auto-filled) */}
+        {/* Title Input (for non-link types) */}
         {selectedType !== ContentType.LINK && (
           <Input
             label="Title"
@@ -308,32 +319,34 @@ export const EnhancedUploadModal: React.FC<EnhancedUploadModalProps> = ({
           />
         )}
 
-        {/* Description Input */}
-        <div className="space-y-2">
-          <label
-            htmlFor="description"
-            className="block text-sm font-medium text-gray-700 dark:text-gray-300"
-          >
-            Description <span className="text-gray-400">(Optional)</span>
-          </label>
-          <textarea
-            id="description"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Enter a description"
-            disabled={isUploading}
-            rows={3}
-            className="
-              w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg
-              bg-white dark:bg-gray-800
-              text-gray-900 dark:text-gray-100
-              placeholder-gray-400 dark:placeholder-gray-500
-              focus:outline-none focus:ring-2 focus:ring-blue-500
-              disabled:opacity-50 disabled:cursor-not-allowed
-              resize-none
-            "
-          />
-        </div>
+        {/* Description Input (for non-link types) */}
+        {selectedType !== ContentType.LINK && (
+          <div className="space-y-2">
+            <label
+              htmlFor="description"
+              className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+            >
+              Description <span className="text-gray-400">(Optional)</span>
+            </label>
+            <textarea
+              id="description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Enter a description"
+              disabled={isUploading}
+              rows={3}
+              className="
+                w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg
+                bg-white dark:bg-gray-800
+                text-gray-900 dark:text-gray-100
+                placeholder-gray-400 dark:placeholder-gray-500
+                focus:outline-none focus:ring-2 focus:ring-blue-500
+                disabled:opacity-50 disabled:cursor-not-allowed
+                resize-none
+              "
+            />
+          </div>
+        )}
 
         {/* BookShop Upload Option */}
         {/* Requirement 11.1: Provide option to upload to BookShop for admins */}

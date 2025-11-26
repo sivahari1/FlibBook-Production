@@ -8,9 +8,11 @@ interface BookShopItem {
   title: string
   description: string | null
   category: string
+  contentType: string
   isFree: boolean
   price: number | null
   isPublished: boolean
+  linkUrl: string | null
   createdAt: Date
   updatedAt: Date
   document: {
@@ -18,6 +20,8 @@ interface BookShopItem {
     title: string
     filename: string
     fileSize: number
+    contentType: string
+    linkUrl: string | null
     userId: string
     user: {
       name: string | null
@@ -117,13 +121,28 @@ export default function BookShopTable({ items, onEdit, onDelete }: BookShopTable
                 </span>
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
-                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                  item.isFree 
-                    ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                    : 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200'
-                }`}>
-                  {item.isFree ? 'Free' : 'Paid'}
-                </span>
+                <div className="flex flex-col gap-1">
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                    item.contentType === 'LINK'
+                      ? 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200'
+                      : item.contentType === 'PDF'
+                      ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                      : item.contentType === 'IMAGE'
+                      ? 'bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200'
+                      : item.contentType === 'VIDEO'
+                      ? 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200'
+                      : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
+                  }`}>
+                    {item.contentType}
+                  </span>
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                    item.isFree 
+                      ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                      : 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200'
+                  }`}>
+                    {item.isFree ? 'Free' : 'Paid'}
+                  </span>
+                </div>
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                 {formatPrice(item.price)}
@@ -138,15 +157,36 @@ export default function BookShopTable({ items, onEdit, onDelete }: BookShopTable
                 </span>
               </td>
               <td className="px-6 py-4">
-                <div className="text-sm text-gray-900 dark:text-white">
-                  {item.document.filename}
-                </div>
-                <div className="text-xs text-gray-500 dark:text-gray-400">
-                  {formatFileSize(item.document.fileSize)}
-                </div>
-                <div className="text-xs text-gray-500 dark:text-gray-400">
-                  by {item.document.user.name || item.document.user.email}
-                </div>
+                {item.contentType === 'LINK' && item.linkUrl ? (
+                  <div>
+                    <div className="text-sm font-medium text-gray-900 dark:text-white mb-1">
+                      link
+                    </div>
+                    <a
+                      href={item.linkUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-blue-600 dark:text-blue-400 hover:underline break-all"
+                    >
+                      {item.linkUrl.length > 50 ? `${item.linkUrl.substring(0, 50)}...` : item.linkUrl}
+                    </a>
+                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      by {item.document.user.name || item.document.user.email}
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <div className="text-sm text-gray-900 dark:text-white">
+                      {item.document.filename}
+                    </div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                      {formatFileSize(item.document.fileSize)}
+                    </div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                      by {item.document.user.name || item.document.user.email}
+                    </div>
+                  </div>
+                )}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                 <div>In {item._count?.myJstudyroomItems || 0} collections</div>

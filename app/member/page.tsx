@@ -15,12 +15,10 @@ export default async function MemberDashboard() {
     redirect('/login');
   }
 
-  // Verify user is a MEMBER
-  if (session.user?.userRole !== 'MEMBER') {
-    // Redirect to appropriate dashboard based on role
-    if (session.user?.userRole === 'ADMIN') {
-      redirect('/admin');
-    } else if (session.user?.userRole === 'PLATFORM_USER') {
+  // Allow ADMIN users to access member dashboard for testing and verification
+  // Redirect non-member, non-admin users to their appropriate dashboards
+  if (session.user?.userRole !== 'MEMBER' && session.user?.userRole !== 'ADMIN') {
+    if (session.user?.userRole === 'PLATFORM_USER') {
       redirect('/dashboard');
     } else if (session.user?.userRole === 'READER_USER') {
       redirect('/reader');
@@ -200,10 +198,10 @@ export default async function MemberDashboard() {
             </div>
             <div>
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                My jstudyroom
+                My Study Room
               </h3>
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                Your personal bookshelf
+                Your personal collection
               </p>
             </div>
           </div>
@@ -259,12 +257,12 @@ export default async function MemberDashboard() {
           </svg>
           <div>
             <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-2">
-              About My jstudyroom
+              About Your Study Room
             </h3>
             <p className="text-blue-800 dark:text-blue-200 text-sm">
-              Your personal bookshelf can hold up to 10 documents: 5 free and 5 paid. 
-              Browse the Book Shop to add documents, or access files shared with you directly. 
-              You can return documents at any time to make room for new ones.
+              Your Study Room is your personal collection space that can hold up to 10 content items: 
+              5 free items and 5 paid items. Browse the Book Shop to discover and add educational content 
+              to your collection. You can remove items at any time to make room for new ones.
             </p>
           </div>
         </div>

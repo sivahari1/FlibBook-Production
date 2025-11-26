@@ -8,6 +8,7 @@ import { ContentTypeSelector } from '@/components/upload/ContentTypeSelector'
 import { FileUploader } from '@/components/upload/FileUploader'
 import { LinkUploader } from '@/components/upload/LinkUploader'
 import { ContentType, LinkMetadata } from '@/lib/types/content'
+import { getAllCategories, getCategoryStructure } from '@/lib/bookshop-categories'
 
 interface BookShopItem {
   id: string
@@ -69,6 +70,10 @@ export default function BookShopItemForm({
   const [useNewCategory, setUseNewCategory] = useState(false)
   const [newCategory, setNewCategory] = useState('')
   
+  // Get structured categories
+  const structuredCategories = getCategoryStructure()
+  const allCategories = getAllCategories()
+  
   // File/Link upload state
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [linkUrl, setLinkUrl] = useState(item?.linkUrl || '')
@@ -102,9 +107,13 @@ export default function BookShopItemForm({
       setLoading(true)
       setError(null)
 
-      // Validation
+      // Validation - Requirements 10.1, 10.3, 10.4
       if (!formData.title.trim()) {
         throw new Error('Title is required')
+      }
+
+      if (!formData.description.trim()) {
+        throw new Error('Description is required')
       }
 
       const finalCategory = useNewCategory ? newCategory.trim() : formData.category
@@ -112,10 +121,16 @@ export default function BookShopItemForm({
         throw new Error('Category is required')
       }
 
+      // Content type is always set (either from initial state or selector)
+      if (!contentType) {
+        throw new Error('Content type is required')
+      }
+
+      // Validate free/paid designation and price
       if (!formData.isFree) {
         const priceValue = parseFloat(formData.price)
         if (isNaN(priceValue) || priceValue <= 0) {
-          throw new Error('Price must be a positive number for paid items')
+          throw new Error('Price must be greater than zero for paid items')
         }
       }
 
@@ -197,15 +212,16 @@ export default function BookShopItemForm({
     }
   }
 
-  const handleLinkSubmit = (url: string, title: string, description?: string) => {
+  const handleLinkUrlChange = (url: string) => {
     setLinkUrl(url)
-    // Auto-fill form fields if empty
-    if (!formData.title) {
-      setFormData(prev => ({ ...prev, title }))
-    }
-    if (!formData.description && description) {
-      setFormData(prev => ({ ...prev, description }))
-    }
+  }
+
+  const handleLinkTitleChange = (title: string) => {
+    setFormData(prev => ({ ...prev, title }))
+  }
+
+  const handleLinkDescriptionChange = (description: string) => {
+    setFormData(prev => ({ ...prev, description }))
   }
 
   const handleMetadataFetch = (metadata: LinkMetadata) => {
@@ -281,12 +297,14 @@ export default function BookShopItemForm({
             {/* File Upload or Document Selector */}
             {contentType === ContentType.LINK ? (
               <LinkUploader
-                onLinkSubmit={handleLinkSubmit}
+                url={linkUrl}
+                title={formData.title}
+                description={formData.description}
+                onUrlChange={handleLinkUrlChange}
+                onTitleChange={handleLinkTitleChange}
+                onDescriptionChange={handleLinkDescriptionChange}
                 onMetadataFetch={handleMetadataFetch}
                 disabled={loading}
-                initialUrl={linkUrl}
-                initialTitle={formData.title}
-                initialDescription={formData.description}
               />
             ) : useExistingDocument ? (
               <div>
@@ -344,35 +362,40 @@ export default function BookShopItemForm({
           </div>
         )}
 
-        {/* Title */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Title <span className="text-red-500">*</span>
-          </label>
-          <Input
-            type="text"
-            value={formData.title}
-            onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-            placeholder="Enter item title"
-            disabled={loading}
-            required
-          />
-        </div>
+        {/* Title - Only show if not using LinkUploader (which has its own title field) */}
+        {!(mode === 'create' && contentType === ContentType.LINK) && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Title <span className="text-red-500">*</span>
+            </label>
+            <Input
+              type="text"
+              value={formData.title}
+              onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+              placeholder="Enter item title"
+              disabled={loading}
+              required
+            />
+          </div>
+        )}
 
-        {/* Description */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Description
-          </label>
-          <textarea
-            value={formData.description}
-            onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-            placeholder="Enter item description (optional)"
-            rows={3}
-            disabled={loading}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white disabled:opacity-50"
-          />
-        </div>
+        {/* Description - Only show if not using LinkUploader (which has its own description field) */}
+        {!(mode === 'create' && contentType === ContentType.LINK) && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Description <span className="text-red-500">*</span>
+            </label>
+            <textarea
+              value={formData.description}
+              onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+              placeholder="Enter item description"
+              rows={3}
+              disabled={loading}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white disabled:opacity-50"
+              required
+            />
+          </div>
+        )}
 
         {/* Category */}
         <div>
@@ -390,9 +413,26 @@ export default function BookShopItemForm({
                 required={!useNewCategory}
               >
                 <option value="">Select a category</option>
-                {existingCategories.map(cat => (
-                  <option key={cat} value={cat}>{cat}</option>
+                {structuredCategories.map(cat => (
+                  <optgroup key={cat.name} label={cat.name}>
+                    {cat.subcategories && cat.subcategories.length > 0 ? (
+                      cat.subcategories.map(sub => (
+                        <option key={`${cat.name} > ${sub}`} value={`${cat.name} > ${sub}`}>
+                          {sub}
+                        </option>
+                      ))
+                    ) : (
+                      <option value={cat.name}>{cat.name}</option>
+                    )}
+                  </optgroup>
                 ))}
+                {existingCategories.filter(cat => !allCategories.includes(cat)).length > 0 && (
+                  <optgroup label="Other">
+                    {existingCategories.filter(cat => !allCategories.includes(cat)).map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </optgroup>
+                )}
               </select>
               <button
                 type="button"

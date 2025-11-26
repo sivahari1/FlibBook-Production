@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Rocket, BookOpen, Shield, ArrowRight } from 'lucide-react';
+import { Rocket, BookOpen, ArrowRight } from 'lucide-react';
 
 export default function UserRolesSection() {
   const roles = [
@@ -9,7 +9,7 @@ export default function UserRolesSection() {
       icon: Rocket,
       title: 'Platform Users',
       description: 'Upload, manage, and share protected documents with full control',
-      color: 'from-blue-500 to-cyan-500',
+      color: 'from-orange-500 to-orange-600',
       badge: 'Requires Approval',
       link: '/roles/platform-user'
     },
@@ -17,17 +17,9 @@ export default function UserRolesSection() {
       icon: BookOpen,
       title: 'Members',
       description: 'Access shared documents, browse Book Shop, build your library',
-      color: 'from-purple-500 to-pink-500',
+      color: 'from-orange-600 to-orange-700',
       badge: 'Register Now',
       link: '/roles/member'
-    },
-    {
-      icon: Shield,
-      title: 'Admins',
-      description: 'Manage users, curate BookShop, oversee platform operations',
-      color: 'from-pink-500 to-rose-500',
-      badge: 'By Invitation',
-      link: '/roles/admin'
     }
   ];
 
@@ -35,14 +27,14 @@ export default function UserRolesSection() {
     <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24">
       <div className="text-center mb-12 animate-fadeIn">
         <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">
-          Three Access Levels
+          Two Access Levels
         </h2>
         <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
           Choose the role that fits your needs
         </p>
       </div>
 
-      <div className="grid md:grid-cols-3 gap-6 lg:gap-8">
+      <div className="grid md:grid-cols-2 gap-6 lg:gap-8 max-w-4xl mx-auto">
         {roles.map((role, index) => (
           <div
             key={index}
@@ -75,7 +67,7 @@ export default function UserRolesSection() {
             {role.link && (
               <Link
                 href={role.link}
-                className="inline-flex items-center gap-2 text-sm font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
+                className="inline-flex items-center gap-2 text-sm font-semibold text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300 transition-colors"
               >
                 Learn More
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />

@@ -23,9 +23,9 @@ export default function Footer() {
               JYOSRIK & WIKWIL
             </p>
             <p className="text-sm text-gray-400 flex items-center justify-center space-x-2">
-              <span>Powered by</span>
+              <span>Licensed to</span>
               <span className="font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-                DeepTech.Inc
+                DeepTurn
               </span>
             </p>
           </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import { Button } from '@/components/ui/Button';
 import { PaymentModal } from './PaymentModal';
 
@@ -32,12 +32,21 @@ interface BookShopItem {
 interface BookShopItemCardProps {
   item: BookShopItem;
   onAddToMyJstudyroom: (itemId: string) => void;
+  userLimits?: {
+    freeCount: number;
+    paidCount: number;
+    freeLimit: number;
+    paidLimit: number;
+  };
 }
 
-export function BookShopItemCard({ item, onAddToMyJstudyroom }: BookShopItemCardProps) {
+const BookShopItemCardComponent = ({ item, onAddToMyJstudyroom, userLimits }: BookShopItemCardProps) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [isOptimisticallyAdded, setIsOptimisticallyAdded] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
+  const MAX_RETRIES = 2;
 
   // Get content type from document or item
   const contentType = item.document?.contentType || item.contentType || 'PDF';
@@ -56,6 +65,8 @@ export function BookShopItemCard({ item, onAddToMyJstudyroom }: BookShopItemCard
         return { label: 'Video', color: 'bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200', icon: '🎥' };
       case 'LINK':
         return { label: 'Link', color: 'bg-teal-100 dark:bg-teal-900 text-teal-800 dark:text-teal-200', icon: '🔗' };
+      case 'AUDIO':
+        return { label: 'Audio', color: 'bg-pink-100 dark:bg-pink-900 text-pink-800 dark:text-pink-200', icon: '🎵' };
       default:
         return { label: 'Document', color: 'bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200', icon: '📄' };
     }
@@ -97,11 +108,43 @@ export function BookShopItemCard({ item, onAddToMyJstudyroom }: BookShopItemCard
         }
         break;
       case 'LINK':
-        if (metadata.domain || linkUrl) {
-          const domain = metadata.domain || (linkUrl ? new URL(linkUrl).hostname : '');
+        if (linkUrl) {
+          try {
+            const url = new URL(linkUrl);
+            const domain = metadata.domain || url.hostname;
+            return (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                  <span>🌐 {domain}</span>
+                </div>
+                <div className="text-xs text-blue-600 dark:text-blue-400 truncate">
+                  <a href={linkUrl} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                    {linkUrl}
+                  </a>
+                </div>
+                {metadata.title && metadata.title !== item.title && (
+                  <div className="text-xs text-gray-500 dark:text-gray-500 italic">
+                    {metadata.title}
+                  </div>
+                )}
+              </div>
+            );
+          } catch (e) {
+            return (
+              <div className="text-xs text-blue-600 dark:text-blue-400 truncate">
+                <a href={linkUrl} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                  {linkUrl}
+                </a>
+              </div>
+            );
+          }
+        }
+        break;
+      case 'AUDIO':
+        if (metadata.duration) {
           return (
             <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-              <span>🌐 {domain}</span>
+              <span>⏱️ Duration: {formatDuration(metadata.duration)}</span>
             </div>
           );
         }
@@ -111,6 +154,16 @@ export function BookShopItemCard({ item, onAddToMyJstudyroom }: BookShopItemCard
   };
 
   const contentTypeBadge = getContentTypeBadge(contentType);
+
+  // Check if user is at limit
+  const isAtLimit = userLimits
+    ? item.isFree
+      ? userLimits.freeCount >= userLimits.freeLimit
+      : userLimits.paidCount >= userLimits.paidLimit
+    : false;
+
+  // Check if item is in study room (including optimistic state)
+  const isInStudyRoom = item.inMyJstudyroom || isOptimisticallyAdded;
 
   const handleAddClick = async () => {
     if (item.isFree) {
@@ -126,6 +179,9 @@ export function BookShopItemCard({ item, onAddToMyJstudyroom }: BookShopItemCard
     try {
       setLoading(true);
       setError(null);
+      
+      // Optimistic update
+      setIsOptimisticallyAdded(true);
 
       const response = await fetch('/api/member/my-jstudyroom', {
         method: 'POST',
@@ -140,16 +196,41 @@ export function BookShopItemCard({ item, onAddToMyJstudyroom }: BookShopItemCard
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to add document');
+        // Rollback optimistic update
+        setIsOptimisticallyAdded(false);
+        
+        // Handle specific error cases
+        if (response.status === 400 && data.error?.includes('limit')) {
+          throw new Error(`Free item limit reached (5/5). Remove an item from your Study Room to add more.`);
+        } else if (response.status === 409) {
+          throw new Error('This item is already in your Study Room.');
+        } else if (response.status === 404) {
+          throw new Error('This item is no longer available.');
+        } else {
+          throw new Error(data.error || 'Failed to add document');
+        }
       }
 
-      // Notify parent to refresh
+      // Success - notify parent to refresh
       onAddToMyJstudyroom(item.id);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      // Rollback optimistic update on error
+      setIsOptimisticallyAdded(false);
+      
+      const errorMessage = err instanceof Error ? err.message : 'An error occurred';
+      setError(errorMessage);
+      
+      // Log error for debugging
+      console.error('Error adding free document:', err);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleRetry = () => {
+    setError(null);
+    setRetryCount(prev => prev + 1);
+    handleAddFreeDocument();
   };
 
   const handlePaidDocument = () => {
@@ -170,12 +251,13 @@ export function BookShopItemCard({ item, onAddToMyJstudyroom }: BookShopItemCard
   return (
     <>
       <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-        {/* Thumbnail Preview */}
+        {/* Thumbnail Preview with Lazy Loading */}
         {thumbnailUrl && (
           <div className="relative w-full h-48 bg-gray-100 dark:bg-gray-700">
             <img
               src={thumbnailUrl}
               alt={item.title}
+              loading="lazy"
               className="w-full h-full object-cover"
             />
             {/* Content Type Badge Overlay */}
@@ -238,26 +320,83 @@ export function BookShopItemCard({ item, onAddToMyJstudyroom }: BookShopItemCard
             )}
           </div>
 
-          {/* Error Message */}
+          {/* Error Message with Retry */}
           {error && (
             <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md">
-              <p className="text-sm text-red-800 dark:text-red-200">{error}</p>
+              <div className="flex items-start gap-2">
+                <svg
+                  className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+                <div className="flex-1">
+                  <p className="text-sm text-red-800 dark:text-red-200">{error}</p>
+                  {/* Show retry button for network errors */}
+                  {!error.includes('limit') && !error.includes('already') && retryCount < MAX_RETRIES && (
+                    <button
+                      onClick={handleRetry}
+                      className="mt-2 text-xs text-red-700 dark:text-red-300 underline hover:no-underline"
+                    >
+                      Try again
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* In My Study Room Badge */}
+          {isInStudyRoom && (
+            <div className="mb-4">
+              <span className="inline-flex items-center px-3 py-1 text-sm font-semibold bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-md">
+                {isOptimisticallyAdded && !item.inMyJstudyroom ? (
+                  <>
+                    <svg className="animate-spin -ml-1 mr-2 h-3 w-3" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    Adding...
+                  </>
+                ) : (
+                  '✓ In My Study Room'
+                )}
+              </span>
             </div>
           )}
 
           {/* Action Button */}
           <Button
             onClick={handleAddClick}
-            disabled={item.inMyJstudyroom || loading}
+            disabled={isInStudyRoom || loading || isAtLimit}
             className="w-full"
-            variant={item.inMyJstudyroom ? 'secondary' : 'primary'}
+            variant={isInStudyRoom ? 'secondary' : 'primary'}
           >
             {loading
               ? 'Adding...'
-              : item.inMyJstudyroom
-              ? 'Already in My jstudyroom'
-              : 'Add to My jstudyroom'}
+              : isInStudyRoom
+              ? 'In My Study Room'
+              : isAtLimit
+              ? `${item.isFree ? 'Free' : 'Paid'} Limit Reached`
+              : 'Add to My Study Room'}
           </Button>
+
+          {/* Limit Warning */}
+          {isAtLimit && !isInStudyRoom && (
+            <div className="mt-2 p-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-md">
+              <p className="text-xs text-amber-800 dark:text-amber-300 text-center">
+                <strong>Limit Reached:</strong> You've used all {item.isFree ? userLimits?.freeLimit : userLimits?.paidLimit} {item.isFree ? 'free' : 'paid'} slots. 
+                Remove an item from your Study Room to add more.
+              </p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -278,4 +417,7 @@ export function BookShopItemCard({ item, onAddToMyJstudyroom }: BookShopItemCard
       )}
     </>
   );
-}
+};
+
+// Export memoized component for performance optimization
+export const BookShopItemCard = memo(BookShopItemCardComponent);

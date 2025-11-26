@@ -124,8 +124,17 @@ export async function GET(request: NextRequest) {
       isPublished
     })
 
+    // Convert BigInt to string for JSON serialization
+    const itemsResponse = items.map(item => ({
+      ...item,
+      document: item.document ? {
+        ...item.document,
+        fileSize: item.document.fileSize.toString()
+      } : null
+    }))
+
     return NextResponse.json({
-      items,
+      items: itemsResponse,
       pagination: {
         page,
         limit,
@@ -134,13 +143,10 @@ export async function GET(request: NextRequest) {
       }
     })
   } catch (error) {
-    logger.error('Error fetching Book Shop items', {
-      error: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined
-    })
+    logger.error('Error fetching Book Shop items', error)
 
     return NextResponse.json(
-      { error: 'Failed to fetch Book Shop items' },
+      { error: error instanceof Error ? error.message : 'Failed to fetch Book Shop items' },
       { status: 500 }
     )
   }
@@ -256,15 +262,21 @@ export async function POST(request: NextRequest) {
       isPublished: bookShopItem.isPublished
     })
 
-    return NextResponse.json(bookShopItem, { status: 201 })
+    // Convert BigInt to string for JSON serialization
+    const response = {
+      ...bookShopItem,
+      document: bookShopItem.document ? {
+        ...bookShopItem.document,
+        fileSize: bookShopItem.document.fileSize.toString()
+      } : null
+    }
+
+    return NextResponse.json(response, { status: 201 })
   } catch (error) {
-    logger.error('Error creating Book Shop item', {
-      error: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined
-    })
+    logger.error('Error creating Book Shop item', error)
 
     return NextResponse.json(
-      { error: 'Failed to create Book Shop item' },
+      { error: error instanceof Error ? error.message : 'Failed to create Book Shop item' },
       { status: 500 }
     )
   }

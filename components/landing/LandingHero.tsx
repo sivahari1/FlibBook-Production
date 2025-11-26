@@ -26,7 +26,7 @@ export default function LandingHero() {
         </h1>
         
         <p className="text-xl text-gray-600 dark:text-gray-300 mb-8 max-w-3xl mx-auto animate-slideIn" style={{ animationDelay: '0.1s' }}>
-          jStudyRoom is a secure document sharing and Personal Learning Space.          
+          jStudyRoom is a secure collaboration and Personal Learning Space.          
         </p>
 
         <div className="mb-8 max-w-2xl mx-auto text-left bg-green-50 dark:bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 animate-slideIn" style={{ animationDelay: '0.2s' }}>

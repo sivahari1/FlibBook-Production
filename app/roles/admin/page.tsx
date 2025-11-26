@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { ArrowLeft, Shield, Users, Settings, BarChart3, BookOpen, CreditCard } from 'lucide-react';
 import AccessRequestForm from '@/components/landing/AccessRequestForm';
-import ThemeToggle from '@/components/theme/ThemeToggle';
 
 export default function AdminPage() {
   return (
@@ -16,7 +15,6 @@ export default function AdminPage() {
               jStudyRoom
             </Link>
             <div className="flex items-center gap-4">
-              <ThemeToggle />
               <Link href="/" className="flex items-center gap-2 text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400">
                 <ArrowLeft className="w-4 h-4" />
                 Back to Home

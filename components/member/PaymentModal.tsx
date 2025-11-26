@@ -30,11 +30,13 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
 }) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [paymentStep, setPaymentStep] = useState<'ready' | 'processing' | 'verifying' | 'failed'>('ready');
 
   const handlePayment = async () => {
     try {
       setIsProcessing(true);
       setError(null);
+      setPaymentStep('processing');
 
       // Create Razorpay order
       const orderResponse = await fetch('/api/payment/create-order', {
@@ -49,22 +51,35 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
 
       if (!orderResponse.ok) {
         const errorData = await orderResponse.json();
-        throw new Error(errorData.error || 'Failed to create payment order');
+        
+        // Handle specific error cases
+        if (orderResponse.status === 400 && errorData.error?.includes('limit')) {
+          throw new Error('Paid item limit reached (5/5). Remove an item from your Study Room to purchase more.');
+        } else if (orderResponse.status === 409) {
+          throw new Error('You already own this item.');
+        } else {
+          throw new Error(errorData.error || 'Failed to create payment order. Please try again.');
+        }
       }
 
       const orderData = await orderResponse.json();
 
       // Load Razorpay script if not already loaded
       if (!window.Razorpay) {
-        const script = document.createElement('script');
-        script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-        script.async = true;
-        document.body.appendChild(script);
-        
-        await new Promise((resolve, reject) => {
-          script.onload = resolve;
-          script.onerror = reject;
-        });
+        try {
+          const script = document.createElement('script');
+          script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+          script.async = true;
+          document.body.appendChild(script);
+          
+          await new Promise((resolve, reject) => {
+            script.onload = resolve;
+            script.onerror = () => reject(new Error('Failed to load payment gateway. Please check your internet connection.'));
+            setTimeout(() => reject(new Error('Payment gateway loading timeout')), 10000);
+          });
+        } catch (scriptError) {
+          throw new Error('Unable to load payment gateway. Please refresh the page and try again.');
+        }
       }
 
       // Initialize Razorpay checkout
@@ -77,6 +92,8 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
         order_id: orderData.orderId,
         handler: async (response: any) => {
           try {
+            setPaymentStep('verifying');
+            
             // Verify payment on server
             const verifyResponse = await fetch('/api/payment/verify', {
               method: 'POST',
@@ -92,34 +109,67 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
 
             if (!verifyResponse.ok) {
               const errorData = await verifyResponse.json();
-              throw new Error(errorData.error || 'Payment verification failed');
+              throw new Error(errorData.error || 'Payment verification failed. Please contact support if amount was deducted.');
             }
 
             // Success!
             setIsProcessing(false);
+            setPaymentStep('ready');
             onSuccess();
             onClose();
           } catch (error) {
             setIsProcessing(false);
-            setError(error instanceof Error ? error.message : 'Payment verification failed');
+            setPaymentStep('failed');
+            const errorMessage = error instanceof Error ? error.message : 'Payment verification failed';
+            setError(errorMessage);
+            console.error('Payment verification error:', error);
           }
         },
         modal: {
           ondismiss: () => {
             setIsProcessing(false);
+            setPaymentStep('ready');
+            // User cancelled payment
+            if (!error) {
+              setError('Payment cancelled. You can try again when ready.');
+            }
           },
+          escape: true,
+          animation: true,
         },
         theme: {
           color: '#667eea',
         },
+        retry: {
+          enabled: true,
+          max_count: 3,
+        },
       };
 
       const razorpay = new window.Razorpay(options);
+      
+      razorpay.on('payment.failed', function (response: any) {
+        setIsProcessing(false);
+        setPaymentStep('failed');
+        const reason = response.error?.reason || response.error?.description || 'Payment failed';
+        setError(`Payment failed: ${reason}. Please try again or use a different payment method.`);
+        console.error('Payment failed:', response.error);
+      });
+      
       razorpay.open();
     } catch (error) {
       setIsProcessing(false);
-      setError(error instanceof Error ? error.message : 'Failed to initiate payment');
+      setPaymentStep('failed');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to initiate payment';
+      setError(errorMessage);
+      console.error('Payment initiation error:', error);
     }
+  };
+
+  const handleRetry = () => {
+    setError(null);
+    setPaymentStep('ready');
+    handlePayment();
   };
 
   const priceInRupees = (bookShopItem.price / 100).toFixed(2);
@@ -175,6 +225,26 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
           </div>
         </div>
 
+        {/* Processing Status */}
+        {paymentStep === 'verifying' && (
+          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+            <div className="flex items-start">
+              <svg
+                className="animate-spin w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5 mr-3 flex-shrink-0"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              </svg>
+              <div>
+                <p className="text-sm font-semibold text-blue-800 dark:text-blue-300">Verifying Payment...</p>
+                <p className="text-xs text-blue-700 dark:text-blue-400 mt-1">Please wait while we confirm your payment.</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Error Message */}
         {error && (
           <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
@@ -192,7 +262,17 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                   d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                 />
               </svg>
-              <p className="text-sm text-red-800 dark:text-red-300">{error}</p>
+              <div className="flex-1">
+                <p className="text-sm text-red-800 dark:text-red-300">{error}</p>
+                {paymentStep === 'failed' && !error.includes('cancelled') && (
+                  <button
+                    onClick={handleRetry}
+                    className="mt-2 text-xs text-red-700 dark:text-red-300 underline hover:no-underline"
+                  >
+                    Try payment again
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         )}
@@ -232,7 +312,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                     d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                   />
                 </svg>
-                Processing...
+                {paymentStep === 'verifying' ? 'Verifying...' : 'Processing...'}
               </>
             ) : (
               <>

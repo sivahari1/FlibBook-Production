@@ -133,6 +133,21 @@ export async function POST(req: NextRequest) {
     if (existingItem) {
       return NextResponse.json(
         { error: 'You already have this document in My jstudyroom' },
+        { status: 409 }
+      );
+    }
+
+    // Check if user has reached paid document limit
+    const userWithCounts = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: {
+        paidDocumentCount: true,
+      },
+    });
+
+    if (userWithCounts && userWithCounts.paidDocumentCount >= 5) {
+      return NextResponse.json(
+        { error: 'You have reached the maximum of 5 paid documents. Remove a paid document to purchase more.' },
         { status: 400 }
       );
     }

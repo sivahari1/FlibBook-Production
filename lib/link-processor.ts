@@ -93,16 +93,29 @@ export class LinkProcessor {
     previewImage?: string;
   }> {
     try {
-      // Fetch the page HTML
+      // Fetch the page HTML with proper headers to avoid 403 errors
       const response = await fetch(url, {
         headers: {
-          'User-Agent': 'Mozilla/5.0 (compatible; jStudyRoom/1.0; +https://jstudyroom.com)'
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.5',
+          'Accept-Encoding': 'gzip, deflate, br',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache',
         },
         // Set timeout to avoid hanging
-        signal: AbortSignal.timeout(10000)
+        signal: AbortSignal.timeout(15000) // Increased to 15 seconds
       });
 
       if (!response.ok) {
+        // For 403/401 errors, return basic metadata instead of failing
+        if (response.status === 403 || response.status === 401) {
+          console.warn(`Access denied for URL ${url}, returning basic metadata`);
+          return {
+            title: this.extractDomain(url),
+            description: `Link to ${this.extractDomain(url)}`
+          };
+        }
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 

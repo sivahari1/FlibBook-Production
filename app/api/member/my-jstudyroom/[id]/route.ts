@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { removeDocumentFromMyJstudyroom } from '@/lib/my-jstudyroom';
+import { prisma } from '@/lib/db';
 
 /**
  * DELETE /api/member/my-jstudyroom/[id]
@@ -51,9 +52,23 @@ export async function DELETE(
       );
     }
 
+    // Fetch updated counts
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: {
+        freeDocumentCount: true,
+        paidDocumentCount: true,
+      },
+    });
+
     return NextResponse.json({
       success: true,
       message: 'Document returned from My jstudyroom',
+      counts: {
+        free: user?.freeDocumentCount || 0,
+        paid: user?.paidDocumentCount || 0,
+        total: (user?.freeDocumentCount || 0) + (user?.paidDocumentCount || 0),
+      },
     });
   } catch (error) {
     console.error('Error removing document from My jstudyroom:', error);

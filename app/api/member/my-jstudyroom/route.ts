@@ -151,8 +151,23 @@ export async function POST(request: NextRequest) {
 
     if (!bookShopItem.isPublished) {
       return NextResponse.json(
-        { error: 'This item is not available' },
+        { error: 'This item is not currently available' },
         { status: 400 }
+      );
+    }
+
+    // Check if item is already in user's collection
+    const existingItem = await prisma.myJstudyroomItem.findFirst({
+      where: {
+        userId: session.user.id,
+        bookShopItemId: bookShopItemId,
+      },
+    });
+
+    if (existingItem) {
+      return NextResponse.json(
+        { error: 'This item is already in your Study Room' },
+        { status: 409 }
       );
     }
 
@@ -170,10 +185,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Get updated collection status
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: {
+        freeDocumentCount: true,
+        paidDocumentCount: true,
+      },
+    });
+
     return NextResponse.json({
       success: true,
       itemId: result.itemId,
       message: 'Document added to My jstudyroom',
+      counts: {
+        free: user?.freeDocumentCount || 0,
+        paid: user?.paidDocumentCount || 0,
+        total: (user?.freeDocumentCount || 0) + (user?.paidDocumentCount || 0),
+      },
     });
   } catch (error) {
     console.error('Error adding document to My jstudyroom:', error);
