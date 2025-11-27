@@ -38,8 +38,8 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Verify user is a MEMBER
-    if (session.user.userRole !== 'MEMBER') {
+    // Verify user is a MEMBER or ADMIN (admins can test member features)
+    if (session.user.userRole !== 'MEMBER' && session.user.userRole !== 'ADMIN') {
       logger.warn('Non-member attempted to access member shared files', {
         userId: session.user.id,
         role: session.user.userRole

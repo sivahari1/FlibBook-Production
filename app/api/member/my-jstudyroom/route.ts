@@ -21,8 +21,8 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Verify MEMBER role
-    if (session.user.userRole !== 'MEMBER') {
+    // Verify MEMBER or ADMIN role (admins can test member features)
+    if (session.user.userRole !== 'MEMBER' && session.user.userRole !== 'ADMIN') {
       return NextResponse.json(
         { error: 'Forbidden - Member access only' },
         { status: 403 }
@@ -106,8 +106,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify MEMBER role
-    if (session.user.userRole !== 'MEMBER') {
+    // Verify MEMBER or ADMIN role (admins can test member features)
+    if (session.user.userRole !== 'MEMBER' && session.user.userRole !== 'ADMIN') {
       return NextResponse.json(
         { error: 'Forbidden - Member access only' },
         { status: 403 }
