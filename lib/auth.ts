@@ -44,6 +44,7 @@ export const authOptions: NextAuthOptions = {
             subscription: true,
             role: true,
             userRole: true,
+            additionalRoles: true,
             emailVerified: true,
             isActive: true
           }
@@ -76,6 +77,7 @@ export const authOptions: NextAuthOptions = {
           subscription: user.subscription,
           role: user.role,
           userRole: user.userRole,
+          additionalRoles: user.additionalRoles || [],
           emailVerified: user.emailVerified,
           isActive: user.isActive
         };
@@ -114,6 +116,7 @@ export const authOptions: NextAuthOptions = {
         token.subscription = (user as any).subscription;
         token.role = (user as any).role;
         token.userRole = (user as any).userRole;
+        token.additionalRoles = (user as any).additionalRoles || [];
         token.emailVerified = (user as any).emailVerified;
         token.isActive = (user as any).isActive;
       }
@@ -125,12 +128,14 @@ export const authOptions: NextAuthOptions = {
           select: { 
             emailVerified: true,
             userRole: true,
+            additionalRoles: true,
             isActive: true
           }
         });
         if (dbUser) {
           token.emailVerified = dbUser.emailVerified;
           token.userRole = dbUser.userRole;
+          token.additionalRoles = dbUser.additionalRoles || [];
           token.isActive = dbUser.isActive;
         }
       }
@@ -146,6 +151,7 @@ export const authOptions: NextAuthOptions = {
         session.user.subscription = token.subscription as string;
         session.user.role = token.role as string;
         session.user.userRole = token.userRole as string;
+        session.user.additionalRoles = token.additionalRoles as string[] || [];
         session.user.emailVerified = token.emailVerified as boolean;
         session.user.isActive = token.isActive as boolean;
       }

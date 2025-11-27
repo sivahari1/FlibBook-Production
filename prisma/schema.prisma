@@ -24,6 +24,7 @@ model User {
   notes               String?
   pricePlan           String?
   userRole            UserRole            @default(MEMBER)
+  additionalRoles     UserRole[]
   freeDocumentCount   Int                 @default(0)
   paidDocumentCount   Int                 @default(0)
   emailSharesCreated  DocumentShare[]     @relation("SharedByUser")

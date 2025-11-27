@@ -6,6 +6,7 @@ import LogoutButton from '@/components/dashboard/LogoutButton';
 import ThemeToggle from '@/components/theme/ThemeToggle';
 import Footer from '@/components/layout/Footer';
 import { InboxNavLink } from '@/components/dashboard/InboxNavLink';
+import { DashboardSwitcher } from '@/components/common/DashboardSwitcher';
 
 export default async function DashboardLayout({
   children,
@@ -120,6 +121,7 @@ export default async function DashboardLayout({
             </div>
             
             <div className="flex items-center space-x-4">
+              <DashboardSwitcher />
               <Link
                 href="/"
                 className="text-sm text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"

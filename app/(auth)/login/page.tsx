@@ -76,9 +76,6 @@ export default function LoginPage({
                   Request Access
                 </Link>
               </p>
-              <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
-                New users must request access from the administrator
-              </p>
             </div>
           </CardContent>
         </Card>

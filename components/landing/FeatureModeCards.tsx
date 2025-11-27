@@ -19,7 +19,7 @@ const FeatureModeCards = () => {
     { icon: BookOpen, text: "Availability of both free and premium documents, books, and course materials", delay: "100ms" },
     { icon: CreditCard, text: "Flexible payment mode to access premium content", delay: "200ms" },
     { icon: Home, text: "Similar to your next door library", delay: "300ms" },
-    { icon: RotateCcw, text: "Rent a content and return the content after finish", delay: "400ms" }
+    { icon: RotateCcw, text: "Rent a content and return the content after studying", delay: "400ms" }
   ];
 
   return (
@@ -81,7 +81,7 @@ const FeatureModeCards = () => {
               <div className="mt-8 text-center">
                 <div className="inline-flex items-center space-x-2 text-green-600 dark:text-green-400 font-semibold">
                   <Shield className="w-5 h-5" />
-                  <span>Enterprise-Ready Security</span>
+                  <span>Enterprise-Ready Digital Collaboration</span>
                 </div>
               </div>
             </div>

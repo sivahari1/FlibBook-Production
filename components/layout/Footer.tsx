@@ -12,7 +12,7 @@ export default function Footer() {
           </div>
           
           <p className="text-sm text-gray-400">
-            Secure PDF sharing platform with advanced DRM protection
+            Digital Collaboration and Personal Learning Space
           </p>
           
           <div className="pt-4 border-t border-gray-700">

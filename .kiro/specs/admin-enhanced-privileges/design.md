@@ -723,3 +723,118 @@ Property 32: Cross-type search
 *For any* search query, the results should include documents from all content types (PDF, Image, Video, Link)
 **Validates: Requirements 10.5**
 
+
+### BookShop Properties
+
+Property 33: BookShop multi-content type support
+*For any* content type (PDF, Image, Video, Link), uploading to BookShop should succeed
+**Validates: Requirements 11.3**
+
+Property 34: BookShop pricing flexibility
+*For any* BookShop item, setting price to 0 (free) or any positive value (paid) should be accepted
+**Validates: Requirements 11.4**
+
+Property 35: BookShop visibility states
+*For any* BookShop item, setting visibility to "published" or "draft" should be accepted
+**Validates: Requirements 11.5**
+
+Property 36: BookShop catalog completeness
+*For any* set of BookShop items, the catalog view should display items of all content types without filtering
+**Validates: Requirements 12.1**
+
+Property 37: BookShop item deletion visibility
+*For any* BookShop item, after deletion, querying the member-visible catalog should not return that item
+**Validates: Requirements 12.3**
+
+Property 38: BookShop purchase preservation
+*For any* BookShop item with existing purchases, updating the item should not modify or delete purchase records
+**Validates: Requirements 12.4**
+
+Property 39: BookShop analytics by type
+*For any* set of BookShop items, the analytics should include statistics broken down by each content type
+**Validates: Requirements 12.5**
+
+Property 40: BookShop content type badges
+*For any* BookShop item displayed to members, the rendered output should include a badge indicating its content type
+**Validates: Requirements 13.1**
+
+Property 41: BookShop video duration display
+*For any* video BookShop item, the rendered display should include the video duration
+**Validates: Requirements 13.3**
+
+Property 42: BookShop image dimensions display
+*For any* image BookShop item, the rendered display should include the image dimensions
+**Validates: Requirements 13.4**
+
+Property 43: BookShop link domain display
+*For any* link BookShop item, the rendered display should include the target domain
+**Validates: Requirements 13.5**
+
+### Purchased Content Properties
+
+Property 44: Content viewer routing
+*For any* purchased content, opening it should route to the viewer appropriate for its content type (PDF viewer for PDFs, image viewer for images, video player for videos, link preview for links)
+**Validates: Requirements 14.1, 14.2, 14.3, 14.4**
+
+Property 45: Purchased content watermarking
+*For any* purchased content viewed by a member, the rendered output should include a watermark for accountability
+**Validates: Requirements 14.5**
+
+## Error Handling
+
+### File Upload Errors
+
+```typescript
+// lib/errors/upload-errors.ts
+export class UploadError extends Error {
+  constructor(
+    message: string,
+    public code: string,
+    public details?: any
+  ) {
+    super(message);
+    this.name = 'UploadError';
+  }
+}
+
+export const UploadErrorCodes = {
+  INVALID_FILE_TYPE: 'INVALID_FILE_TYPE',
+  FILE_TOO_LARGE: 'FILE_TOO_LARGE',
+  QUOTA_EXCEEDED: 'QUOTA_EXCEEDED',
+  STORAGE_ERROR: 'STORAGE_ERROR',
+  PROCESSING_ERROR: 'PROCESSING_ERROR',
+  INVALID_URL: 'INVALID_URL',
+  METADATA_FETCH_FAILED: 'METADATA_FETCH_FAILED'
+};
+
+function handleUploadError(error: unknown): UploadError {
+  if (error instanceof UploadError) {
+    return error;
+  }
+  
+  // Map known errors to user-friendly messages
+  if (error instanceof Error) {
+    if (error.message.includes('file type')) {
+      return new UploadError(
+        'The file type is not supported. Please upload a valid file.',
+        UploadErrorCodes.INVALID_FILE_TYPE
+      );
+    }
+    if (error.message.includes('size')) {
+      return new UploadError(
+        'The file is too large. Please upload a smaller file.',
+        UploadErrorCodes.FILE_TOO_LARGE
+      );
+    }
+  }
+  
+  // Generic error
+  return new UploadError(
+    'An error occurred during upload. Please try again.',
+    'UNKNOWN_ERROR',
+    error
+  );
+}
+```
+
+### Cont
