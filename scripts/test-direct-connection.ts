@@ -1,52 +1,41 @@
 import { PrismaClient } from '@prisma/client';
 
-const directUrl = "postgresql://postgres:FlipBook123%21@db.zuhrivibcgudgsejsljo.supabase.co:5432/postgres?sslmode=require";
-
+// Test with DIRECT_URL instead of pooler
 const prisma = new PrismaClient({
+  log: ['query', 'error', 'warn'],
   datasources: {
     db: {
-      url: directUrl
-    }
-  }
+      url: process.env.DIRECT_URL,
+    },
+  },
 });
 
 async function testDirectConnection() {
-  console.log('🔍 Testing DIRECT database connection...\n');
-  
   try {
+    console.log('🔍 Testing DIRECT connection to Supabase...');
+    console.log('DIRECT_URL:', process.env.DIRECT_URL?.replace(/:[^:@]+@/, ':****@'));
+    
     await prisma.$connect();
-    console.log('✅ Successfully connected to database!\n');
+    console.log('✅ Connected to database');
     
-    // Try to query users
-    const users = await prisma.user.findMany({
-      where: {
-        OR: [
-          { email: 'sivaramj83@gmail.com' },
-          { email: 'hariharanr@gmail.com' }
-        ]
-      },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        additionalRoles: true
-      }
-    });
+    const result = await prisma.$queryRaw`SELECT 1 as test`;
+    console.log('✅ Query executed successfully:', result);
     
-    console.log('📊 Found users:');
-    users.forEach(user => {
-      console.log(`\n👤 ${user.email}`);
-      console.log(`   Name: ${user.name}`);
-      console.log(`   Role: ${user.role}`);
-      console.log(`   Additional Roles: ${user.additionalRoles || 'none'}`);
-    });
+    const userCount = await prisma.user.count();
+    console.log(`✅ User table accessible. Total users: ${userCount}`);
     
-  } catch (error) {
-    console.error('❌ Connection failed:', error);
+    console.log('\n✅ Direct connection works!');
+    return true;
+    
+  } catch (error: any) {
+    console.error('❌ Direct connection failed:', error.message);
+    console.error('Full error:', error);
+    return false;
   } finally {
     await prisma.$disconnect();
   }
 }
 
-testDirectConnection();
+testDirectConnection().then(success => {
+  process.exit(success ? 0 : 1);
+});
