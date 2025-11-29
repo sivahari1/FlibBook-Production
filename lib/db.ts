@@ -4,57 +4,61 @@ import { PrismaClient } from '@prisma/client'
 // exhausting your database connection limit.
 const globalForPrisma = global as unknown as { prisma: PrismaClient | undefined }
 
-// Determine which connection URL to use
-// Prefer DIRECT_URL for reliability since pooler can be intermittently unreachable
-function getDatabaseUrl(): string {
-  const poolerUrl = process.env.DATABASE_URL;
-  const directUrl = process.env.DIRECT_URL;
-  
-  // Use direct connection for both dev and production for reliability
-  // The Supabase pooler has been intermittently unreachable
-  if (directUrl) {
-    if (process.env.NODE_ENV === 'development') {
-      console.log('🔄 Using DIRECT_URL for development (pooler fallback)');
-    }
-    return directUrl;
-  }
-  
-  // Fallback to pooler URL if DIRECT_URL is not available
-  return poolerUrl || '';
-}
-
+/**
+ * Prisma Client Configuration
+ * 
+ * DATABASE_URL: Used by the application at runtime (session pooler)
+ * DIRECT_URL: Used by Prisma CLI for migrations (direct connection)
+ * 
+ * The datasource in schema.prisma automatically handles this:
+ * - Runtime queries use DATABASE_URL (pooler)
+ * - Migrations use DIRECT_URL (direct)
+ */
 export const prisma =
   globalForPrisma.prisma ||
-  (process.env.DATABASE_URL || process.env.DIRECT_URL
-    ? new PrismaClient({
-        log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
-        datasources: {
-          db: {
-            url: getDatabaseUrl(),
-          },
-        },
-      })
-    : ({} as PrismaClient)) // Return empty object during build if no DATABASE_URL
+  new PrismaClient({
+    log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
+    // Let Prisma use the datasource URLs from schema.prisma
+    // Do NOT override the URL here - it breaks the pooler/direct URL separation
+  })
 
-if (process.env.NODE_ENV !== 'production' && process.env.DATABASE_URL) {
+if (process.env.NODE_ENV !== 'production') {
   globalForPrisma.prisma = prisma
 }
 
-// Helper function to test database connection
-export async function testDatabaseConnection(): Promise<boolean> {
-  try {
-    await prisma.$connect()
-    await prisma.$queryRaw`SELECT 1`
-    return true
-  } catch (error) {
-    console.error('Database connection failed:', error)
-    return false
-  } finally {
-    await prisma.$disconnect()
+/**
+ * Test database connection with retry logic
+ * Returns true if connection succeeds, false otherwise
+ */
+export async function testDatabaseConnection(maxRetries = 3): Promise<boolean> {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      await prisma.$connect()
+      await prisma.$queryRaw`SELECT 1`
+      console.log('✅ Database connection successful')
+      return true
+    } catch (error: any) {
+      console.error(`❌ Database connection attempt ${attempt}/${maxRetries} failed:`, error.message)
+      
+      if (attempt < maxRetries) {
+        // Wait before retrying (exponential backoff)
+        const waitTime = Math.min(1000 * Math.pow(2, attempt - 1), 5000)
+        console.log(`⏳ Retrying in ${waitTime}ms...`)
+        await new Promise(resolve => setTimeout(resolve, waitTime))
+      }
+    }
   }
+  
+  return false
 }
 
-// Helper function to safely disconnect
+/**
+ * Safely disconnect from database
+ */
 export async function disconnectDatabase(): Promise<void> {
-  await prisma.$disconnect()
+  try {
+    await prisma.$disconnect()
+  } catch (error) {
+    console.error('Error disconnecting from database:', error)
+  }
 }

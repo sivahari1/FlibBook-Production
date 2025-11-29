@@ -6,81 +6,122 @@ import { prisma } from "./db";
 import { logger } from "./logger";
 
 export const authOptions: NextAuthOptions = {
-  adapter: process.env.DATABASE_URL ? (PrismaAdapter(prisma) as any) : undefined,
   providers: [
     CredentialsProvider({
+      id: "credentials",
       name: "Credentials",
       credentials: {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" }
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
-          throw new Error("Email and password are required");
-        }
-
-        // Rate limiting for login attempts
-        const { checkRateLimit, RATE_LIMITS } = await import('./rate-limit');
-        const rateLimitResult = checkRateLimit(
-          `login:${credentials.email}`,
-          RATE_LIMITS.LOGIN_ATTEMPT
-        );
-
-        if (!rateLimitResult.success) {
-          logger.logRateLimitViolation('login', credentials.email, {
-            retryAfter: rateLimitResult.retryAfter,
-          });
-          throw new Error(`Too many login attempts. Please try again in ${rateLimitResult.retryAfter} seconds.`);
-        }
-
-        // Find user by email
-        const user = await prisma.user.findUnique({
-          where: { email: credentials.email },
-          select: {
-            id: true,
-            email: true,
-            name: true,
-            passwordHash: true,
-            subscription: true,
-            role: true,
-            userRole: true,
-            additionalRoles: true,
-            emailVerified: true,
-            isActive: true
+        try {
+          if (!credentials?.email || !credentials?.password) {
+            throw new Error("Email and password are required");
           }
-        });
 
-        if (!user) {
-          throw new Error("Invalid email or password");
+          // Rate limiting for login attempts
+          const { checkRateLimit, RATE_LIMITS } = await import('./rate-limit');
+          const rateLimitResult = checkRateLimit(
+            `login:${credentials.email}`,
+            RATE_LIMITS.LOGIN_ATTEMPT
+          );
+
+          if (!rateLimitResult.success) {
+            logger.logRateLimitViolation('login', credentials.email, {
+              retryAfter: rateLimitResult.retryAfter,
+            });
+            throw new Error(`Too many login attempts. Please try again in ${rateLimitResult.retryAfter} seconds.`);
+          }
+
+          // Find user by email with database error handling
+          let user;
+          try {
+            user = await prisma.user.findUnique({
+              where: { email: credentials.email },
+              select: {
+                id: true,
+                email: true,
+                name: true,
+                passwordHash: true,
+                subscription: true,
+                role: true,
+                userRole: true,
+                additionalRoles: true,
+                emailVerified: true,
+                isActive: true
+              }
+            });
+          } catch (dbError: any) {
+            // Log the actual database error for debugging
+            logger.error('Database error during login', {
+              email: credentials.email,
+              error: dbError.message,
+              code: dbError.code
+            });
+            
+            // Check if it's a connection error
+            if (dbError.code === 'P1001' || dbError.message?.includes("Can't reach database")) {
+              throw new Error("Database temporarily unavailable. Please try again in a few seconds.");
+            }
+            
+            // For other database errors, throw a generic message
+            throw new Error("Login service temporarily unavailable. Please try again.");
+          }
+
+          if (!user) {
+            // Log failed login attempt
+            logger.warn('Login attempt with invalid email', { email: credentials.email });
+            throw new Error("Invalid email or password");
+          }
+
+          // Verify password
+          const isPasswordValid = await bcrypt.compare(
+            credentials.password,
+            user.passwordHash
+          );
+
+          if (!isPasswordValid) {
+            logger.warn('Login attempt with invalid password', { 
+              email: credentials.email,
+              userId: user.id 
+            });
+            throw new Error("Invalid email or password");
+          }
+
+          // Check if user is active
+          if (!user.isActive) {
+            logger.warn('Login attempt by inactive user', { 
+              email: credentials.email,
+              userId: user.id 
+            });
+            throw new Error("Account is inactive. Please contact support.");
+          }
+
+          // Successful login
+          logger.info('Successful login', {
+            userId: user.id,
+            email: user.email,
+            userRole: user.userRole
+          });
+
+          // Return user object for session (including emailVerified status and userRole)
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            subscription: user.subscription,
+            role: user.role,
+            userRole: user.userRole,
+            additionalRoles: user.additionalRoles || [],
+            emailVerified: user.emailVerified,
+            isActive: user.isActive
+          };
+        } catch (error: any) {
+          // Re-throw the error with the message intact
+          // NextAuth will display this message to the user
+          throw error;
         }
-
-        // Verify password
-        const isPasswordValid = await bcrypt.compare(
-          credentials.password,
-          user.passwordHash
-        );
-
-        if (!isPasswordValid) {
-          throw new Error("Invalid email or password");
-        }
-
-        // Check if user is active
-        if (!user.isActive) {
-          throw new Error("Account is inactive. Please contact support.");
-        }
-
-        // Return user object for session (including emailVerified status and userRole)
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          subscription: user.subscription,
-          role: user.role,
-          userRole: user.userRole,
-          additionalRoles: user.additionalRoles || [],
-          emailVerified: user.emailVerified,
-          isActive: user.isActive
-        };
       }
     })
   ],
@@ -91,7 +132,9 @@ export const authOptions: NextAuthOptions = {
   pages: {
     signIn: "/login",
     signOut: "/",
-    error: "/login"
+    error: "/login",
+    verifyRequest: "/verify-email",
+    newUser: "/dashboard"
   },
   cookies: {
     sessionToken: {
@@ -193,20 +236,10 @@ export const authOptions: NextAuthOptions = {
       return true;
     },
     async redirect({ url, baseUrl }) {
-      // Handle role-based redirects after sign in
-      // If the URL is the base URL or login page, redirect based on role
-      if (url === baseUrl || url.startsWith(baseUrl + '/login')) {
-        // Get the user's role from the session (this is called after JWT callback)
-        // We'll use a query parameter approach or check the token
-        return baseUrl;
-      }
-      
-      // If there's a callbackUrl, use it
-      if (url.startsWith(baseUrl)) {
-        return url;
-      }
-      
-      // Default to base URL
+      // Allows relative callback URLs
+      if (url.startsWith("/")) return `${baseUrl}${url}`;
+      // Allows callback URLs on the same origin
+      else if (new URL(url).origin === baseUrl) return url;
       return baseUrl;
     }
   },

@@ -44,20 +44,26 @@ export async function middleware(request: NextRequest) {
              request.headers.get('x-real-ip') || 
              'unknown';
   
-  // Apply rate limiting to API routes
-  if (pathname.startsWith('/api/')) {
-    // More aggressive rate limiting for auth endpoints
-    if (pathname.startsWith('/api/auth/register') || pathname.startsWith('/api/auth/login')) {
-      const allowed = rateLimit(`auth:${ip}`, 5, 60000); // 5 requests per minute
+  // Skip rate limiting for NextAuth internal routes
+  if (pathname.startsWith('/api/auth/')) {
+    // Allow NextAuth to handle its own routes without rate limiting
+    // Only rate limit the actual credential submission
+    if (pathname === '/api/auth/callback/credentials' && request.method === 'POST') {
+      const allowed = rateLimit(`auth:${ip}`, 10, 60000); // 10 login attempts per minute
       if (!allowed) {
         return NextResponse.json(
-          { error: 'Too many requests. Please try again later.' },
+          { error: 'Too many login attempts. Please try again later.' },
           { status: 429, headers: { 'Retry-After': '60' } }
         );
       }
     }
-    
-    // Standard rate limiting for other API routes
+    // Let other NextAuth routes pass through
+    return NextResponse.next();
+  }
+  
+  // Apply rate limiting to other API routes
+  if (pathname.startsWith('/api/')) {
+    // Standard rate limiting for API routes
     const allowed = rateLimit(`api:${ip}`, 100, 60000); // 100 requests per minute
     if (!allowed) {
       return NextResponse.json(
