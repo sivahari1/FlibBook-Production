@@ -8,7 +8,8 @@
  */
 
 import sharp from 'sharp';
-import { fromPath } from 'pdf2pic';
+import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
+import { createCanvas } from 'canvas';
 import { createClient } from '@supabase/supabase-js';
 import { logger } from '@/lib/logger';
 import path from 'path';
@@ -82,18 +83,15 @@ export async function convertPdfToImages(
     const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'pdf-convert-'));
 
     try {
-      // Configure pdf2pic for optimal performance
-      const converter = fromPath(pdfPath, {
-        density: dpi,
-        saveFilename: 'page',
-        savePath: tempDir,
-        format,
-        width: 1200, // Fixed width for consistent sizing
-        height: 1600, // Aspect ratio maintained
+      // Load PDF document
+      const pdfData = await fs.readFile(pdfPath);
+      const loadingTask = pdfjsLib.getDocument({
+        data: pdfData,
+        useSystemFonts: true,
       });
-
-      // Get page count first
-      const pageCount = await getPageCount(pdfPath);
+      const pdfDocument = await loadingTask.promise;
+      const pageCount = pdfDocument.numPages;
+      
       logger.info(`PDF has ${pageCount} pages`);
 
       // Convert pages in parallel batches
@@ -107,13 +105,13 @@ export async function convertPdfToImages(
         for (let pageNum = i + 1; pageNum <= endIndex; pageNum++) {
           batch.push(
             convertAndUploadPage(
-              converter,
+              pdfDocument,
               pageNum,
-              tempDir,
               userId,
               documentId,
               quality,
-              format
+              format,
+              dpi
             )
           );
         }
@@ -167,34 +165,47 @@ export async function convertPdfToImages(
 /**
  * Convert a single page and upload to storage
  * 
- * @param converter pdf2pic converter instance
+ * @param pdfDocument PDF document instance
  * @param pageNumber Page number to convert (1-indexed)
- * @param tempDir Temporary directory for conversion
  * @param userId User ID for storage path
  * @param documentId Document ID for storage path
  * @param quality JPEG quality (0-100)
  * @param format Output format
+ * @param dpi DPI for rendering
  * @returns Page conversion result
  */
 async function convertAndUploadPage(
-  converter: any,
+  pdfDocument: any,
   pageNumber: number,
-  tempDir: string,
   userId: string,
   documentId: string,
   quality: number,
-  format: string
+  format: string,
+  dpi: number
 ): Promise<PageConversionResult> {
   try {
-    // Convert page to image
-    const result = await converter(pageNumber, { responseType: 'image' });
-
-    if (!result || !result.path) {
-      throw new Error(`Failed to convert page ${pageNumber}`);
-    }
+    // Get the page
+    const page = await pdfDocument.getPage(pageNumber);
+    
+    // Calculate viewport with desired DPI
+    const scale = dpi / 72; // PDF default is 72 DPI
+    const viewport = page.getViewport({ scale });
+    
+    // Create canvas
+    const canvas = createCanvas(viewport.width, viewport.height);
+    const context = canvas.getContext('2d');
+    
+    // Render PDF page to canvas
+    await page.render({
+      canvasContext: context,
+      viewport: viewport,
+    }).promise;
+    
+    // Convert canvas to buffer
+    const imageBuffer = canvas.toBuffer('image/png');
 
     // Optimize image with Sharp
-    const optimizedBuffer = await sharp(result.path)
+    const optimizedBuffer = await sharp(imageBuffer)
       .jpeg({
         quality,
         progressive: true,
@@ -210,7 +221,7 @@ async function convertAndUploadPage(
 
     // Upload to Supabase storage
     const storagePath = `${userId}/${documentId}/page-${pageNumber}.${format}`;
-    const { data, error } = await supabase.storage
+    const { error } = await supabase.storage
       .from('document-pages')
       .upload(storagePath, optimizedBuffer, {
         contentType: `image/${format}`,
