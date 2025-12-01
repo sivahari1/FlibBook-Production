@@ -5,6 +5,7 @@ import {
   Head,
   Heading,
   Html,
+  Img,
   Link,
   Preview,
   Section,
@@ -21,17 +22,28 @@ export const VerificationEmail = ({
   userName,
   verificationUrl,
 }: VerificationEmailProps) => {
+  const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
+  
   return (
     <Html>
       <Head />
-      <Preview>Verify your FlipBook DRM account</Preview>
+      <Preview>Verify your jStudyRoom account</Preview>
       <Body style={main}>
         <Container style={container}>
-          <Heading style={heading}>Welcome to FlipBook DRM!</Heading>
+          <Section style={logoContainer}>
+            <Img
+              src={`${baseUrl}/logo.svg`}
+              width="80"
+              height="100"
+              alt="jStudyRoom Logo"
+              style={logo}
+            />
+          </Section>
+          <Heading style={heading}>Welcome to jStudyRoom!</Heading>
           <Text style={paragraph}>Hi {userName},</Text>
           <Text style={paragraph}>
             Thanks for signing up! Please verify your email address to get
-            started with FlipBook DRM and begin protecting your PDF documents.
+            started with jStudyRoom and begin protecting your PDF documents.
           </Text>
           <Section style={buttonContainer}>
             <Button style={button} href={verificationUrl}>
@@ -44,10 +56,10 @@ export const VerificationEmail = ({
           </Link>
           <Text style={footer}>
             This link will expire in 24 hours. If you didn&apos;t create an account
-            with FlipBook DRM, you can safely ignore this email.
+            with jStudyRoom, you can safely ignore this email.
           </Text>
           <Text style={footer}>
-            © {new Date().getFullYear()} FlipBook DRM. All rights reserved.
+            © {new Date().getFullYear()} jStudyRoom. All rights reserved.
           </Text>
         </Container>
       </Body>
@@ -113,6 +125,15 @@ const link = {
   padding: '0 48px',
   display: 'block',
   marginTop: '8px',
+};
+
+const logoContainer = {
+  textAlign: 'center' as const,
+  padding: '24px 0',
+};
+
+const logo = {
+  margin: '0 auto',
 };
 
 const footer = {

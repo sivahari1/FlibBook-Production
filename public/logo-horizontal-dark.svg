@@ -1,0 +1,20 @@
+<svg width="120" height="180" viewBox="0 0 120 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Vertical Book with Colored Stripes - Dark Mode -->
+  <g id="vertical-book">
+    <!-- Book base (vertical orientation) -->
+    <rect x="20" y="10" width="80" height="160" fill="#6B6B6B" stroke="#f0f0f0" stroke-width="2" rx="4"/>
+    
+    <!-- Colored vertical stripes across the book -->
+    <rect x="26" y="16" width="9.25" height="148" fill="#F4A6B8"/> <!-- Pink -->
+    <rect x="35.25" y="16" width="9.25" height="148" fill="#9B59B6"/> <!-- Purple -->
+    <rect x="44.5" y="16" width="9.25" height="148" fill="#87CEEB"/> <!-- Sky Blue -->
+    <rect x="53.75" y="16" width="9.25" height="148" fill="#ADD8E6"/> <!-- Light Blue -->
+    <rect x="63" y="16" width="9.25" height="148" fill="#32CD32"/> <!-- Green -->
+    <rect x="72.25" y="16" width="9.25" height="148" fill="#FFD700"/> <!-- Yellow -->
+    <rect x="81.5" y="16" width="9.25" height="148" fill="#FFA500"/> <!-- Orange -->
+    <rect x="90.75" y="16" width="9.25" height="148" fill="#E31E24"/> <!-- Red -->
+    
+    <!-- Vertical "jStudyRoom" text on book spine -->
+    <text x="60" y="40" font-family="Arial, sans-serif" font-size="20" font-weight="bold" fill="#FFF" text-anchor="middle" writing-mode="tb" letter-spacing="2.5">jStudyRoom</text>
+  </g>
+</svg>

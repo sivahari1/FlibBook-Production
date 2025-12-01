@@ -51,13 +51,19 @@ async function createBucket(bucketName: string, isPublic: boolean = false) {
   }
 
   // Create bucket
-  const { data, error } = await supabase.storage.createBucket(bucketName, {
+  const { data, error} = await supabase.storage.createBucket(bucketName, {
     public: isPublic,
-    fileSizeLimit: 1024 * 1024 * 1024, // 1GB
+    fileSizeLimit: bucketName === 'document-media' 
+      ? 100 * 1024 * 1024 // 100MB for annotation media
+      : 1024 * 1024 * 1024, // 1GB for others
     allowedMimeTypes: bucketName === 'images' 
       ? ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']
       : bucketName === 'videos'
       ? ['video/mp4', 'video/webm', 'video/quicktime']
+      : bucketName === 'document-pages'
+      ? ['image/jpeg', 'image/jpg', 'image/png']
+      : bucketName === 'document-media'
+      ? ['audio/mpeg', 'audio/wav', 'audio/mp3', 'video/mp4', 'video/webm']
       : undefined
   });
 
@@ -196,7 +202,9 @@ async function setupStorageBuckets() {
   const bucketsToCreate = [
     { name: 'documents', public: false }, // Existing bucket for PDFs
     { name: 'images', public: false },
-    { name: 'videos', public: false }
+    { name: 'videos', public: false },
+    { name: 'document-pages', public: false }, // For flipbook page images
+    { name: 'document-media', public: false } // For annotation media files
   ];
 
   for (const bucket of bucketsToCreate) {
@@ -213,7 +221,7 @@ async function setupStorageBuckets() {
 
   // Drop existing policies first (if any)
   console.log('-- Drop existing policies (if any)');
-  for (const bucketName of ['images', 'videos']) {
+  for (const bucketName of ['images', 'videos', 'document-pages', 'document-media']) {
     console.log(`DROP POLICY IF EXISTS "Admin can upload ${bucketName}" ON storage.objects;`);
     console.log(`DROP POLICY IF EXISTS "Admin can read own ${bucketName}" ON storage.objects;`);
     console.log(`DROP POLICY IF EXISTS "Admin can update own ${bucketName}" ON storage.objects;`);
@@ -224,7 +232,7 @@ async function setupStorageBuckets() {
   }
 
   // Generate policies for each bucket
-  for (const bucketName of ['images', 'videos']) {
+  for (const bucketName of ['images', 'videos', 'document-pages', 'document-media']) {
     console.log(`\n-- Policies for ${bucketName} bucket`);
     console.log('-- ============================================\n');
     const policies = generateStoragePolicies(bucketName);

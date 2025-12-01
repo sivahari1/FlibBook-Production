@@ -14,6 +14,10 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "jStudyRoom",
   description: "Upload, share, and protect your PDF documents with advanced DRM, dynamic watermarking, and comprehensive analytics.",
+  icons: {
+    icon: '/logo.svg',
+    apple: '/logo.svg',
+  },
 };
 
 export default function RootLayout({

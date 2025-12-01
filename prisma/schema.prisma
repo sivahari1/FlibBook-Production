@@ -9,32 +9,33 @@ datasource db {
 }
 
 model User {
-  id                  String              @id @default(cuid())
-  email               String              @unique
+  id                  String                @id @default(cuid())
+  email               String                @unique
   passwordHash        String
   name                String?
-  role                Role                @default(USER)
-  subscription        String              @default("free")
-  storageUsed         BigInt              @default(0)
-  emailVerified       Boolean             @default(false)
-  createdAt           DateTime            @default(now())
-  updatedAt           DateTime            @updatedAt
+  role                Role                  @default(USER)
+  subscription        String                @default("free")
+  storageUsed         BigInt                @default(0)
+  emailVerified       Boolean               @default(false)
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
   emailVerifiedAt     DateTime?
-  isActive            Boolean             @default(true)
+  isActive            Boolean               @default(true)
   notes               String?
   pricePlan           String?
-  userRole            UserRole            @default(MEMBER)
+  userRole            UserRole              @default(MEMBER)
   additionalRoles     UserRole[]
-  freeDocumentCount   Int                 @default(0)
-  paidDocumentCount   Int                 @default(0)
-  emailSharesCreated  DocumentShare[]     @relation("SharedByUser")
-  emailSharesReceived DocumentShare[]     @relation("SharedWithUser")
+  freeDocumentCount   Int                   @default(0)
+  paidDocumentCount   Int                   @default(0)
+  emailSharesCreated  DocumentShare[]       @relation("SharedByUser")
+  emailSharesReceived DocumentShare[]       @relation("SharedWithUser")
   documents           Document[]
   myJstudyroomItems   MyJstudyroomItem[]
   payments            Payment[]
   shareLinks          ShareLink[]
   subscriptions       Subscription[]
   verificationTokens  VerificationToken[]
+  annotations         DocumentAnnotation[]
 
   @@index([email])
   @@index([userRole])
@@ -42,24 +43,25 @@ model User {
 }
 
 model Document {
-  id            String          @id @default(cuid())
+  id            String               @id @default(cuid())
   title         String
   filename      String
   fileSize      BigInt
   storagePath   String
-  mimeType      String          @default("application/pdf")
-  contentType   String          @default("PDF")
-  metadata      Json            @default("{}")
+  mimeType      String               @default("application/pdf")
+  contentType   String               @default("PDF")
+  metadata      Json                 @default("{}")
   thumbnailUrl  String?
   linkUrl       String?
   userId        String
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
   bookShopItems BookShopItem[]
   emailShares   DocumentShare[]
-  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user          User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
   shareLinks    ShareLink[]
   analytics     ViewAnalytics[]
+  annotations   DocumentAnnotation[]
 
   @@index([userId])
   @@index([createdAt])
@@ -252,6 +254,49 @@ model Payment {
   @@map("payments")
 }
 
+model DocumentAnnotation {
+  id            String    @id @default(cuid())
+  documentId    String
+  userId        String
+  pageNumber    Int
+  selectedText  String?
+  mediaType     MediaType
+  mediaUrl      String?
+  externalUrl   String?
+  visibility    String    @default("public")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  document      Document  @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([documentId, pageNumber])
+  @@index([userId])
+  @@index([documentId])
+  @@index([documentId, pageNumber, visibility])
+  @@index([documentId, visibility, createdAt])
+  @@map("document_annotations")
+}
+
+model DocumentPage {
+  id         String   @id @default(cuid())
+  documentId String
+  pageNumber Int
+  pageUrl    String
+  fileSize   Int      @default(0)
+  createdAt  DateTime @default(now())
+  expiresAt  DateTime
+
+  @@unique([documentId, pageNumber])
+  @@index([documentId])
+  @@index([expiresAt])
+  @@map("document_pages")
+}
+
+enum MediaType {
+  AUDIO
+  VIDEO
+}
+
 enum UserRole {
   ADMIN
   PLATFORM_USER
@@ -266,4 +311,26 @@ enum Role {
 enum TokenType {
   EMAIL_VERIFICATION
   PASSWORD_RESET
+}
+
+
+model ErrorLog {
+  id          String   @id @default(cuid())
+  errorId     String   @unique
+  name        String
+  message     String
+  severity    String
+  context     Json?
+  userId      String?
+  sessionId   String?
+  userAgent   String?
+  url         String?
+  stack       String?  @db.Text
+  timestamp   DateTime
+  createdAt   DateTime @default(now())
+
+  @@index([severity])
+  @@index([timestamp])
+  @@index([userId])
+  @@map("error_logs")
 }

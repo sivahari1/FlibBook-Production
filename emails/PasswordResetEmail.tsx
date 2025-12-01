@@ -5,6 +5,7 @@ import {
   Head,
   Heading,
   Html,
+  Img,
   Link,
   Preview,
   Section,
@@ -21,16 +22,27 @@ export const PasswordResetEmail = ({
   userName,
   resetUrl,
 }: PasswordResetEmailProps) => {
+  const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
+  
   return (
     <Html>
       <Head />
-      <Preview>Reset your FlipBook DRM password</Preview>
+      <Preview>Reset your jStudyRoom password</Preview>
       <Body style={main}>
         <Container style={container}>
+          <Section style={logoContainer}>
+            <Img
+              src={`${baseUrl}/logo.svg`}
+              width="80"
+              height="100"
+              alt="jStudyRoom Logo"
+              style={logo}
+            />
+          </Section>
           <Heading style={heading}>Password Reset Request</Heading>
           <Text style={paragraph}>Hi {userName},</Text>
           <Text style={paragraph}>
-            We received a request to reset your password for your FlipBook DRM
+            We received a request to reset your password for your jStudyRoom
             account. Click the button below to create a new password.
           </Text>
           <Section style={buttonContainer}>
@@ -52,7 +64,7 @@ export const PasswordResetEmail = ({
             support team.
           </Text>
           <Text style={footer}>
-            © {new Date().getFullYear()} FlipBook DRM. All rights reserved.
+            © {new Date().getFullYear()} jStudyRoom. All rights reserved.
           </Text>
         </Container>
       </Body>
@@ -128,6 +140,15 @@ const warningText = {
   marginTop: '24px',
   backgroundColor: '#fef2f2',
   borderLeft: '4px solid #ef4444',
+};
+
+const logoContainer = {
+  textAlign: 'center' as const,
+  padding: '24px 0',
+};
+
+const logo = {
+  margin: '0 auto',
 };
 
 const footer = {

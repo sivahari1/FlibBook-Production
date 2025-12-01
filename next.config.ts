@@ -22,6 +22,10 @@ const nextConfig: NextConfig = {
     },
   },
   
+  // Increase timeout for PDF conversion operations
+  // Vercel serverless functions have a max timeout of 60s on Pro plan
+  serverExternalPackages: ['sharp', 'pdf2pic'],
+  
   // Disable static page generation for API routes
   typescript: {
     // Temporarily ignore build errors due to Next.js 16 Turbopack type validator bug

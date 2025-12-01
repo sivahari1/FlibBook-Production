@@ -1,8 +1,123 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import PDFViewer from '@/components/pdf/PDFViewer';
+import { FlipBookContainerWithDRM } from '@/components/flipbook/FlipBookContainerWithDRM';
 import { PasswordModal } from '@/components/share/PasswordModal';
+
+interface PageData {
+  pageNumber: number;
+  pageUrl: string;
+  dimensions: {
+    width: number;
+    height: number;
+  };
+}
+
+interface FlipBookViewerWrapperProps {
+  documentId: string;
+  watermarkText: string;
+  userEmail: string;
+  allowTextSelection: boolean;
+  enableScreenshotPrevention: boolean;
+  showWatermark: boolean;
+}
+
+function FlipBookViewerWrapper({
+  documentId,
+  watermarkText,
+  userEmail,
+  allowTextSelection,
+  enableScreenshotPrevention,
+  showWatermark,
+}: FlipBookViewerWrapperProps) {
+  const [pages, setPages] = useState<PageData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchPages = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const response = await fetch(`/api/documents/${documentId}/pages`);
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.message || 'Failed to load document pages');
+        }
+
+        if (!data.pages || data.pages.length === 0) {
+          throw new Error('Document has no pages. Please convert the document first.');
+        }
+
+        setPages(data.pages);
+        setLoading(false);
+      } catch (err) {
+        console.error('Error fetching pages:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load pages');
+        setLoading(false);
+      }
+    };
+
+    if (documentId) {
+      fetchPages();
+    }
+  }, [documentId]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+          <p className="text-white">Loading document pages...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500">
+        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-8 max-w-md w-full mx-4 text-center">
+          <div className="text-red-600 dark:text-red-400 text-6xl mb-4">⚠️</div>
+          <h2 className="text-2xl font-bold mb-2 text-gray-900 dark:text-white">
+            Failed to Load Document
+          </h2>
+          <p className="text-gray-600 dark:text-gray-300 mb-6">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Transform pages to the format expected by FlipBookContainerWithDRM
+  const transformedPages = pages.map(page => ({
+    pageNumber: page.pageNumber,
+    imageUrl: page.pageUrl,
+    width: page.dimensions.width || 800,
+    height: page.dimensions.height || 1000,
+  }));
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500">
+      <FlipBookContainerWithDRM
+        documentId={documentId}
+        pages={transformedPages}
+        watermarkText={watermarkText}
+        userEmail={userEmail}
+        allowTextSelection={allowTextSelection}
+        enableScreenshotPrevention={enableScreenshotPrevention}
+        showWatermark={showWatermark}
+      />
+    </div>
+  );
+}
 
 interface DocumentData {
   document: {
@@ -175,22 +290,17 @@ export default function ViewerClient({ shareKey, userEmail }: ViewerClientProps)
     );
   }
 
-  // Render PDF viewer with document data
+  // Render FlipBook viewer with document data
   if (documentData) {
     return (
-      <div>
-        <PDFViewer 
-          pdfUrl={documentData.signedUrl}
-          requireEmail={false}
-          shareKey={shareKey}
-          watermarkConfig={{
-            type: 'text',
-            text: userEmail,
-            opacity: 0.3,
-            fontSize: 16,
-          }}
-        />
-      </div>
+      <FlipBookViewerWrapper
+        documentId={documentData.document.id}
+        watermarkText={userEmail}
+        userEmail={userEmail}
+        allowTextSelection={false}
+        enableScreenshotPrevention={true}
+        showWatermark={true}
+      />
     );
   }
 

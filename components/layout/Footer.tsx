@@ -1,3 +1,5 @@
+import Link from 'next/link';
+
 export default function Footer() {
   return (
     <footer className="bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 text-gray-300 py-8 mt-auto">
@@ -5,9 +7,11 @@ export default function Footer() {
         <div className="text-center space-y-4">
           <div className="flex items-center justify-center space-x-2">
             <div className="h-px w-12 bg-gradient-to-r from-transparent to-blue-500"></div>
-            <p className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-              jStudyRoom
-            </p>
+            <Link href="/">
+              <p className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent hover:opacity-80 transition-opacity">
+                jStudyRoom
+              </p>
+            </Link>
             <div className="h-px w-12 bg-gradient-to-l from-transparent to-purple-500"></div>
           </div>
           
