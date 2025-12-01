@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Watermark from '../pdf/Watermark';
 import DRMProtection from '../security/DRMProtection';
 import DevToolsDetector from '../security/DevToolsDetector';
 import { ImageMetadata, WatermarkConfig } from '@/lib/types/content';
@@ -206,17 +205,19 @@ export default function ImageViewer({
 
                   {/* Watermark Overlay */}
                   {watermark && imageLoaded && (
-                    <div className="absolute inset-0 pointer-events-none">
-                      <Watermark
-                        viewerEmail={watermark.text}
-                        timestamp=""
-                        config={{
-                          type: 'text',
-                          text: watermark.text,
+                    <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+                      <div 
+                        className="text-gray-500 dark:text-gray-400 font-semibold select-none"
+                        style={{
                           opacity: watermark.opacity || 0.3,
-                          fontSize: watermark.fontSize || 16,
+                          fontSize: `${watermark.fontSize || 16}px`,
+                          transform: 'rotate(-45deg)',
+                          userSelect: 'none',
+                          WebkitUserSelect: 'none',
                         }}
-                      />
+                      >
+                        {watermark.text}
+                      </div>
                     </div>
                   )}
                 </div>

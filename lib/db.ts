@@ -22,6 +22,9 @@ export const prisma =
     // Do NOT override the URL here - it breaks the pooler/direct URL separation
   })
 
+// Default export for compatibility
+export default prisma
+
 if (process.env.NODE_ENV !== 'production') {
   globalForPrisma.prisma = prisma
 }

@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import Watermark from '../pdf/Watermark';
 import DRMProtection from '../security/DRMProtection';
 import DevToolsDetector from '../security/DevToolsDetector';
 import { VideoMetadata, WatermarkConfig } from '@/lib/types/content';
@@ -254,17 +253,19 @@ export default function VideoPlayer({
 
                   {/* Watermark Overlay */}
                   {watermark && videoLoaded && (
-                    <div className="absolute inset-0 pointer-events-none">
-                      <Watermark
-                        viewerEmail={watermark.text}
-                        timestamp=""
-                        config={{
-                          type: 'text',
-                          text: watermark.text,
+                    <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+                      <div 
+                        className="text-white font-semibold select-none"
+                        style={{
                           opacity: watermark.opacity || 0.3,
-                          fontSize: watermark.fontSize || 16,
+                          fontSize: `${watermark.fontSize || 16}px`,
+                          transform: 'rotate(-45deg)',
+                          userSelect: 'none',
+                          WebkitUserSelect: 'none',
                         }}
-                      />
+                      >
+                        {watermark.text}
+                      </div>
                     </div>
                   )}
                 </div>
