@@ -26,7 +26,111 @@ interface DocumentCounts {
   total: number;
 }
 
-// Helper function to get content type icon and label
+/**
+ * Type guard function to determine if content is a link type.
+ * 
+ * This function checks if the provided content type is 'LINK', which indicates
+ * that the content should be opened in a new tab rather than navigated to the viewer.
+ * 
+ * @param {string} contentType - The content type to check (e.g., 'PDF', 'IMAGE', 'VIDEO', 'LINK')
+ * @returns {boolean} True if the content type is 'LINK', false otherwise
+ * 
+ * @example
+ * if (isLinkContent(item.contentType)) {
+ *   // Handle link content
+ * }
+ */
+function isLinkContent(contentType: string): boolean {
+  return contentType === 'LINK';
+}
+
+/**
+ * Extracts the link URL from a My jstudyroom item's metadata.
+ * 
+ * This function safely navigates the item's metadata structure to retrieve the linkUrl
+ * property. It performs type checking to ensure the metadata exists and contains a valid
+ * string URL before returning it.
+ * 
+ * @param {MyJstudyroomItem} item - The My jstudyroom item containing metadata
+ * @returns {string | null} The link URL if found and valid, null otherwise
+ * 
+ * @example
+ * const url = getLinkUrl(item);
+ * if (url) {
+ *   window.open(url, '_blank');
+ * }
+ */
+function getLinkUrl(item: MyJstudyroomItem): string | null {
+  // Check metadata for linkUrl
+  if (item.metadata && typeof item.metadata === 'object') {
+    const metadata = item.metadata as any;
+    if (metadata.linkUrl && typeof metadata.linkUrl === 'string') {
+      return metadata.linkUrl;
+    }
+  }
+  return null;
+}
+
+/**
+ * MyJstudyroom Component
+ * 
+ * Displays and manages a member's personal collection of documents and links.
+ * This component provides a comprehensive interface for viewing, filtering, and managing
+ * content items that members have added to their study room.
+ * 
+ * Key Features:
+ * - Content-type-aware view actions (links open in new tab, other content navigates to viewer)
+ * - Real-time search with debouncing for performance
+ * - Multi-criteria filtering (content type, price type)
+ * - Document count tracking (free/paid/total with limits)
+ * - Error handling with retry mechanisms
+ * - Loading states and skeleton UI
+ * 
+ * View Action Logic:
+ * The component implements conditional rendering for the View button based on content type:
+ * 
+ * 1. For LINK content:
+ *    - Renders a Button with onClick handler
+ *    - Calls handleViewContent which opens the link in a new tab
+ *    - Includes security attributes (noopener, noreferrer)
+ *    - Validates link URL exists before opening
+ *    - Detects and handles popup blockers
+ * 
+ * 2. For other content types (PDF, IMAGE, VIDEO):
+ *    - Renders a Next.js Link component wrapping the Button
+ *    - Navigates to /member/view/[itemId]
+ *    - Viewer page applies DRM protection and watermarking
+ * 
+ * Security Considerations:
+ * - Link URLs are validated before opening
+ * - Security attributes prevent malicious access to window.opener
+ * - Referrer information is not leaked to external sites
+ * - Popup blocker detection provides user guidance
+ * 
+ * Performance Optimizations:
+ * - Search query debouncing (300ms) reduces unnecessary filtering
+ * - Memoized filtered items prevent redundant calculations
+ * - Retry logic with exponential backoff for network errors
+ * 
+ * @component
+ * @example
+ * // Usage in a page
+ * import { MyJstudyroom } from '@/components/member/MyJstudyroom';
+ * 
+ * export default function MyJstudyroomPage() {
+ *   return <MyJstudyroom />;
+ * }
+ */
+
+/**
+ * Helper function to get content type icon and label with styling.
+ * 
+ * Returns the appropriate icon, label, and color scheme for each content type.
+ * Used for displaying content type badges in the UI.
+ * 
+ * @param {string} contentType - The content type (PDF, IMAGE, VIDEO, LINK, or other)
+ * @returns {Object} Object containing icon (JSX), label (string), and color (CSS classes)
+ */
 function getContentTypeInfo(contentType: string) {
   switch (contentType) {
     case 'PDF':
@@ -179,6 +283,59 @@ export function MyJstudyroom() {
     } finally {
       setLoading(false);
     }
+  };
+
+  /**
+   * Handles the view action for content items based on their content type.
+   * 
+   * This function implements content-type-aware routing:
+   * - For LINK content: Opens the external URL in a new browser tab with security attributes
+   * - For other content types (PDF, IMAGE, VIDEO): Navigation is handled by Next.js Link component
+   * 
+   * Security considerations:
+   * - Uses 'noopener' to prevent the new page from accessing window.opener
+   * - Uses 'noreferrer' to prevent the referrer header from being sent
+   * - Validates that link URLs exist before attempting to open them
+   * - Detects and notifies users if popup blockers prevent the link from opening
+   * 
+   * Error handling:
+   * - Displays user-friendly error if link URL is missing
+   * - Detects popup blocker and provides guidance to user
+   * 
+   * @param {MyJstudyroomItem} item - The content item to view
+   * @returns {void}
+   * 
+   * @example
+   * // For link content
+   * <Button onClick={() => handleViewContent(item)}>View</Button>
+   * 
+   * @see {@link isLinkContent} for content type detection
+   * @see {@link getLinkUrl} for URL extraction
+   */
+  const handleViewContent = (item: MyJstudyroomItem): void => {
+    if (isLinkContent(item.contentType)) {
+      // Extract and validate the link URL from metadata
+      const linkUrl = getLinkUrl(item);
+      if (!linkUrl) {
+        // Display error if link URL is missing or invalid
+        setError('Link URL not found for this item. Please contact support if this issue persists.');
+        return;
+      }
+      
+      // Attempt to open the link in a new tab with security attributes
+      // Security attributes:
+      // - 'noopener': Prevents the new page from accessing window.opener (XSS protection)
+      // - 'noreferrer': Prevents the referrer header from being sent (privacy protection)
+      const newWindow = window.open(linkUrl, '_blank', 'noopener,noreferrer');
+      
+      // Check if popup was blocked by browser
+      // window.open returns null if blocked, or the window may be immediately closed
+      if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
+        setError('Popup blocked. Please allow popups for this site and try again.');
+      }
+    }
+    // For non-link content (PDF, IMAGE, VIDEO), Next.js Link component handles navigation
+    // to the viewer page where DRM protection and watermarking are applied
   };
 
   const handleReturn = async (itemId: string, retryAttempt = 0) => {
@@ -538,11 +695,43 @@ export function MyJstudyroom() {
                   </div>
                 </div>
                 <div className="flex gap-2 ml-4">
-                  <Link href={`/member/view/${item.id}`}>
-                    <Button variant="primary" size="sm">
+                  {/* 
+                    Conditional View Button Rendering:
+                    
+                    For LINK content:
+                    - Render Button with onClick handler
+                    - Opens external URL in new tab with security attributes
+                    - Tooltip indicates "Open link in new tab"
+                    
+                    For other content types (PDF, IMAGE, VIDEO):
+                    - Render Next.js Link wrapping Button
+                    - Navigates to viewer page at /member/view/[itemId]
+                    - Viewer applies DRM protection and watermarking
+                    - Tooltip indicates "View content"
+                    
+                    This approach ensures links open directly without intermediate pages,
+                    while maintaining secure viewing for protected content types.
+                  */}
+                  {isLinkContent(item.contentType) ? (
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={() => handleViewContent(item)}
+                      title="Open link in new tab"
+                    >
                       View
                     </Button>
-                  </Link>
+                  ) : (
+                    <Link href={`/member/view/${item.id}`}>
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        title="View content"
+                      >
+                        View
+                      </Button>
+                    </Link>
+                  )}
                   <Button
                     variant="secondary"
                     size="sm"
