@@ -50,11 +50,43 @@ function FlipBookViewerWrapper({
           throw new Error(data.message || 'Failed to load document pages');
         }
 
+        // If no pages exist, trigger conversion automatically
         if (!data.pages || data.pages.length === 0) {
-          throw new Error('Document has no pages. Please convert the document first.');
+          console.log('No pages found, triggering conversion...');
+          
+          // Call conversion API
+          const convertResponse = await fetch('/api/documents/convert', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ documentId }),
+          });
+
+          const convertData = await convertResponse.json();
+
+          if (!convertResponse.ok) {
+            throw new Error(convertData.message || 'Failed to convert document');
+          }
+
+          // Use the page URLs from conversion response
+          if (convertData.pageUrls && convertData.pageUrls.length > 0) {
+            const convertedPages = convertData.pageUrls.map((url: string, index: number) => ({
+              pageNumber: index + 1,
+              pageUrl: url,
+              dimensions: {
+                width: 1200,
+                height: 1600,
+              },
+            }));
+            setPages(convertedPages);
+          } else {
+            throw new Error('Document conversion completed but no pages were generated');
+          }
+        } else {
+          setPages(data.pages);
         }
 
-        setPages(data.pages);
         setLoading(false);
       } catch (err) {
         console.error('Error fetching pages:', err);
@@ -73,7 +105,8 @@ function FlipBookViewerWrapper({
       <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
-          <p className="text-white">Loading document pages...</p>
+          <p className="text-white text-lg font-medium mb-2">Loading document pages...</p>
+          <p className="text-white text-sm opacity-80">This may take a moment if the document needs to be converted</p>
         </div>
       </div>
     );
