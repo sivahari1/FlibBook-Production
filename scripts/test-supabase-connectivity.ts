@@ -67,7 +67,7 @@ async function testSupabaseConnectivity() {
   }
   
   console.log('📊 Summary:');
-  console.log('- If HTTPS API works but pooler doesn't, there may be a firewall blocking PostgreSQL ports');
+  console.log('- If HTTPS API works but pooler doesn\'t, there may be a firewall blocking PostgreSQL ports');
   console.log('- If hostname resolution fails, there may be a DNS issue');
   console.log('- If everything fails, check your internet connection or VPN settings');
   console.log('\n💡 Recommendation:');

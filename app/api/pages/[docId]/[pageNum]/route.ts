@@ -23,7 +23,7 @@ import { prisma } from '@/lib/db';
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { docId: string; pageNum: string } }
+  { params }: { params: Promise<{ docId: string; pageNum: string }> }
 ) {
   try {
     // Authenticate user
@@ -35,7 +35,7 @@ export async function GET(
       );
     }
 
-    const { docId, pageNum } = params;
+    const { docId, pageNum } = await params;
     const pageNumber = parseInt(pageNum, 10);
 
     // Validate page number

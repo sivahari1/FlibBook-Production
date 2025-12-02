@@ -10,10 +10,10 @@ import { generateSecureMediaUrl, logMediaAccess } from '@/lib/security/media-sec
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { annotationId: string } }
+  { params }: { params: Promise<{ annotationId: string }> }
 ) {
   try {
-    const { annotationId } = params;
+    const { annotationId } = await params;
 
     // Validate media access
     const validation = await validateMediaAccess(request, annotationId);

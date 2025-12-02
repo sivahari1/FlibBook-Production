@@ -29,7 +29,7 @@ import { BrowserCacheHeaders } from '@/lib/performance/cache-manager';
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const startTime = Date.now();
 
@@ -43,7 +43,8 @@ export async function GET(
       );
     }
 
-    const documentId = params.id;
+    // Await params Promise before accessing properties (Next.js 15 requirement)
+    const { id: documentId } = await params;
 
     // Check ETag for conditional requests (304 Not Modified)
     const ifNoneMatch = request.headers.get('if-none-match');
