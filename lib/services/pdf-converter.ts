@@ -85,8 +85,10 @@ export async function convertPdfToImages(
     try {
       // Load PDF document
       const pdfData = await fs.readFile(pdfPath);
+      // Convert Buffer to Uint8Array for pdf-lib compatibility
+      const pdfUint8Array = new Uint8Array(pdfData);
       const loadingTask = pdfjsLib.getDocument({
-        data: pdfData,
+        data: pdfUint8Array,
         useSystemFonts: true,
       });
       const pdfDocument = await loadingTask.promise;

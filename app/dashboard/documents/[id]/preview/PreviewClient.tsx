@@ -169,6 +169,7 @@ export default function PreviewClient({
   documentId,
 }: PreviewClientProps) {
   const [showSettings, setShowSettings] = useState(true);
+  const [enableWatermark, setEnableWatermark] = useState(false);
   const [watermarkType, setWatermarkType] = useState<'text' | 'image'>('text');
   const [watermarkText, setWatermarkText] = useState(userEmail);
   const [watermarkImage, setWatermarkImage] = useState<string>('');
@@ -176,19 +177,36 @@ export default function PreviewClient({
   const [watermarkSize, setWatermarkSize] = useState(16);
   const [startPreview, setStartPreview] = useState(false);
   const [showShareDialog, setShowShareDialog] = useState(false);
+  
+  // Error handling states
+  const [validationErrors, setValidationErrors] = useState<{
+    watermarkText?: string;
+    watermarkImage?: string;
+  }>({});
+  const [isGeneratingPreview, setIsGeneratingPreview] = useState(false);
+  const [popupBlockedError, setPopupBlockedError] = useState(false);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      // Clear previous errors
+      setValidationErrors(prev => ({ ...prev, watermarkImage: undefined }));
+      
       // Check file type
       if (!file.type.startsWith('image/')) {
-        alert('Please upload an image file');
+        setValidationErrors(prev => ({
+          ...prev,
+          watermarkImage: 'Please upload a valid image file (PNG, JPG, GIF)'
+        }));
         return;
       }
       
       // Check file size (max 2MB)
       if (file.size > 2 * 1024 * 1024) {
-        alert('Image size should be less than 2MB');
+        setValidationErrors(prev => ({
+          ...prev,
+          watermarkImage: 'Image size must be less than 2MB'
+        }));
         return;
       }
 
@@ -196,21 +214,99 @@ export default function PreviewClient({
       reader.onload = (event) => {
         setWatermarkImage(event.target?.result as string);
       };
+      reader.onerror = () => {
+        setValidationErrors(prev => ({
+          ...prev,
+          watermarkImage: 'Failed to read image file. Please try again.'
+        }));
+      };
       reader.readAsDataURL(file);
     }
   };
 
   const handleStartPreview = () => {
-    if (watermarkType === 'text' && !watermarkText.trim()) {
-      alert('Please enter watermark text');
+    // Clear previous errors
+    setValidationErrors({});
+    setPopupBlockedError(false);
+    
+    // Validate watermark settings if enabled
+    const errors: { watermarkText?: string; watermarkImage?: string } = {};
+    
+    if (enableWatermark) {
+      if (watermarkType === 'text' && !watermarkText.trim()) {
+        errors.watermarkText = 'Please enter watermark text';
+      }
+      if (watermarkType === 'image' && !watermarkImage) {
+        errors.watermarkImage = 'Please upload a watermark image';
+      }
+    }
+    
+    // If there are validation errors, display them and stop
+    if (Object.keys(errors).length > 0) {
+      setValidationErrors(errors);
       return;
     }
-    if (watermarkType === 'image' && !watermarkImage) {
-      alert('Please upload a watermark image');
-      return;
+
+    // Show loading state
+    setIsGeneratingPreview(true);
+
+    try {
+      // Build URL with settings as query parameters
+      const params = new URLSearchParams({
+        watermark: enableWatermark.toString(),
+        ...(enableWatermark && watermarkType === 'text' && {
+          watermarkText,
+          watermarkSize: watermarkSize.toString(),
+          watermarkOpacity: watermarkOpacity.toString(),
+        }),
+        ...(enableWatermark && watermarkType === 'image' && {
+          watermarkImage: encodeURIComponent(watermarkImage),
+          watermarkOpacity: watermarkOpacity.toString(),
+        }),
+      });
+
+      // Open preview in new tab with settings
+      const previewUrl = `/dashboard/documents/${documentId}/view?${params.toString()}`;
+      const newWindow = window.open(previewUrl, '_blank', 'noopener,noreferrer');
+
+      // Small delay to check if popup was blocked
+      setTimeout(() => {
+        setIsGeneratingPreview(false);
+        
+        // Handle popup blocker scenario
+        if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
+          setPopupBlockedError(true);
+        }
+      }, 100);
+    } catch (error) {
+      console.error('Error opening preview:', error);
+      setIsGeneratingPreview(false);
+      setValidationErrors({
+        watermarkText: 'Failed to open preview. Please try again.'
+      });
     }
-    setShowSettings(false);
-    setStartPreview(true);
+  };
+
+  const handleRetryPreview = () => {
+    setPopupBlockedError(false);
+    handleStartPreview();
+  };
+
+  const handleOpenInSameTab = () => {
+    const params = new URLSearchParams({
+      watermark: enableWatermark.toString(),
+      ...(enableWatermark && watermarkType === 'text' && {
+        watermarkText,
+        watermarkSize: watermarkSize.toString(),
+        watermarkOpacity: watermarkOpacity.toString(),
+      }),
+      ...(enableWatermark && watermarkType === 'image' && {
+        watermarkImage: encodeURIComponent(watermarkImage),
+        watermarkOpacity: watermarkOpacity.toString(),
+      }),
+    });
+
+    window.location.href = `/dashboard/documents/${documentId}/view?${params.toString()}`;
   };
 
   if (showSettings) {
@@ -237,37 +333,105 @@ export default function PreviewClient({
           {/* Watermark Settings Card */}
           <div className="bg-white rounded-xl shadow-lg p-8">
             <h2 className="text-2xl font-bold mb-6 text-gray-900">
-              Watermark Settings
+              Preview Settings
             </h2>
 
-            {/* Watermark Type Selection */}
+            {/* Popup Blocker Error Message */}
+            {popupBlockedError && (
+              <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg" role="alert" aria-live="polite">
+                <div className="flex items-start">
+                  <svg className="w-5 h-5 text-yellow-600 mt-0.5 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                  <div className="flex-1">
+                    <h3 className="text-sm font-medium text-yellow-800 mb-1">
+                      Popup Blocked
+                    </h3>
+                    <p className="text-sm text-yellow-700 mb-3">
+                      Your browser blocked the preview window. Please allow popups for this site or choose an alternative option.
+                    </p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleRetryPreview}
+                        className="px-3 py-1.5 text-sm bg-yellow-600 text-white rounded hover:bg-yellow-700 transition-colors"
+                      >
+                        Retry
+                      </button>
+                      <button
+                        onClick={handleOpenInSameTab}
+                        className="px-3 py-1.5 text-sm bg-white text-yellow-700 border border-yellow-300 rounded hover:bg-yellow-50 transition-colors"
+                      >
+                        Open in Same Tab
+                      </button>
+                      <button
+                        onClick={() => setPopupBlockedError(false)}
+                        className="px-3 py-1.5 text-sm text-yellow-700 hover:text-yellow-800"
+                      >
+                        Dismiss
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Watermark Enable/Disable Toggle */}
             <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-3">
-                Watermark Type
+              <label className="flex items-center space-x-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={enableWatermark}
+                  onChange={(e) => setEnableWatermark(e.target.checked)}
+                  className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500 focus:ring-2 focus:ring-offset-2"
+                  aria-label="Enable watermark"
+                  aria-describedby="watermark-help-text"
+                />
+                <span className="text-sm font-medium text-gray-700">
+                  Enable Watermark
+                </span>
               </label>
-              <div className="grid grid-cols-2 gap-4">
+              <p id="watermark-help-text" className="text-sm text-gray-500 mt-1 ml-8">
+                Add a watermark to protect your content
+              </p>
+            </div>
+
+            {/* Show watermark settings only if enabled */}
+            {enableWatermark && (
+              <div className="space-y-6">
+                {/* Watermark Type Selection */}
+                <div role="group" aria-labelledby="watermark-type-label">
+                  <label id="watermark-type-label" className="block text-sm font-medium text-gray-700 mb-3">
+                    Watermark Type
+                  </label>
+                  <div className="grid grid-cols-2 gap-4">
                 <button
+                  type="button"
                   onClick={() => setWatermarkType('text')}
                   className={`p-4 rounded-lg border-2 transition-all ${
                     watermarkType === 'text'
                       ? 'border-blue-500 bg-blue-50'
                       : 'border-gray-200 hover:border-gray-300'
                   }`}
+                  aria-pressed={watermarkType === 'text'}
+                  aria-label="Select text watermark"
                 >
-                  <svg className="w-8 h-8 mx-auto mb-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-8 h-8 mx-auto mb-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
                   <span className="font-medium">Text Watermark</span>
                 </button>
                 <button
+                  type="button"
                   onClick={() => setWatermarkType('image')}
                   className={`p-4 rounded-lg border-2 transition-all ${
                     watermarkType === 'image'
                       ? 'border-blue-500 bg-blue-50'
                       : 'border-gray-200 hover:border-gray-300'
                   }`}
+                  aria-pressed={watermarkType === 'image'}
+                  aria-label="Select image watermark"
                 >
-                  <svg className="w-8 h-8 mx-auto mb-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-8 h-8 mx-auto mb-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
                   <span className="font-medium">Image Watermark</span>
@@ -275,57 +439,92 @@ export default function PreviewClient({
               </div>
             </div>
 
-            {/* Text Watermark Settings */}
-            {watermarkType === 'text' && (
+                {/* Text Watermark Settings */}
+                {watermarkType === 'text' && (
               <div className="space-y-4 mb-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Watermark Text
                   </label>
                   <Input
+                    id="watermark-text-input"
                     type="text"
                     value={watermarkText}
-                    onChange={(e) => setWatermarkText(e.target.value)}
+                    onChange={(e) => {
+                      setWatermarkText(e.target.value);
+                      // Clear error when user starts typing
+                      if (validationErrors.watermarkText) {
+                        setValidationErrors(prev => ({ ...prev, watermarkText: undefined }));
+                      }
+                    }}
                     placeholder="Enter watermark text"
-                    className="w-full"
+                    className={`w-full ${validationErrors.watermarkText ? 'border-red-500 focus:ring-red-500' : ''}`}
+                    aria-invalid={!!validationErrors.watermarkText}
+                    aria-describedby={validationErrors.watermarkText ? 'watermark-text-error' : 'watermark-text-help'}
+                    aria-label="Watermark text"
                   />
-                  <p className="text-sm text-gray-500 mt-1">
-                    This text will appear diagonally across each page
-                  </p>
+                  {validationErrors.watermarkText && (
+                    <p id="watermark-text-error" className="text-sm text-red-600 mt-1" role="alert">
+                      {validationErrors.watermarkText}
+                    </p>
+                  )}
+                  {!validationErrors.watermarkText && (
+                    <p id="watermark-text-help" className="text-sm text-gray-500 mt-1">
+                      This text will appear diagonally across each page
+                    </p>
+                  )}
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label htmlFor="watermark-font-size" className="block text-sm font-medium text-gray-700 mb-2">
                     Font Size: {watermarkSize}px
                   </label>
                   <input
+                    id="watermark-font-size"
                     type="range"
                     min="12"
                     max="32"
                     value={watermarkSize}
                     onChange={(e) => setWatermarkSize(Number(e.target.value))}
                     className="w-full"
+                    aria-label={`Watermark font size: ${watermarkSize} pixels`}
+                    aria-valuemin={12}
+                    aria-valuemax={32}
+                    aria-valuenow={watermarkSize}
                   />
                 </div>
               </div>
-            )}
+                )}
 
-            {/* Image Watermark Settings */}
-            {watermarkType === 'image' && (
+                {/* Image Watermark Settings */}
+                {watermarkType === 'image' && (
               <div className="space-y-4 mb-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Upload Watermark Image
                   </label>
                   <input
+                    id="watermark-image-upload"
                     type="file"
                     accept="image/*"
                     onChange={handleImageUpload}
-                    className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                    className={`block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 ${
+                      validationErrors.watermarkImage ? 'border border-red-500 rounded-lg' : ''
+                    }`}
+                    aria-invalid={!!validationErrors.watermarkImage}
+                    aria-describedby={validationErrors.watermarkImage ? 'watermark-image-error' : 'watermark-image-help'}
+                    aria-label="Upload watermark image"
                   />
-                  <p className="text-sm text-gray-500 mt-1">
-                    PNG, JPG, or GIF (max 2MB). Transparent backgrounds work best.
-                  </p>
+                  {validationErrors.watermarkImage && (
+                    <p id="watermark-image-error" className="text-sm text-red-600 mt-1" role="alert">
+                      {validationErrors.watermarkImage}
+                    </p>
+                  )}
+                  {!validationErrors.watermarkImage && (
+                    <p id="watermark-image-help" className="text-sm text-gray-500 mt-1">
+                      PNG, JPG, or GIF (max 2MB). Transparent backgrounds work best.
+                    </p>
+                  )}
                 </div>
 
                 {watermarkImage && (
@@ -342,14 +541,15 @@ export default function PreviewClient({
                   </div>
                 )}
               </div>
-            )}
+                )}
 
-            {/* Opacity Control */}
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+                {/* Opacity Control */}
+                <div>
+              <label htmlFor="watermark-opacity" className="block text-sm font-medium text-gray-700 mb-2">
                 Opacity: {Math.round(watermarkOpacity * 100)}%
               </label>
               <input
+                id="watermark-opacity"
                 type="range"
                 min="0.1"
                 max="0.8"
@@ -357,22 +557,55 @@ export default function PreviewClient({
                 value={watermarkOpacity}
                 onChange={(e) => setWatermarkOpacity(Number(e.target.value))}
                 className="w-full"
+                aria-label={`Watermark opacity: ${Math.round(watermarkOpacity * 100)} percent`}
+                aria-valuemin={10}
+                aria-valuemax={80}
+                aria-valuenow={Math.round(watermarkOpacity * 100)}
+                aria-describedby="opacity-help-text"
               />
-              <p className="text-sm text-gray-500 mt-1">
+              <p id="opacity-help-text" className="text-sm text-gray-500 mt-1">
                 Adjust the transparency of the watermark
               </p>
+                </div>
+              </div>
+            )}
+
+            {/* ARIA Live Region for Validation Errors */}
+            <div 
+              role="alert" 
+              aria-live="assertive" 
+              aria-atomic="true"
+              className="sr-only"
+            >
+              {validationErrors.watermarkText && `Error: ${validationErrors.watermarkText}`}
+              {validationErrors.watermarkImage && `Error: ${validationErrors.watermarkImage}`}
             </div>
 
             {/* Preview Button */}
             <Button
               onClick={handleStartPreview}
-              className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+              disabled={isGeneratingPreview}
+              className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              aria-busy={isGeneratingPreview}
+              aria-label="Preview document in new tab"
             >
-              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-              </svg>
-              Start Preview
+              {isGeneratingPreview ? (
+                <>
+                  <svg className="animate-spin h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Opening Preview...
+                </>
+              ) : (
+                <>
+                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  </svg>
+                  Preview in New Tab
+                  <span className="sr-only">(opens in new tab)</span>
+                </>
+              )}
             </Button>
           </div>
         </div>
@@ -423,7 +656,7 @@ export default function PreviewClient({
         userEmail={userEmail}
         allowTextSelection={true}
         enableScreenshotPrevention={false}
-        showWatermark={true}
+        showWatermark={enableWatermark}
       />
     </div>
   );

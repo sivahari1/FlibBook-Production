@@ -4,6 +4,7 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'danger';
   size?: 'sm' | 'md' | 'lg';
   isLoading?: boolean;
+  asChild?: boolean;
 }
 
 export const Button: React.FC<ButtonProps> = ({
@@ -11,6 +12,7 @@ export const Button: React.FC<ButtonProps> = ({
   variant = 'primary',
   size = 'md',
   isLoading = false,
+  asChild = false,
   className = '',
   disabled,
   ...props
@@ -29,9 +31,20 @@ export const Button: React.FC<ButtonProps> = ({
     lg: 'px-6 py-3 text-lg',
   };
 
+  const buttonClasses = `${baseStyles} ${variantStyles[variant]} ${sizeStyles[size]} ${className}`;
+
+  // When asChild is true, apply button classes to the child element
+  if (asChild && React.isValidElement(children)) {
+    const childProps = children.props as { className?: string };
+    return React.cloneElement(children, {
+      className: `${buttonClasses} ${childProps.className || ''}`.trim(),
+      ...props,
+    } as any);
+  }
+
   return (
     <button
-      className={`${baseStyles} ${variantStyles[variant]} ${sizeStyles[size]} ${className}`}
+      className={buttonClasses}
       disabled={disabled || isLoading}
       {...props}
     >

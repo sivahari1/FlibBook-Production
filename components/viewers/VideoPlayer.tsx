@@ -245,6 +245,8 @@ export default function VideoPlayer({
                       maxHeight: '70vh',
                       userSelect: 'none',
                       WebkitUserSelect: 'none',
+                      zIndex: 0,
+                      position: 'relative',
                     }}
                     controlsList="nodownload"
                     onContextMenu={(e) => e.preventDefault()}
@@ -252,14 +254,21 @@ export default function VideoPlayer({
                   />
 
                   {/* Watermark Overlay */}
-                  {watermark && videoLoaded && (
-                    <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+                  {watermark?.text && videoLoaded && (
+                    <div 
+                      className="absolute inset-0 pointer-events-none flex items-center justify-center"
+                      style={{
+                        zIndex: 1,
+                      }}
+                      aria-hidden="true"
+                    >
                       <div 
                         className="text-white font-semibold select-none"
                         style={{
                           opacity: watermark.opacity || 0.3,
                           fontSize: `${watermark.fontSize || 16}px`,
-                          transform: 'rotate(-45deg)',
+                          transform: 'rotate(-45deg) translateZ(0)',
+                          textShadow: '2px 2px 4px rgba(0,0,0,0.1)',
                           userSelect: 'none',
                           WebkitUserSelect: 'none',
                         }}

@@ -194,6 +194,7 @@ export default function ImageViewer({
                       userSelect: 'none',
                       WebkitUserSelect: 'none',
                       pointerEvents: allowDownload ? 'auto' : 'none',
+                      position: 'relative',
                     }}
                     draggable={false}
                     onContextMenu={(e) => {
@@ -203,15 +204,22 @@ export default function ImageViewer({
                     }}
                   />
 
-                  {/* Watermark Overlay */}
-                  {watermark && imageLoaded && (
-                    <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+                  {/* Watermark Overlay - Only render when explicitly enabled with text */}
+                  {watermark?.text && imageLoaded && (
+                    <div 
+                      className="absolute inset-0 pointer-events-none flex items-center justify-center"
+                      style={{
+                        zIndex: 1,
+                      }}
+                      aria-hidden="true"
+                    >
                       <div 
                         className="text-gray-500 dark:text-gray-400 font-semibold select-none"
                         style={{
                           opacity: watermark.opacity || 0.3,
                           fontSize: `${watermark.fontSize || 16}px`,
-                          transform: 'rotate(-45deg)',
+                          transform: 'rotate(-45deg) translateZ(0)',
+                          textShadow: '2px 2px 4px rgba(0,0,0,0.1)',
                           userSelect: 'none',
                           WebkitUserSelect: 'none',
                         }}

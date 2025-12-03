@@ -28,14 +28,14 @@ interface FlipBookContainerWithDRMProps extends FlipBookViewerProps {
  */
 export function FlipBookContainerWithDRM({
   enableScreenshotPrevention = true,
-  showWatermark = true,
+  showWatermark = false,
   watermarkText,
   userEmail,
   allowTextSelection = false,
   ...props
 }: FlipBookContainerWithDRMProps) {
-  // Use userEmail as watermark if no custom watermark provided
-  const effectiveWatermark = showWatermark ? (watermarkText || userEmail) : undefined;
+  // Only use watermark when explicitly enabled
+  const effectiveWatermark = showWatermark && watermarkText ? watermarkText : undefined;
 
   return (
     <DRMProtection>

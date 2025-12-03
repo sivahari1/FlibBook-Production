@@ -60,12 +60,15 @@ const Page = React.memo(
               // Optimize image rendering
               imageRendering: 'crisp-edges',
               transform: 'translateZ(0)',
+              // Ensure content is at base layer
+              zIndex: 0,
+              position: 'relative',
             }}
           />
           {/* Watermark - Always visible with multiple layers for security */}
           {watermarkText && (
             <div
-              className="absolute inset-0 pointer-events-none flex items-center justify-center"
+              className="absolute inset-0 flex items-center justify-center"
               aria-hidden="true"
               style={{
                 background: 'repeating-linear-gradient(45deg, transparent, transparent 100px, rgba(0,0,0,0.02) 100px, rgba(0,0,0,0.02) 200px)',
@@ -75,8 +78,9 @@ const Page = React.memo(
                 // Ensure watermark is always visible
                 display: 'flex !important' as any,
                 visibility: 'visible !important' as any,
-                opacity: '1 !important' as any,
-                zIndex: 10,
+                opacity: 0.2,
+                zIndex: 1,
+                pointerEvents: 'none', // Inline style to ensure it works in tests
               }}
             >
               <div
@@ -86,7 +90,6 @@ const Page = React.memo(
                   // GPU acceleration for text
                   transform: 'rotate(-45deg) translateZ(0)',
                   // Ensure text watermark is always visible
-                  opacity: 0.2,
                   display: 'block !important' as any,
                   visibility: 'visible !important' as any,
                 }}
@@ -182,18 +185,18 @@ export function FlipBookViewer({
     const updateDimensions = () => {
       if (containerRef.current) {
         const containerWidth = containerRef.current.clientWidth;
-        const containerHeight = containerRef.current.clientHeight || window.innerHeight - 200;
+        const containerHeight = containerRef.current.clientHeight || window.innerHeight;
         
         const mobile = window.innerWidth < 768;
         setIsMobile(mobile);
         
-        // Calculate dimensions based on screen size
-        const pageWidth = mobile ? containerWidth * 0.9 : containerWidth * 0.4;
+        // Calculate dimensions based on screen size - use more viewport space
+        const pageWidth = mobile ? containerWidth * 0.95 : containerWidth * 0.8;
         const pageHeight = pageWidth * 1.414; // A4 ratio
         
         setDimensions({
           width: Math.floor(pageWidth),
-          height: Math.floor(Math.min(pageHeight, containerHeight * 0.8)),
+          height: Math.floor(Math.min(pageHeight, containerHeight * 0.9)),
         });
       }
     };
@@ -365,7 +368,7 @@ export function FlipBookViewer({
       if (typeof window !== 'undefined' && (window as any).__showErrorToast) {
         (window as any).__showErrorToast(
           error instanceof Error ? error : new Error('Failed to create annotation'),
-          () => handleCreateAnnotation(mediaUrl, mediaType, isExternal)
+          () => handleUploadComplete(mediaUrl, isExternal)
         );
       }
     }
@@ -517,14 +520,14 @@ export function FlipBookViewer({
   return (
     <div
       ref={containerRef}
-      className={`relative w-full h-full min-h-[600px] bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 rounded-lg overflow-hidden ${className}`}
+      className={`relative w-full h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 rounded-lg overflow-hidden ${className}`}
       style={{
         userSelect: allowTextSelection ? 'text' : 'none',
       }}
     >
       {/* Flipbook Container with GPU acceleration */}
       <div
-        className="flex items-center justify-center w-full h-full p-8"
+        className="flex items-center justify-center w-full h-full p-4"
         style={{
           transform: `scale(${zoom / 100}) translateZ(0)`,
           transformOrigin: 'center center',
@@ -574,7 +577,7 @@ export function FlipBookViewer({
               key={page.pageNumber}
               imageUrl={page.imageUrl}
               pageNumber={page.pageNumber}
-              watermarkText={watermarkText || userEmail}
+              watermarkText={watermarkText}
             />
           ))}
         </HTMLFlipBook>
