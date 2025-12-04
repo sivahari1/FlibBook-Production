@@ -54,15 +54,27 @@ const Page = React.memo(
             alt={`Page ${pageNumber}`}
             className="w-full h-full object-contain"
             draggable={false}
-            loading="lazy"
+            loading="eager"
             decoding="async"
+            crossOrigin="anonymous"
             style={{
               // Optimize image rendering
-              imageRendering: 'crisp-edges',
+              imageRendering: 'auto',
               transform: 'translateZ(0)',
               // Ensure content is at base layer
               zIndex: 0,
               position: 'relative',
+            }}
+            onError={(e) => {
+              console.error(`Failed to load page ${pageNumber}:`, imageUrl);
+              // Try to reload the image once
+              const img = e.target as HTMLImageElement;
+              if (!img.dataset.retried) {
+                img.dataset.retried = 'true';
+                setTimeout(() => {
+                  img.src = imageUrl;
+                }, 1000);
+              }
             }}
           />
           {/* Watermark - Always visible with multiple layers for security */}
@@ -520,9 +532,17 @@ export function FlipBookViewer({
   return (
     <div
       ref={containerRef}
-      className={`relative w-full h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 rounded-lg overflow-hidden ${className}`}
+      className={`fixed inset-0 w-full h-full bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 overflow-hidden ${className}`}
       style={{
         userSelect: allowTextSelection ? 'text' : 'none',
+        width: '100vw',
+        height: '100vh',
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        zIndex: 50,
       }}
     >
       {/* Flipbook Container with GPU acceleration */}

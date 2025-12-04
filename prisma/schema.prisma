@@ -62,6 +62,7 @@ model Document {
   shareLinks    ShareLink[]
   analytics     ViewAnalytics[]
   annotations   DocumentAnnotation[]
+  pages         DocumentPage[]
 
   @@index([userId])
   @@index([createdAt])
@@ -69,7 +70,7 @@ model Document {
   @@map("documents")
 }
 
-model ShareLink {
+model ShareLink{
   id              String    @id @default(cuid())
   shareKey        String    @unique
   documentId      String
@@ -285,6 +286,7 @@ model DocumentPage {
   fileSize   Int      @default(0)
   createdAt  DateTime @default(now())
   expiresAt  DateTime
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
 
   @@unique([documentId, pageNumber])
   @@index([documentId])

@@ -227,17 +227,15 @@ export default function PreviewViewerClient({
       }));
 
       return (
-        <div className="min-h-screen bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500">
-          <FlipBookContainerWithDRM
-            documentId={documentId}
-            pages={transformedPages}
-            watermarkText={watermarkConfig?.text}
-            userEmail={userEmail}
-            allowTextSelection={true}
-            enableScreenshotPrevention={false}
-            showWatermark={enableWatermark}
-          />
-        </div>
+        <FlipBookContainerWithDRM
+          documentId={documentId}
+          pages={transformedPages}
+          watermarkText={watermarkConfig?.text}
+          userEmail={userEmail}
+          allowTextSelection={true}
+          enableScreenshotPrevention={false}
+          showWatermark={enableWatermark}
+        />
       );
 
     case ContentType.IMAGE:
