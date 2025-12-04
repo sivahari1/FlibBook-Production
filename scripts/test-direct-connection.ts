@@ -1,41 +1,35 @@
 import { PrismaClient } from '@prisma/client';
 
-// Test with DIRECT_URL instead of pooler
+const directUrl = process.env.DIRECT_URL;
+
+console.log('🔍 Testing DIRECT connection...\n');
+console.log('📍 Direct URL:', directUrl?.replace(/:[^:@]+@/, ':****@'));
+
 const prisma = new PrismaClient({
-  log: ['query', 'error', 'warn'],
   datasources: {
     db: {
-      url: process.env.DIRECT_URL,
+      url: directUrl,
     },
   },
 });
 
-async function testDirectConnection() {
+async function testConnection() {
   try {
-    console.log('🔍 Testing DIRECT connection to Supabase...');
-    console.log('DIRECT_URL:', process.env.DIRECT_URL?.replace(/:[^:@]+@/, ':****@'));
-    
-    await prisma.$connect();
-    console.log('✅ Connected to database');
+    console.log('🔌 Attempting direct connection...\n');
     
     const result = await prisma.$queryRaw`SELECT 1 as test`;
-    console.log('✅ Query executed successfully:', result);
+    console.log('✅ Direct connection successful!');
+    console.log('📊 Test query result:', result);
     
     const userCount = await prisma.user.count();
-    console.log(`✅ User table accessible. Total users: ${userCount}`);
-    
-    console.log('\n✅ Direct connection works!');
-    return true;
+    console.log(`\n👥 Users in database: ${userCount}`);
     
   } catch (error: any) {
-    console.error('❌ Direct connection failed:', error.message);
-    console.error('Full error:', error);
-    return false;
+    console.error('❌ Direct connection failed!');
+    console.error('Error:', error.message);
   } finally {
     await prisma.$disconnect();
   }
 }
 
-testDirectConnection().then(success => {
-  process.exit(success ? 0 : 1);
-});
+testConnection();

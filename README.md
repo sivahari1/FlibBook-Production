@@ -92,12 +92,157 @@ npm install
 
 4. **Configure environment variables**:
    - Copy `.env.example` to `.env.local`
-   - Update all values with your Supabase credentials
+   - Update all values with your Supabase credentials (see Database Configuration below)
    - Add your Resend API key: `RESEND_API_KEY`
    - Set from email: `RESEND_FROM_EMAIL=support@jstudyroom.dev`
    - Generate a NextAuth secret: `openssl rand -base64 32`
    - Generate a cron secret: `openssl rand -hex 32`
    - **Set admin password**: `ADMIN_SEED_PASSWORD=your_secure_password`
+
+## Database Configuration
+
+### Connection Strings
+
+The application uses **two separate database connection strings** for different purposes:
+
+#### 1. DATABASE_URL (Runtime - Session Pooler)
+Used by your Next.js application at runtime (API routes, server components).
+
+```bash
+DATABASE_URL="postgresql://postgres.PROJECT_ID:PASSWORD@REGION.pooler.supabase.com:5432/postgres?pgbouncer=true&connection_limit=1&sslmode=require"
+```
+
+**Key points:**
+- Uses `pooler.supabase.com` hostname (Session Pooler)
+- Includes `pgbouncer=true` for connection pooling
+- Includes `connection_limit=1` for serverless environments
+- Required for production and local development
+
+#### 2. DIRECT_URL (Prisma CLI Only)
+Used **ONLY** by Prisma CLI commands (migrations, db push, db pull, studio).
+
+```bash
+DIRECT_URL="postgresql://postgres.PROJECT_ID:PASSWORD@db.PROJECT_ID.supabase.co:5432/postgres?sslmode=require"
+```
+
+**Key points:**
+- Uses `db.PROJECT_ID.supabase.co` hostname (Direct Connection)
+- Does NOT use pgbouncer
+- Bypasses the pooler for direct database access
+- **NEVER use this in application code!**
+
+### Getting Your Connection Strings
+
+1. Go to your [Supabase Dashboard](https://supabase.com/dashboard)
+2. Select your project
+3. Navigate to **Settings** → **Database**
+4. Find the **Connection string** section
+5. Select **Session pooler** mode for DATABASE_URL
+6. Select **Direct connection** mode for DIRECT_URL
+
+### Password Encoding
+
+Special characters in passwords **MUST be URL-encoded** in connection strings:
+
+| Character | Encoded |
+|-----------|---------|
+| !         | %21     |
+| @         | %40     |
+| #         | %23     |
+| $         | %24     |
+| %         | %25     |
+| ^         | %5E     |
+| &         | %26     |
+| *         | %2A     |
+
+**Example:**
+- Password: `FlipBook2025!`
+- Encoded: `FlipBook2025%21`
+
+### Resetting Your Database Password
+
+If you need to reset your database password:
+
+1. Go to Supabase Dashboard → **Settings** → **Database**
+2. Click **Reset database password**
+3. Copy the new password
+4. URL-encode any special characters
+5. Update both `DATABASE_URL` and `DIRECT_URL` in your `.env.local` file
+6. Update the same variables in Vercel (for production)
+7. Redeploy your application
+
+### Testing Database Connection
+
+Run the test script to verify your database configuration:
+
+```bash
+npx tsx scripts/test-db.ts
+```
+
+This will:
+- Test Prisma client connection
+- Run a simple SELECT query
+- Verify user count query
+- Report any connection issues
+
+### Checking Environment Variables
+
+To verify your environment configuration (with obfuscated passwords):
+
+```bash
+npx tsx scripts/log-env.ts
+```
+
+This will show:
+- DATABASE_URL format and parameters
+- DIRECT_URL format and parameters
+- Common configuration issues
+- Other important environment variables
+
+### Where to Set Environment Variables
+
+#### Local Development
+Set in `.env.local` (never commit this file):
+```bash
+DATABASE_URL="postgresql://..."
+DIRECT_URL="postgresql://..."
+```
+
+#### Production (Vercel)
+1. Go to your Vercel project
+2. Navigate to **Settings** → **Environment Variables**
+3. Add both `DATABASE_URL` and `DIRECT_URL`
+4. Set environment to **Production**, **Preview**, and **Development**
+5. Redeploy your application
+
+### Important Notes
+
+⚠️ **Critical Rules:**
+- Never use `DIRECT_URL` in application code (API routes, server components)
+- Only Prisma CLI should use `DIRECT_URL`
+- Always use `DATABASE_URL` for runtime database queries
+- The Prisma schema automatically handles URL selection
+- Never commit `.env.local` to git
+- Always URL-encode special characters in passwords
+
+### Troubleshooting
+
+**Connection timeout errors:**
+- Verify your IP is not blocked by Supabase
+- Check Supabase status: https://status.supabase.com
+- Ensure password is correctly URL-encoded
+- Verify you're using the correct hostname (pooler vs direct)
+
+**"Can't reach database server" errors:**
+- Check that DATABASE_URL uses `pooler.supabase.com`
+- Verify the password is correct
+- Ensure `pgbouncer=true` parameter is present
+- Try resetting your database password
+
+**Migration errors:**
+- Ensure DIRECT_URL uses `db.PROJECT_ID.supabase.co`
+- Verify DIRECT_URL does NOT have `pgbouncer=true`
+- Check that the password matches in both URLs
    - Add your Razorpay keys
 
 5. **Set up the database**:
