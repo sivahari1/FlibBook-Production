@@ -52,10 +52,12 @@ export function FlipBookContainerWithDRM({
     setIsLoading(true)
     setImagesLoaded(0)
 
-    // Preload all images
+    // Preload all images with cache busting
     const imagePromises = pages.map((page, index) => {
       return new Promise<void>((resolve, reject) => {
         const img = new Image()
+        img.crossOrigin = 'anonymous'
+        
         img.onload = () => {
           setImagesLoaded(prev => {
             const newCount = prev + 1
@@ -64,11 +66,24 @@ export function FlipBookContainerWithDRM({
           })
           resolve()
         }
-        img.onerror = () => {
-          console.error(`[FlipBookContainer] Failed to load page ${index + 1}:`, page.imageUrl)
-          reject(new Error(`Failed to load page ${index + 1}`))
+        
+        img.onerror = (e) => {
+          console.error(`[FlipBookContainer] Failed to load page ${index + 1}:`, {
+            url: page.imageUrl,
+            error: e,
+          })
+          // Don't reject - allow partial loading
+          resolve()
         }
-        img.src = page.imageUrl
+        
+        // Add cache-busting parameter
+        try {
+          const url = new URL(page.imageUrl)
+          url.searchParams.set('v', Date.now().toString())
+          img.src = url.toString()
+        } catch {
+          img.src = page.imageUrl
+        }
       })
     })
 

@@ -35,6 +35,19 @@ interface PageProps {
 const Page = React.memo(
   React.forwardRef<HTMLDivElement, PageProps>(
     ({ imageUrl, pageNumber, watermarkText }, ref) => {
+      // Add cache-busting parameter to URL to avoid browser cache issues
+      const cacheBustedUrl = React.useMemo(() => {
+        try {
+          const url = new URL(imageUrl);
+          // Add timestamp to bypass browser cache
+          url.searchParams.set('v', Date.now().toString());
+          return url.toString();
+        } catch {
+          // If URL parsing fails, return original
+          return imageUrl;
+        }
+      }, [imageUrl]);
+
       return (
         <div
           ref={ref}
@@ -50,7 +63,7 @@ const Page = React.memo(
           }}
         >
           <img
-            src={imageUrl}
+            src={cacheBustedUrl}
             alt={`Page ${pageNumber}`}
             className="w-full h-full object-contain"
             draggable={false}
@@ -66,15 +79,36 @@ const Page = React.memo(
               position: 'relative',
             }}
             onError={(e) => {
-              console.error(`Failed to load page ${pageNumber}:`, imageUrl);
-              // Try to reload the image once
               const img = e.target as HTMLImageElement;
-              if (!img.dataset.retried) {
-                img.dataset.retried = 'true';
+              const retryCount = parseInt(img.dataset.retryCount || '0', 10);
+              
+              console.error(`Failed to load page ${pageNumber} (attempt ${retryCount + 1}):`, {
+                url: imageUrl,
+                cacheBustedUrl,
+                error: e,
+              });
+              
+              // Retry up to 3 times with exponential backoff
+              if (retryCount < 3) {
+                const delay = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s
+                img.dataset.retryCount = String(retryCount + 1);
+                
                 setTimeout(() => {
-                  img.src = imageUrl;
-                }, 1000);
+                  try {
+                    const url = new URL(imageUrl);
+                    url.searchParams.set('v', Date.now().toString());
+                    url.searchParams.set('retry', String(retryCount + 1));
+                    img.src = url.toString();
+                  } catch {
+                    img.src = imageUrl;
+                  }
+                }, delay);
+              } else {
+                console.error(`❌ Page ${pageNumber} failed to load after 3 retries. Please refresh the page.`);
               }
+            }}
+            onLoad={() => {
+              console.log(`✅ Page ${pageNumber} loaded successfully`);
             }}
           />
           {/* Watermark - Always visible with multiple layers for security */}
