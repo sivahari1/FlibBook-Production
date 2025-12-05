@@ -130,7 +130,7 @@ export function FlipBookContainerWithDRM({
         setError('Failed to load document pages')
         setIsLoading(false)
       })
-  }, [pages, documentId, imagesLoaded, failedImages])
+  }, [pages, documentId])
 
   if (error) {
     return (
