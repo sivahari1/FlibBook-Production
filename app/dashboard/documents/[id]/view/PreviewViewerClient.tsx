@@ -226,15 +226,22 @@ export default function PreviewViewerClient({
         height: page.dimensions.height || 1000,
       }));
 
+      console.log('[PreviewViewerClient] Rendering FlipBook with watermark:', {
+        enableWatermark,
+        watermarkText: watermarkConfig?.text ? '***' : undefined,
+        pagesCount: transformedPages.length,
+      });
+
       return (
         <FlipBookContainerWithDRM
           documentId={documentId}
           pages={transformedPages}
-          watermarkText={watermarkConfig?.text}
+          watermarkText={enableWatermark ? (watermarkConfig?.text || userEmail) : undefined}
           userEmail={userEmail}
           allowTextSelection={true}
           enableScreenshotPrevention={false}
           showWatermark={enableWatermark}
+          enableWatermark={enableWatermark}
         />
       );
 

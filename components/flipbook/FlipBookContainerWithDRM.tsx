@@ -36,10 +36,20 @@ export function FlipBookContainerWithDRM({
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [imagesLoaded, setImagesLoaded] = useState(0)
+  const [failedImages, setFailedImages] = useState<number[]>([])
 
-  // Determine if watermark should be shown
-  const shouldShowWatermark = showWatermark || enableWatermark
+  // Determine if watermark should be shown - explicit check
+  const shouldShowWatermark = showWatermark === true || enableWatermark === true
   const finalWatermarkText = shouldShowWatermark ? (watermarkText || userEmail) : undefined
+  
+  // Debug logging for watermark
+  console.log('[FlipBookContainer] Watermark Configuration:', {
+    showWatermark,
+    enableWatermark,
+    shouldShowWatermark,
+    hasWatermarkText: !!finalWatermarkText,
+    watermarkText: finalWatermarkText ? '***' : undefined,
+  })
 
   useEffect(() => {
     if (!pages || pages.length === 0) {
@@ -48,58 +58,71 @@ export function FlipBookContainerWithDRM({
       return
     }
 
-    console.log(`[FlipBookContainer] Loading ${pages.length} pages`)
+    console.log(`[FlipBookContainer] Loading ${pages.length} pages for document ${documentId}`)
+    console.log('[FlipBookContainer] Sample page URLs:', pages.slice(0, 2).map(p => ({
+      pageNumber: p.pageNumber,
+      url: p.imageUrl,
+    })))
+    
     setIsLoading(true)
     setImagesLoaded(0)
+    setFailedImages([])
 
-    // Preload all images with cache busting
+    // Preload all images with detailed error tracking
     const imagePromises = pages.map((page, index) => {
-      return new Promise<void>((resolve, reject) => {
+      return new Promise<void>((resolve) => {
         const img = new Image()
         img.crossOrigin = 'anonymous'
         
         img.onload = () => {
           setImagesLoaded(prev => {
             const newCount = prev + 1
-            console.log(`[FlipBookContainer] Loaded image ${newCount}/${pages.length}`)
+            console.log(`[FlipBookContainer] ✅ Loaded page ${page.pageNumber} (${newCount}/${pages.length})`)
             return newCount
           })
           resolve()
         }
         
         img.onerror = (e) => {
-          console.error(`[FlipBookContainer] Failed to load page ${index + 1}:`, {
+          console.error(`[FlipBookContainer] ❌ Failed to load page ${page.pageNumber}:`, {
+            pageNumber: page.pageNumber,
             url: page.imageUrl,
             error: e,
+            errorType: e.type,
           })
+          
+          setFailedImages(prev => [...prev, page.pageNumber])
           // Don't reject - allow partial loading
           resolve()
         }
         
-        // Add cache-busting parameter
-        try {
-          const url = new URL(page.imageUrl)
-          url.searchParams.set('v', Date.now().toString())
-          img.src = url.toString()
-        } catch {
-          img.src = page.imageUrl
-        }
+        // Use the URL directly without cache busting to avoid issues
+        img.src = page.imageUrl
       })
     })
 
     Promise.allSettled(imagePromises)
       .then((results) => {
-        const failedCount = results.filter(r => r.status === 'rejected').length
+        const successCount = imagesLoaded
+        const failedCount = pages.length - successCount
+        
+        console.log('[FlipBookContainer] Preload summary:', {
+          total: pages.length,
+          successful: successCount,
+          failed: failedCount,
+          failedPages: failedImages,
+        })
+        
         if (failedCount > 0) {
-          console.warn(`[FlipBookContainer] ${failedCount} pages failed to load`)
+          console.warn(`[FlipBookContainer] ⚠️ ${failedCount} pages failed to load`)
         }
-        // Even if some pages failed, show the flipbook if we have at least one page
-        const successCount = results.filter(r => r.status === 'fulfilled').length
+        
+        // Show the flipbook if we have at least one page
         if (successCount > 0) {
           setIsLoading(false)
           setError(null)
         } else {
-          setError('All pages failed to load. Please try refreshing.')
+          setError('All pages failed to load. Please check your network connection and try refreshing.')
           setIsLoading(false)
         }
       })
@@ -108,7 +131,7 @@ export function FlipBookContainerWithDRM({
         setError('Failed to load document pages')
         setIsLoading(false)
       })
-  }, [pages])
+  }, [pages, documentId])
 
   if (error) {
     return (

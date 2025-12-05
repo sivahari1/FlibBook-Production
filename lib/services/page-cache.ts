@@ -9,6 +9,7 @@
 
 import { prisma } from '@/lib/db';
 import { logger } from '@/lib/logger';
+import { getDocumentPageUrl } from '@/lib/supabase-storage';
 
 export interface PageCacheEntry {
   id: string;

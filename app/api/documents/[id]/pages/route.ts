@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { getCachedPageUrls, hasCachedPages } from '@/lib/services/page-cache';
 import { BrowserCacheHeaders } from '@/lib/performance/cache-manager';
+import { getDocumentPageUrl } from '@/lib/supabase-storage';
 
 /**
  * GET /api/documents/[id]/pages
@@ -103,6 +104,7 @@ export async function GET(
     
     if (hasCached) {
       pageUrls = await getCachedPageUrls(documentId);
+      console.log(`[Pages API] Retrieved ${pageUrls.length} cached page URLs for document ${documentId}`);
     }
 
     // If no cached pages, return empty array (client should trigger conversion)
@@ -116,6 +118,16 @@ export async function GET(
         height: 1600,
       },
     }));
+    
+    // Log sample URLs for debugging
+    if (pages.length > 0) {
+      console.log('[Pages API] Sample page URLs:', pages.slice(0, 2).map(p => ({
+        pageNumber: p.pageNumber,
+        url: p.pageUrl.substring(0, 100) + '...',
+      })));
+    } else {
+      console.log('[Pages API] No pages found - client should trigger conversion');
+    }
 
     const processingTime = Date.now() - startTime;
 

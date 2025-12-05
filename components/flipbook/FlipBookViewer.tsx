@@ -111,33 +111,27 @@ const Page = React.memo(
               console.log(`✅ Page ${pageNumber} loaded successfully`);
             }}
           />
-          {/* Watermark - Always visible with multiple layers for security */}
-          {watermarkText && (
+          {/* Watermark - Only shown when watermarkText is provided */}
+          {watermarkText && watermarkText.trim() !== '' && (
             <div
-              className="absolute inset-0 flex items-center justify-center"
+              className="absolute inset-0 flex items-center justify-center pointer-events-none"
               aria-hidden="true"
+              data-watermark="true"
               style={{
                 background: 'repeating-linear-gradient(45deg, transparent, transparent 100px, rgba(0,0,0,0.02) 100px, rgba(0,0,0,0.02) 200px)',
-                // Optimize watermark layer
                 transform: 'translateZ(0)',
                 willChange: 'opacity',
-                // Ensure watermark is always visible
-                display: 'flex !important' as any,
-                visibility: 'visible !important' as any,
-                opacity: 0.2,
-                zIndex: 1,
-                pointerEvents: 'none', // Inline style to ensure it works in tests
+                opacity: 0.15,
+                zIndex: 10,
               }}
             >
               <div
-                className="text-gray-400 text-4xl font-bold transform rotate-[-45deg] select-none"
+                className="text-gray-500 text-4xl font-bold select-none"
                 style={{
                   textShadow: '2px 2px 4px rgba(0,0,0,0.1)',
-                  // GPU acceleration for text
                   transform: 'rotate(-45deg) translateZ(0)',
-                  // Ensure text watermark is always visible
-                  display: 'block !important' as any,
-                  visibility: 'visible !important' as any,
+                  userSelect: 'none',
+                  WebkitUserSelect: 'none',
                 }}
               >
                 {watermarkText}
@@ -566,7 +560,7 @@ export function FlipBookViewer({
   return (
     <div
       ref={containerRef}
-      className={`fixed inset-0 w-full h-full bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 overflow-hidden ${className}`}
+      className={`fixed inset-0 w-full h-full bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 overflow-hidden ${className}`}
       style={{
         userSelect: allowTextSelection ? 'text' : 'none',
         width: '100vw',
@@ -579,9 +573,9 @@ export function FlipBookViewer({
         zIndex: 50,
       }}
     >
-      {/* Flipbook Container with GPU acceleration */}
+      {/* Flipbook Container with GPU acceleration - fills viewport */}
       <div
-        className="flex items-center justify-center w-full h-full p-4"
+        className="flex items-center justify-center w-full h-full"
         style={{
           transform: `scale(${zoom / 100}) translateZ(0)`,
           transformOrigin: 'center center',
@@ -591,6 +585,7 @@ export function FlipBookViewer({
           WebkitBackfaceVisibility: 'hidden',
           // Force GPU acceleration
           WebkitTransform: `scale(${zoom / 100}) translateZ(0)`,
+          padding: isMobile ? '8px' : '16px',
         }}
       >
         <HTMLFlipBook
