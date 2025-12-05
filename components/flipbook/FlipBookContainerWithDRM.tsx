@@ -69,7 +69,7 @@ export function FlipBookContainerWithDRM({
     setFailedImages([])
 
     // Preload all images with detailed error tracking
-    const imagePromises = pages.map((page, index) => {
+    const imagePromises = pages.map((page) => {
       return new Promise<void>((resolve) => {
         const img = new Image()
         img.crossOrigin = 'anonymous'
@@ -88,7 +88,6 @@ export function FlipBookContainerWithDRM({
             pageNumber: page.pageNumber,
             url: page.imageUrl,
             error: e,
-            errorType: e.type,
           })
           
           setFailedImages(prev => [...prev, page.pageNumber])
@@ -102,7 +101,7 @@ export function FlipBookContainerWithDRM({
     })
 
     Promise.allSettled(imagePromises)
-      .then((results) => {
+      .then(() => {
         const successCount = imagesLoaded
         const failedCount = pages.length - successCount
         
@@ -131,13 +130,13 @@ export function FlipBookContainerWithDRM({
         setError('Failed to load document pages')
         setIsLoading(false)
       })
-  }, [pages, documentId])
+  }, [pages, documentId, imagesLoaded, failedImages])
 
   if (error) {
     return (
-      <div className="fixed inset-0 z-50 bg-gray-900">
+      <div className="fixed inset-0 z-50 bg-gray-900 flex items-center justify-center">
         <FlipBookError 
-          message={error} 
+          error={error} 
           onRetry={() => {
             setError(null)
             setIsLoading(true)
@@ -150,11 +149,21 @@ export function FlipBookContainerWithDRM({
 
   if (isLoading) {
     return (
-      <div className="fixed inset-0 z-50 bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500">
-        <FlipBookLoading 
-          progress={pages.length > 0 ? (imagesLoaded / pages.length) * 100 : 0}
-          message={`Loading pages... (${imagesLoaded}/${pages.length})`}
-        />
+      <div className="fixed inset-0 z-50 bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center">
+        <div className="text-center">
+          <FlipBookLoading />
+          <p className="mt-4 text-white text-lg">
+            Loading pages... ({imagesLoaded}/{pages.length})
+          </p>
+          {pages.length > 0 && (
+            <div className="mt-2 w-64 bg-white/20 rounded-full h-2 mx-auto">
+              <div 
+                className="bg-white h-2 rounded-full transition-all duration-300"
+                style={{ width: `${(imagesLoaded / pages.length) * 100}%` }}
+              />
+            </div>
+          )}
+        </div>
       </div>
     )
   }
