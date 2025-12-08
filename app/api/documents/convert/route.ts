@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { convertPdfToImages, checkPagesExist, getExistingPageUrls } from '@/lib/services/pdf-converter';
+import { convertPdfToImages } from '@/lib/services/pdf-converter';
 import { hasCachedPages, getCachedPageUrls, cachePages, invalidateCache } from '@/lib/services/page-cache';
 import { recordConversion } from '@/lib/performance/conversion-monitor';
 import { createClient } from '@supabase/supabase-js';
@@ -11,20 +11,8 @@ import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
 
-// CRITICAL FIX: Ensure PDF.js workers are disabled in Node.js environment
-// This prevents "No 'GlobalWorkerOptions.workerSrc' specified" errors
-// The pdf-converter module already sets this, but we ensure it here too
-if (typeof window === 'undefined') {
-  try {
-    const pdfjsLib = require('pdfjs-dist/legacy/build/pdf.js');
-    pdfjsLib.GlobalWorkerOptions.workerSrc = '';
-    pdfjsLib.GlobalWorkerOptions.workerPort = null;
-    logger.info('[Convert API] PDF.js worker disabled for Node.js environment');
-  } catch (error) {
-    // pdf-converter module will handle this
-    logger.warn('[Convert API] Could not configure PDF.js workers (will be handled by pdf-converter)');
-  }
-}
+// Note: PDF.js worker configuration is handled by the pdf-converter module
+// No need to configure it here - the converter handles all PDF.js setup
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
