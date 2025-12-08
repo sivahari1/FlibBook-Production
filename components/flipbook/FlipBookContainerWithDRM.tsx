@@ -68,6 +68,11 @@ export function FlipBookContainerWithDRM({
     setImagesLoaded(0)
     setFailedImages([])
 
+    // Track loaded and failed counts locally to avoid stale state
+    let loadedCount = 0
+    let failedCount = 0
+    const failedPageNumbers: number[] = []
+
     // Preload all images with detailed error tracking
     const imagePromises = pages.map((page) => {
       return new Promise<void>((resolve) => {
@@ -75,22 +80,23 @@ export function FlipBookContainerWithDRM({
         img.crossOrigin = 'anonymous'
         
         img.onload = () => {
-          setImagesLoaded(prev => {
-            const newCount = prev + 1
-            console.log(`[FlipBookContainer] ✅ Loaded page ${page.pageNumber} (${newCount}/${pages.length})`)
-            return newCount
-          })
+          loadedCount++
+          setImagesLoaded(loadedCount)
+          console.log(`[FlipBookContainer] ✅ Loaded page ${page.pageNumber} (${loadedCount}/${pages.length})`)
           resolve()
         }
         
         img.onerror = (e) => {
+          failedCount++
+          failedPageNumbers.push(page.pageNumber)
+          setFailedImages(failedPageNumbers)
+          
           console.error(`[FlipBookContainer] ❌ Failed to load page ${page.pageNumber}:`, {
             pageNumber: page.pageNumber,
             url: page.imageUrl,
             error: e,
           })
           
-          setFailedImages(prev => [...prev, page.pageNumber])
           // Don't reject - allow partial loading
           resolve()
         }
@@ -102,14 +108,11 @@ export function FlipBookContainerWithDRM({
 
     Promise.allSettled(imagePromises)
       .then(() => {
-        const successCount = imagesLoaded
-        const failedCount = pages.length - successCount
-        
         console.log('[FlipBookContainer] Preload summary:', {
           total: pages.length,
-          successful: successCount,
+          successful: loadedCount,
           failed: failedCount,
-          failedPages: failedImages,
+          failedPages: failedPageNumbers,
         })
         
         if (failedCount > 0) {
@@ -117,10 +120,12 @@ export function FlipBookContainerWithDRM({
         }
         
         // Show the flipbook if we have at least one page
-        if (successCount > 0) {
+        if (loadedCount > 0) {
+          console.log('[FlipBookContainer] ✅ All images preloaded successfully, showing flipbook')
           setIsLoading(false)
           setError(null)
         } else {
+          console.error('[FlipBookContainer] ❌ All pages failed to load')
           setError('All pages failed to load. Please check your network connection and try refreshing.')
           setIsLoading(false)
         }

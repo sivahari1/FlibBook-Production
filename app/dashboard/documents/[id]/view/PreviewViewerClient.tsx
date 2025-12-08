@@ -1,20 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { FlipBookContainerWithDRM } from '@/components/flipbook/FlipBookContainerWithDRM';
 import ImageViewer from '@/components/viewers/ImageViewer';
 import VideoPlayer from '@/components/viewers/VideoPlayer';
 import LinkPreview from '@/components/viewers/LinkPreview';
+import SimpleDocumentViewer, { WatermarkSettings } from '@/components/viewers/SimpleDocumentViewer';
 import { ContentType, ImageMetadata, VideoMetadata, LinkMetadata, WatermarkConfig } from '@/lib/types/content';
-
-interface PageData {
-  pageNumber: number;
-  pageUrl: string;
-  dimensions: {
-    width: number;
-    height: number;
-  };
-}
 
 interface PreviewViewerClientProps {
   documentId: string;
@@ -32,7 +23,6 @@ interface PreviewViewerClientProps {
   videoUrl?: string;
   linkUrl?: string;
   metadata?: any;
-  initialPages?: PageData[];
 }
 
 /**
@@ -40,8 +30,9 @@ interface PreviewViewerClientProps {
  * 
  * Universal preview viewer that routes to appropriate viewer based on content type
  * Applies watermark settings to all viewer types
+ * Uses PDF.js rendering for PDFs to avoid iframe blocking (Requirements: 2.1)
  * 
- * Requirements: 3.2, 3.3, 4.1, 4.2, 4.3, 4.4
+ * Requirements: 2.1, 3.2, 3.3, 4.1, 4.2, 4.3, 4.4
  */
 export default function PreviewViewerClient({
   documentId,
@@ -58,12 +49,9 @@ export default function PreviewViewerClient({
   videoUrl,
   linkUrl,
   metadata,
-  initialPages = [],
 }: PreviewViewerClientProps) {
-  const [pages, setPages] = useState<PageData[]>(initialPages);
-  const [loading, setLoading] = useState(contentType === ContentType.PDF && initialPages.length === 0);
-  const [error, setError] = useState<string | null>(null);
-  const [retryCount, setRetryCount] = useState(0);
+  const [loading] = useState(false);
+  const [error] = useState<string | null>(null);
 
   // Debug logging for received props
   useEffect(() => {
@@ -78,11 +66,11 @@ export default function PreviewViewerClient({
   }, [enableWatermark, watermarkText, watermarkOpacity, watermarkSize, watermarkImage, contentType]);
 
   // Prepare watermark configuration
-  const watermarkConfig: WatermarkConfig | undefined = enableWatermark
+  const watermarkConfig: WatermarkSettings | undefined = enableWatermark
     ? {
         text: watermarkText || userEmail,
-        opacity: watermarkOpacity,
-        fontSize: watermarkSize,
+        opacity: watermarkOpacity || 0.3,
+        fontSize: watermarkSize || 16,
       }
     : undefined;
 
@@ -97,67 +85,6 @@ export default function PreviewViewerClient({
     );
   }, [watermarkConfig]);
 
-  // Fetch pages for PDF content type only if not provided initially
-  useEffect(() => {
-    if (contentType !== ContentType.PDF) return;
-    
-    // If we already have pages from server, don't fetch again
-    if (initialPages.length > 0) {
-      console.log('[Client] Using initial pages from server:', initialPages.length);
-      return;
-    }
-
-    const fetchPages = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-
-        console.log('[Client] No initial pages, triggering conversion...');
-        
-        // Call conversion API directly since we have no pages
-        const convertResponse = await fetch('/api/documents/convert', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ documentId }),
-        });
-
-        if (!convertResponse.ok) {
-          const convertData = await convertResponse.json();
-          throw new Error(convertData.message || 'Failed to convert document. Please try again.');
-        }
-        
-        const convertData = await convertResponse.json();
-
-        // Use the page URLs from conversion response
-        if (convertData.pageUrls && convertData.pageUrls.length > 0) {
-          const convertedPages = convertData.pageUrls.map((url: string, index: number) => ({
-            pageNumber: index + 1,
-            pageUrl: url,
-            dimensions: {
-              width: 1200,
-              height: 1600,
-            },
-          }));
-          setPages(convertedPages);
-          console.log('[Client] Conversion complete:', convertedPages.length, 'pages');
-        } else {
-          throw new Error('Document conversion completed but no pages were generated');
-        }
-
-        setLoading(false);
-        setRetryCount(0); // Reset retry count on success
-      } catch (err) {
-        console.error('[Client] Error during conversion:', err);
-        setError(err instanceof Error ? err.message : 'Failed to load pages. Please try again.');
-        setLoading(false);
-      }
-    };
-
-    fetchPages();
-  }, [documentId, contentType, retryCount, initialPages.length]);
-
   // Loading state
   if (loading) {
     return (
@@ -165,18 +92,13 @@ export default function PreviewViewerClient({
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
           <p className="text-white text-lg font-medium mb-2">Loading content...</p>
-          <p className="text-white text-sm opacity-80">
-            {contentType === ContentType.PDF && 'This may take a moment if the document needs to be converted'}
-          </p>
         </div>
       </div>
     );
   }
 
-  // Error state with retry functionality
+  // Error state
   if (error) {
-    const isAccessError = error.includes('Access denied') || error.includes('not found');
-    
     return (
       <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500">
         <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-8 max-w-md w-full mx-4 text-center">
@@ -185,31 +107,12 @@ export default function PreviewViewerClient({
             Failed to Load Content
           </h2>
           <p className="text-gray-600 dark:text-gray-300 mb-6">{error}</p>
-          <div className="flex gap-3 justify-center">
-            {!isAccessError && (
-              <button
-                onClick={() => setRetryCount(prev => prev + 1)}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center"
-                aria-label="Retry loading content"
-              >
-                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-                Retry
-              </button>
-            )}
-            <button
-              onClick={() => window.location.href = '/dashboard'}
-              className="px-4 py-2 bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-slate-600 transition-colors"
-            >
-              Back to Dashboard
-            </button>
-          </div>
-          {retryCount > 0 && !isAccessError && (
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-4">
-              Retry attempt {retryCount}
-            </p>
-          )}
+          <button
+            onClick={() => window.location.href = '/dashboard'}
+            className="px-4 py-2 bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-slate-600 transition-colors"
+          >
+            Back to Dashboard
+          </button>
         </div>
       </div>
     );
@@ -218,30 +121,74 @@ export default function PreviewViewerClient({
   // Route to appropriate viewer based on content type
   switch (contentType) {
     case ContentType.PDF:
-      // Transform pages to the format expected by FlipBookContainerWithDRM
-      const transformedPages = pages.map(page => ({
-        pageNumber: page.pageNumber,
-        imageUrl: page.pageUrl,
-        width: page.dimensions.width || 800,
-        height: page.dimensions.height || 1000,
-      }));
+      if (!pdfUrl) {
+        return (
+          <div className="flex items-center justify-center min-h-screen bg-gray-100 dark:bg-slate-900">
+            <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-8 max-w-md w-full mx-4 text-center">
+              <div className="text-red-600 dark:text-red-400 text-6xl mb-4">⚠️</div>
+              <h2 className="text-2xl font-bold mb-2 text-gray-900 dark:text-white">
+                PDF Not Available
+              </h2>
+              <p className="text-gray-600 dark:text-gray-300 mb-6">
+                The PDF URL could not be generated. The file may be missing or corrupted.
+              </p>
+              <button
+                onClick={() => window.location.href = '/dashboard'}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Back to Dashboard
+              </button>
+            </div>
+          </div>
+        );
+      }
 
-      console.log('[PreviewViewerClient] Rendering FlipBook with watermark:', {
+      console.log('[PreviewViewerClient] Rendering SimpleDocumentViewer with PDF URL:', {
         enableWatermark,
         watermarkText: watermarkConfig?.text ? '***' : undefined,
-        pagesCount: transformedPages.length,
+        hasPdfUrl: !!pdfUrl,
+        pdfUrlLength: pdfUrl?.length,
+        pdfUrlStart: pdfUrl?.substring(0, 50),
       });
 
+      // Validate PDF URL before rendering
+      if (!pdfUrl || pdfUrl.trim() === '') {
+        console.error('[PreviewViewerClient] PDF URL is empty or invalid');
+        return (
+          <div className="flex items-center justify-center min-h-screen bg-gray-100 dark:bg-slate-900">
+            <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-8 max-w-md w-full mx-4 text-center">
+              <div className="text-red-600 dark:text-red-400 text-6xl mb-4">⚠️</div>
+              <h2 className="text-2xl font-bold mb-2 text-gray-900 dark:text-white">
+                PDF URL Missing
+              </h2>
+              <p className="text-gray-600 dark:text-gray-300 mb-6">
+                The PDF URL is missing or invalid. Please try refreshing the page.
+              </p>
+              <button
+                onClick={() => window.location.reload()}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors mr-2"
+              >
+                Refresh Page
+              </button>
+              <button
+                onClick={() => window.location.href = '/dashboard'}
+                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+              >
+                Back to Dashboard
+              </button>
+            </div>
+          </div>
+        );
+      }
+
       return (
-        <FlipBookContainerWithDRM
+        <SimpleDocumentViewer
           documentId={documentId}
-          pages={transformedPages}
-          watermarkText={enableWatermark ? (watermarkConfig?.text || userEmail) : undefined}
-          userEmail={userEmail}
-          allowTextSelection={true}
-          enableScreenshotPrevention={false}
-          showWatermark={enableWatermark}
-          enableWatermark={enableWatermark}
+          documentTitle={documentTitle}
+          pdfUrl={pdfUrl}
+          watermark={watermarkConfig}
+          enableScreenshotPrevention={true}
+          onClose={() => window.location.href = '/dashboard'}
         />
       );
 

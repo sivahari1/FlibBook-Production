@@ -143,10 +143,8 @@ export async function GET(
     // Add resource timing headers
     headers.set('Timing-Allow-Origin', '*');
     
-    // Add Link header for preconnect
-    if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
-      headers.set('Link', `<${process.env.NEXT_PUBLIC_SUPABASE_URL}>; rel=preconnect`);
-    }
+    // Note: Removed Link preconnect header as it causes browser errors
+    // "link_preload not supported within few seconds from window's load event"
 
     return NextResponse.json(
       {

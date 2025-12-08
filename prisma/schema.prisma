@@ -245,7 +245,7 @@ model Payment {
   razorpaySignature String?
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
-  bookShopItem      BookShopItem @relation(fields: [bookShopItemId], references: [id])
+  bookShopItem      BookShopItem @relation(fields: [bookShopItemId], references: [id], onDelete: Cascade)
   user              User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])

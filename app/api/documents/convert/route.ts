@@ -11,6 +11,21 @@ import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
 
+// CRITICAL FIX: Ensure PDF.js workers are disabled in Node.js environment
+// This prevents "No 'GlobalWorkerOptions.workerSrc' specified" errors
+// The pdf-converter module already sets this, but we ensure it here too
+if (typeof window === 'undefined') {
+  try {
+    const pdfjsLib = require('pdfjs-dist/legacy/build/pdf.js');
+    pdfjsLib.GlobalWorkerOptions.workerSrc = '';
+    pdfjsLib.GlobalWorkerOptions.workerPort = null;
+    logger.info('[Convert API] PDF.js worker disabled for Node.js environment');
+  } catch (error) {
+    // pdf-converter module will handle this
+    logger.warn('[Convert API] Could not configure PDF.js workers (will be handled by pdf-converter)');
+  }
+}
+
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!

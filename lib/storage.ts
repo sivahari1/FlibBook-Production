@@ -106,27 +106,45 @@ export async function downloadFile(
 
 /**
  * Generate a signed URL for temporary file access
+ * 
+ * Requirements: 8.1, 8.3 - CORS headers and signed URL compatibility
+ * 
  * @param path - Storage path of the file
  * @param expiresIn - Expiration time in seconds (default: 3600 = 1 hour)
  * @param bucketName - Optional bucket name (defaults to 'documents')
+ * @param options - Additional options for signed URL generation
  * @returns Signed URL on success
  */
 export async function getSignedUrl(
   path: string,
   expiresIn: number = 3600,
-  bucketName: string = BUCKET_NAME
+  bucketName: string = BUCKET_NAME,
+  options?: {
+    download?: boolean;
+    transform?: any;
+  }
 ): Promise<{ url?: string; error?: string }> {
   try {
     const supabaseAdmin = getSupabaseAdmin()
+    
+    // Configure signed URL options for PDF.js compatibility
+    // - Don't force download to allow fetch API access
+    // - No transformations to preserve original file
     const { data, error } = await supabaseAdmin.storage
       .from(bucketName)
-      .createSignedUrl(path, expiresIn)
+      .createSignedUrl(path, expiresIn, {
+        download: options?.download ?? false,
+        transform: options?.transform,
+      })
 
     if (error) {
       console.error('Signed URL error:', error)
       return { error: error.message }
     }
 
+    // Supabase signed URLs automatically include CORS headers
+    // when accessed via fetch API. The storage bucket must be
+    // configured with CORS settings in Supabase dashboard.
     return { url: data.signedUrl }
   } catch (error) {
     console.error('Get signed URL exception:', error)

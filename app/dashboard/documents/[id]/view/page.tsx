@@ -4,7 +4,6 @@ import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/db';
 import { getSignedUrl, getBucketForContentType } from '@/lib/storage';
 import { ContentType } from '@/lib/types/content';
-import { getCachedPageUrls, hasCachedPages } from '@/lib/services/page-cache';
 import PreviewViewerClient from './PreviewViewerClient';
 
 export const dynamic = 'force-dynamic';
@@ -18,8 +17,9 @@ export const revalidate = 0;
  * - Fetches document and generates signed URLs
  * - Passes settings to viewer client component
  * - Handles missing or invalid parameters gracefully
+ * - Uses PDF.js rendering for reliable cross-browser PDF display (Requirements: 2.1)
  * 
- * Requirements: 1.4, 3.1, 3.2
+ * Requirements: 1.4, 2.1, 3.1, 3.2
  */
 export default async function PreviewViewPage({
   params,
@@ -141,33 +141,7 @@ export default async function PreviewViewPage({
     // Continue with empty metadata
   }
 
-  // For PDF content, fetch pages on server side to avoid authentication issues
-  let initialPages: Array<{ pageNumber: number; pageUrl: string; dimensions: { width: number; height: number } }> = [];
-  
-  if (contentType === ContentType.PDF) {
-    try {
-      const hasCached = await hasCachedPages(documentId);
-      
-      if (hasCached) {
-        const pageUrls = await getCachedPageUrls(documentId);
-        initialPages = pageUrls.map((url, index) => ({
-          pageNumber: index + 1,
-          pageUrl: url,
-          dimensions: {
-            width: 1200,
-            height: 1600,
-          },
-        }));
-        
-        console.log(`[Server] Fetched ${initialPages.length} pages for document ${documentId}`);
-      } else {
-        console.log(`[Server] No cached pages found for document ${documentId}`);
-      }
-    } catch (error) {
-      console.error('[Server] Error fetching pages:', error);
-      // Continue with empty pages array - client will handle conversion
-    }
-  }
+  // No need to fetch pages - we'll use the PDF directly
 
   return (
     <PreviewViewerClient
@@ -185,7 +159,6 @@ export default async function PreviewViewPage({
       videoUrl={videoUrl}
       linkUrl={linkUrl}
       metadata={metadata}
-      initialPages={initialPages}
     />
   );
 }

@@ -221,22 +221,62 @@ export function FlipBookViewer({
   }, [pageLoadOptimizer, documentId, pages, currentPage]);
 
   // Detect screen size and set responsive dimensions with optimized resize handling
+  // TASK 4: Improved viewport utilization for full-screen display
   useEffect(() => {
     const updateDimensions = () => {
       if (containerRef.current) {
-        const containerWidth = containerRef.current.clientWidth;
-        const containerHeight = containerRef.current.clientHeight || window.innerHeight;
+        // Use full viewport dimensions for calculation
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
         
-        const mobile = window.innerWidth < 768;
+        const mobile = viewportWidth < 768;
+        const tablet = viewportWidth >= 768 && viewportWidth < 1024;
         setIsMobile(mobile);
         
-        // Calculate dimensions based on screen size - use more viewport space
-        const pageWidth = mobile ? containerWidth * 0.95 : containerWidth * 0.8;
-        const pageHeight = pageWidth * 1.414; // A4 ratio
+        // TASK 4.2: Optimize page dimensions based on device type
+        // Use 90-95% of viewport width for better space utilization
+        let pageWidth: number;
+        let pageHeight: number;
+        
+        if (mobile) {
+          // Mobile: Use 95% of viewport width
+          pageWidth = viewportWidth * 0.95;
+          pageHeight = viewportHeight * 0.85; // Leave space for controls
+        } else if (tablet) {
+          // Tablet: Use 92% of viewport width
+          pageWidth = viewportWidth * 0.92;
+          pageHeight = viewportHeight * 0.88;
+        } else {
+          // Desktop: Use 90% of viewport width
+          pageWidth = viewportWidth * 0.90;
+          pageHeight = viewportHeight * 0.90;
+        }
+        
+        // Maintain aspect ratio while fitting in viewport
+        // A4 ratio is 1:1.414, but adjust to fit available height
+        const aspectRatio = 1.414;
+        const maxHeightForWidth = pageWidth * aspectRatio;
+        
+        // If calculated height exceeds available space, scale down
+        if (maxHeightForWidth > pageHeight) {
+          pageWidth = pageHeight / aspectRatio;
+        } else {
+          pageHeight = maxHeightForWidth;
+        }
         
         setDimensions({
           width: Math.floor(pageWidth),
-          height: Math.floor(Math.min(pageHeight, containerHeight * 0.9)),
+          height: Math.floor(pageHeight),
+        });
+        
+        console.log('[FlipBookViewer] Dimensions updated:', {
+          viewport: { width: viewportWidth, height: viewportHeight },
+          device: mobile ? 'mobile' : tablet ? 'tablet' : 'desktop',
+          page: { width: Math.floor(pageWidth), height: Math.floor(pageHeight) },
+          utilization: {
+            width: `${((pageWidth / viewportWidth) * 100).toFixed(1)}%`,
+            height: `${((pageHeight / viewportHeight) * 100).toFixed(1)}%`,
+          },
         });
       }
     };

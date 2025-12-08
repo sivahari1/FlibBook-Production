@@ -5,6 +5,26 @@ import { PrismaClient } from '@prisma/client'
 const globalForPrisma = global as unknown as { prisma: PrismaClient | undefined }
 
 /**
+ * Get the appropriate database URL based on environment
+ * 
+ * Always use DATABASE_URL (pooled connection) for application runtime
+ * DIRECT_URL is only for Prisma CLI operations (migrations, studio, etc.)
+ */
+function getDatabaseUrl(): string {
+  const databaseUrl = process.env.DATABASE_URL
+  
+  if (!databaseUrl) {
+    throw new Error('DATABASE_URL environment variable is not set')
+  }
+  
+  if (process.env.NODE_ENV === 'development') {
+    console.log('🔗 Using DATABASE_URL (pooled connection) for development')
+  }
+  
+  return databaseUrl
+}
+
+/**
  * Prisma Client Configuration
  * 
  * DATABASE_URL: Used by the application at runtime (session pooler)
@@ -18,8 +38,11 @@ export const prisma =
   globalForPrisma.prisma ||
   new PrismaClient({
     log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
-    // Let Prisma use the datasource URLs from schema.prisma
-    // Do NOT override the URL here - it breaks the pooler/direct URL separation
+    datasources: {
+      db: {
+        url: getDatabaseUrl()
+      }
+    }
   })
 
 // Default export for compatibility

@@ -355,6 +355,57 @@ jstudyroom-platform/
 - `npx prisma db push` - Push schema changes to database
 - `npx prisma generate` - Generate Prisma client
 
+### Diagnostic Tools
+
+#### PDF Conversion Verification
+
+Verify that PDF pages have been converted correctly and are not blank:
+
+```bash
+npm run verify-pdf -- <documentId>
+```
+
+**What it checks:**
+- Lists all converted page images for a document
+- Shows file size for each page (should be > 50 KB)
+- Flags suspiciously small pages (< 10 KB) that may be blank
+- Provides public URLs for manual inspection
+
+**Example output:**
+```
+🔍 Verifying PDF conversion for document: abc123
+
+📄 Document: { filename: 'sample.pdf', mimeType: 'application/pdf' }
+
+📊 Found 5 page files:
+
+✅ page-1.jpg: 87.45 KB
+   URL: https://...
+
+✅ page-2.jpg: 92.31 KB
+   URL: https://...
+
+⚠️  SUSPICIOUS page-3.jpg: 3.45 KB
+   URL: https://...
+
+📈 Summary:
+   Total pages: 5
+   Total size: 356.78 KB
+   Average size: 71.36 KB
+   Suspicious pages (< 10 KB): 1
+
+⚠️  WARNING: 1 pages are suspiciously small and may be blank!
+```
+
+**When to use:**
+- After uploading a new PDF document
+- When users report blank pages in flipbook viewer
+- To verify reconversion after fixing conversion issues
+- As part of deployment verification checklist
+
+**Troubleshooting:**
+If pages are blank or suspiciously small, see the [PDF Conversion Troubleshooting Guide](.kiro/specs/pdf-blank-pages-fix/TROUBLESHOOTING.md) for detailed diagnostic steps.
+
 ## Deployment to Vercel
 
 1. **Push your code to GitHub**:
