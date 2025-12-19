@@ -6,6 +6,8 @@ import { Card } from '@/components/ui/Card';
 import Link from 'next/link';
 import { getContentTypes, getContentTypeLabel } from '@/lib/bookshop-categories';
 
+import { ContentMetadata } from '@/lib/types/content';
+
 interface MyJstudyroomItem {
   id: string;
   bookShopItemId: string;
@@ -17,7 +19,7 @@ interface MyJstudyroomItem {
   documentId: string;
   documentTitle: string;
   contentType: string;
-  metadata: any;
+  metadata: ContentMetadata;
 }
 
 interface DocumentCounts {
@@ -63,9 +65,10 @@ function isLinkContent(contentType: string): boolean {
 function getLinkUrl(item: MyJstudyroomItem): string | null {
   // Check metadata for linkUrl
   if (item.metadata && typeof item.metadata === 'object') {
-    const metadata = item.metadata as any;
-    if (metadata.linkUrl && typeof metadata.linkUrl === 'string') {
-      return metadata.linkUrl;
+    const metadata: ContentMetadata = item.metadata;
+    // For LINK content type, the URL might be stored in different places
+    if ('url' in metadata && typeof metadata.url === 'string') {
+      return metadata.url;
     }
   }
   return null;
@@ -205,6 +208,8 @@ export function MyJstudyroom() {
 
   useEffect(() => {
     fetchMyJstudyroom();
+    // Empty dependency array is correct here - we only want to fetch once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Debounce search query (300ms)

@@ -33,7 +33,7 @@ export async function GET(
     logger.info('Access request fetched', { requestId: id })
 
     return NextResponse.json({ request: accessRequest })
-  } catch (error) {
+  } catch (error: unknown) {
     const { id: errorId } = await params
     logger.error('Error fetching access request', { error, id: errorId })
     return NextResponse.json(
@@ -127,7 +127,7 @@ export async function PATCH(
       success: true,
       request: updatedRequest
     })
-  } catch (error) {
+  } catch (error: unknown) {
     const { id: errorId } = await params
     logger.error('Error updating access request', { error, id: errorId })
     return NextResponse.json(

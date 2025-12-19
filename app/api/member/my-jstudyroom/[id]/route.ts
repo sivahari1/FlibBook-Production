@@ -70,7 +70,7 @@ export async function DELETE(
         total: (user?.freeDocumentCount || 0) + (user?.paidDocumentCount || 0),
       },
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error removing document from My jstudyroom:', error);
     return NextResponse.json(
       { error: 'Failed to remove document from My jstudyroom' },

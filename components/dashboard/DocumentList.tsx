@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { DocumentCard } from './DocumentCard';
 import { ShareDialog } from './ShareDialog';
 import { useRouter } from 'next/navigation';
+import { ContentMetadata } from '@/lib/types/content';
 
 interface Document {
   id: string;
@@ -12,7 +13,7 @@ interface Document {
   fileSize: bigint;
   createdAt: string;
   contentType?: string;
-  metadata?: any;
+  metadata?: ContentMetadata;
   linkUrl?: string;
 }
 

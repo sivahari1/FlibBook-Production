@@ -39,6 +39,9 @@ export interface ContentMetadata {
   description?: string;
   previewImage?: string;
   fetchedAt?: Date;
+  
+  // Index signature for compatibility with DocumentMetadata
+  [key: string]: unknown;
 }
 
 /**
@@ -212,7 +215,9 @@ export interface UploadResponse {
   document?: EnhancedDocument;
   bookShopItem?: EnhancedBookShopItem;
   error?: string;
+  warning?: string;
   quotaRemaining?: number | 'unlimited';
+  message?: string;
 }
 
 /**

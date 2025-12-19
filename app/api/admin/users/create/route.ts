@@ -4,7 +4,7 @@ import { prisma } from '@/lib/db'
 import { logger } from '@/lib/logger'
 import bcrypt from 'bcryptjs'
 import { sendUserApprovalEmail } from '@/lib/email'
-import { logUserCreation, getClientIp, getUserAgent } from '@/lib/audit-log'
+import { logUserCreation, getClientIp } from '@/lib/audit-log'
 
 /**
  * POST /api/admin/users/create
@@ -20,7 +20,6 @@ export async function POST(request: NextRequest) {
     // Get current admin user for audit logging
     const adminUser = await getCurrentUser()
     const ipAddress = getClientIp(request)
-    const userAgent = getUserAgent(request)
 
     // Parse request body
     const body = await request.json()
@@ -174,7 +173,7 @@ export async function POST(request: NextRequest) {
       password, // Return plain password for admin to copy
       emailSent
     })
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error creating user', {
       error: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : undefined

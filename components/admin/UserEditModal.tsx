@@ -107,7 +107,7 @@ export default function UserEditModal({
             <option value="READER_USER">Reader User - Can only view shared documents</option>
           </select>
           <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-            Changing the role will affect the user's permissions immediately
+            Changing the role will affect the user&apos;s permissions immediately
           </p>
         </div>
 

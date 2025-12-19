@@ -4,6 +4,7 @@ import { PrismaAdapter } from "@auth/prisma-adapter";
 import bcrypt from "bcryptjs";
 import { prisma } from "./db";
 import { logger } from "./logger";
+import { AuthUser } from "./types/common";
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -52,16 +53,17 @@ export const authOptions: NextAuthOptions = {
                 isActive: true
               }
             });
-          } catch (dbError: any) {
+          } catch (dbError) {
             // Log the actual database error for debugging
+            const error = dbError as { message?: string; code?: string };
             logger.error('Database error during login', {
               email: credentials.email,
-              error: dbError.message,
-              code: dbError.code
+              error: error.message,
+              code: error.code
             });
             
             // Check if it's a connection error
-            if (dbError.code === 'P1001' || dbError.message?.includes("Can't reach database")) {
+            if (error.code === 'P1001' || error.message?.includes("Can't reach database")) {
               throw new Error("Database temporarily unavailable. Please try again in a few seconds.");
             }
             
@@ -117,7 +119,7 @@ export const authOptions: NextAuthOptions = {
             emailVerified: user.emailVerified,
             isActive: user.isActive
           };
-        } catch (error: any) {
+        } catch (error) {
           // Re-throw the error with the message intact
           // NextAuth will display this message to the user
           throw error;
@@ -153,15 +155,16 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user, trigger }) {
       // Add user data to token on sign in
       if (user) {
-        token.id = user.id;
-        token.email = user.email;
-        token.name = user.name;
-        token.subscription = (user as any).subscription;
-        token.role = (user as any).role;
-        token.userRole = (user as any).userRole;
-        token.additionalRoles = (user as any).additionalRoles || [];
-        token.emailVerified = (user as any).emailVerified;
-        token.isActive = (user as any).isActive;
+        const authUser = user as AuthUser;
+        token.id = authUser.id;
+        token.email = authUser.email;
+        token.name = authUser.name;
+        token.subscription = authUser.subscription;
+        token.role = authUser.role;
+        token.userRole = authUser.userRole;
+        token.additionalRoles = authUser.additionalRoles || [];
+        token.emailVerified = authUser.emailVerified;
+        token.isActive = authUser.isActive;
       }
       
       // Refresh emailVerified status and userRole on update trigger
@@ -202,7 +205,8 @@ export const authOptions: NextAuthOptions = {
     },
     async signIn({ user }) {
       // Allow sign in but will redirect unverified users in middleware
-      if (user && !(user as any).emailVerified) {
+      const authUser = user as AuthUser;
+      if (user && !authUser.emailVerified) {
         logger.info('Unverified user login attempt', { 
           userId: user.id, 
           email: user.email 
@@ -214,11 +218,11 @@ export const authOptions: NextAuthOptions = {
         logger.info('User login', {
           userId: user.id,
           email: user.email,
-          userRole: (user as any).userRole
+          userRole: authUser.userRole
         });
         
         // Log audit event for admin logins
-        if ((user as any).userRole === 'ADMIN') {
+        if (authUser.userRole === 'ADMIN') {
           // Import dynamically to avoid circular dependencies
           import('./audit-log').then(({ logAuditEvent }) => {
             logAuditEvent({

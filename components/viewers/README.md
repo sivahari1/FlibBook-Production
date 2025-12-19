@@ -1,196 +1,172 @@
-# SimpleDocumentViewer
+# PDF Viewer Components
 
-A modern, full-screen document viewer with intuitive navigation controls, designed to replace traditional flipbook viewers with a more user-friendly interface.
+This directory contains PDF viewer components that have been updated to prevent infinite loop issues and ensure consistent patterns across all viewer implementations.
 
-> **New here?** Start with the [Getting Started Guide](./GETTING_STARTED.md) for a quick 5-minute tutorial!
+## Components Overview
 
-## Features
+### PDFViewerWithPDFJS
+The main PDF viewer component using PDF.js library with comprehensive infinite loop prevention:
+- **Fixed**: useEffect dependencies stabilized using refs and functional updates
+- **Fixed**: Callback functions memoized with useCallback to prevent re-renders
+- **Fixed**: State updates use functional patterns to avoid circular dependencies
+- **Fixed**: Comprehensive cleanup mechanisms to prevent memory leaks
+- **Fixed**: Error recovery with state validation and consistency checks
 
-- **Full-screen viewing**: Utilizes entire browser viewport for maximum content visibility
-- **Dual view modes**: Continuous scroll and paged viewing
-- **Navigation controls**: Arrow buttons, page input, and keyboard shortcuts
-- **Zoom controls**: Zoom in/out with bounds (0.5x to 3.0x)
-- **Mobile support**: Touch gestures and responsive design
-- **Accessibility**: Full keyboard navigation and screen reader support
-- **Watermark overlay**: Optional watermark support without interfering with navigation
-- **Performance optimized**: Progressive loading, virtual scrolling, and React optimizations
+### SimplePDFViewer
+A minimal PDF viewer with the same infinite loop prevention patterns:
+- **Updated**: Callback dependencies replaced with refs
+- **Updated**: Navigation functions use functional state updates
+- **Updated**: Consistent error handling patterns
 
-## Quick Start
-
-```tsx
-import SimpleDocumentViewer from '@/components/viewers/SimpleDocumentViewer';
-
-function MyDocumentViewer() {
-  const pages = [
-    {
-      pageNumber: 1,
-      pageUrl: '/api/documents/123/pages/1',
-      dimensions: { width: 800, height: 1200 }
-    },
-    // ... more pages
-  ];
-
-  return (
-    <SimpleDocumentViewer
-      documentId="123"
-      documentTitle="My Document"
-      pages={pages}
-      watermark={{
-        text: "CONFIDENTIAL",
-        opacity: 0.3,
-        fontSize: 24
-      }}
-      onClose={() => window.close()}
-    />
-  );
-}
-```
-
-## Components
+### PDFJSFallbackViewer
+Fallback viewer when PDF.js is unavailable:
+- **Updated**: Callback dependencies stabilized with refs
+- **Updated**: Consistent with main viewer patterns
 
 ### SimpleDocumentViewer
+Unified document viewer that integrates with PDF viewers:
+- **Compatible**: Uses stable callback patterns when integrating with PDFViewerWithPDFJS
+- **Consistent**: Follows the same dependency management patterns
 
-Main viewer component that provides full-screen document viewing.
+## Infinite Loop Prevention Patterns
 
-**Props:**
-- `documentId: string` - Unique identifier for the document
-- `documentTitle: string` - Display title for the document
-- `pages: PageData[]` - Array of page data objects
-- `watermark?: WatermarkSettings` - Optional watermark configuration
-- `enableScreenshotPrevention?: boolean` - Enable DRM screenshot prevention
-- `onClose?: () => void` - Callback when viewer is closed
+All PDF viewer components now follow these patterns to prevent infinite loops:
 
-### ViewerToolbar
-
-Navigation toolbar with page controls, zoom controls, and view mode toggle.
-
-**Props:**
-- `documentTitle: string` - Document title to display
-- `currentPage: number` - Current page number (1-based)
-- `totalPages: number` - Total number of pages
-- `viewMode: ViewMode` - Current view mode ('continuous' | 'paged')
-- `zoomLevel: number` - Current zoom level (0.5 to 3.0)
-- `onPageChange: (page: number) => void` - Page change handler
-- `onViewModeChange: (mode: ViewMode) => void` - View mode change handler
-- `onZoomChange: (zoom: number) => void` - Zoom change handler
-- `onClose?: () => void` - Close button handler
-
-### ContinuousScrollView
-
-Renders pages in a vertical scrolling layout with progressive loading.
-
-### PagedView
-
-Renders one page at a time with discrete navigation.
-
-### WatermarkOverlay
-
-Overlays watermark text or image without interfering with navigation.
-
-## Hooks
-
-### useKeyboardNavigation
-
-Handles keyboard shortcuts for navigation and zoom.
-
-**Keyboard Shortcuts:**
-- `↓` / `Page Down` - Next page
-- `↑` / `Page Up` - Previous page
-- `Home` - First page
-- `End` - Last page
-- `Ctrl/Cmd + +` - Zoom in
-- `Ctrl/Cmd + -` - Zoom out
-
-### useTouchGestures
-
-Handles touch gestures for mobile devices.
-
-**Touch Gestures:**
-- Swipe left - Next page
-- Swipe right - Previous page
-- Pinch - Zoom in/out
-
-## Types
-
+### 1. Stable Dependencies
 ```typescript
-interface PageData {
-  pageNumber: number;
-  pageUrl: string;
-  dimensions: { width: number; height: number };
-}
+// ❌ BAD: Callback in dependency array
+useEffect(() => {
+  // effect logic
+}, [pdfUrl, onError]);
 
-interface WatermarkSettings {
-  text: string;
-  opacity: number;
-  fontSize: number;
-}
+// ✅ GOOD: Use ref for callback
+const onErrorRef = useRef(onError);
+useEffect(() => {
+  onErrorRef.current = onError;
+}, [onError]);
 
-type ViewMode = 'continuous' | 'paged';
+useEffect(() => {
+  // effect logic using onErrorRef.current
+}, [pdfUrl]); // Only stable dependencies
 ```
 
-## Browser Support
+### 2. Functional State Updates
+```typescript
+// ❌ BAD: Depends on current state
+const goToNextPage = () => {
+  if (currentPage < numPages) {
+    setCurrentPage(currentPage + 1);
+  }
+};
 
-- Chrome/Edge: Full support
-- Firefox: Full support
-- Safari: Full support
-- Mobile browsers: Full support with touch gestures
+// ✅ GOOD: Functional update
+const goToNextPage = useCallback(() => {
+  setCurrentPage(prev => prev < numPages ? prev + 1 : prev);
+}, []); // No dependencies
+```
 
-## Performance
+### 3. Memoized Callbacks
+```typescript
+// ❌ BAD: New function on every render
+const handleError = (error) => {
+  console.error(error);
+  onError?.(error);
+};
 
-- **Progressive loading**: Only loads visible pages
-- **Virtual scrolling**: For documents with 100+ pages
-- **Image caching**: Caches loaded pages in memory
-- **Debounced scroll**: Updates page indicator with 100ms debounce
-- **React optimizations**: Uses React.memo, useMemo, and useCallback
+// ✅ GOOD: Memoized with stable dependencies
+const handleError = useCallback((error) => {
+  console.error(error);
+  if (onErrorRef.current) {
+    onErrorRef.current(error);
+  }
+}, []); // No dependencies due to ref usage
+```
 
-## Accessibility
+### 4. Cleanup Mechanisms
+```typescript
+useEffect(() => {
+  let isMounted = true;
+  
+  const loadDocument = async () => {
+    // loading logic
+    if (!isMounted) return;
+    // state updates
+  };
+  
+  loadDocument();
+  
+  return () => {
+    isMounted = false;
+    // cleanup resources
+  };
+}, [stableDependencies]);
+```
 
-- **Keyboard navigation**: Full keyboard support for all actions
-- **ARIA labels**: Proper labels for all buttons and controls
-- **Focus management**: Visible focus indicators
-- **Screen reader**: Announces page changes and current state
-- **Touch targets**: Minimum 44x44px touch targets on mobile
+## Memory Management
+
+All viewers implement consistent memory management:
+- Aggressive cleanup of off-screen pages
+- Memory pressure detection and handling
+- Resource cleanup on unmount
+- Canvas cleanup to prevent memory leaks
 
 ## Error Handling
 
-The viewer handles various error scenarios gracefully:
+Consistent error handling patterns:
+- State validation before updates
+- Error recovery mechanisms
+- Development mode debugging information
+- Graceful fallback options
 
-- **Missing pages**: Shows error message with retry option
-- **Invalid page data**: Validates page structure and shows errors
-- **Page load failures**: Individual page errors with retry buttons
-- **Network issues**: Automatic retry mechanisms
-- **Invalid navigation**: Clamps page numbers to valid range
+## Testing
 
-## Migration from FlipBookViewer
+All components include comprehensive tests:
+- Property-based tests for infinite loop prevention
+- Unit tests for specific functionality
+- Integration tests for component interactions
+- Memory management tests
 
-The SimpleDocumentViewer is designed as a drop-in replacement for FlipBookViewer:
+## Usage Guidelines
 
-1. **Same page data format**: Uses the same PageData interface
-2. **Similar props**: Compatible prop structure
-3. **Enhanced features**: Adds zoom, view modes, and better navigation
-4. **Better performance**: Optimized loading and rendering
+When using these components:
 
-## Documentation
+1. **Always provide stable props**: Avoid creating new objects/functions on every render
+2. **Use refs for callbacks**: When passing callbacks that might change
+3. **Implement proper cleanup**: Always clean up resources in useEffect cleanup functions
+4. **Monitor memory usage**: Use the built-in memory monitoring in development mode
+5. **Handle errors gracefully**: Implement error boundaries and fallback mechanisms
 
-### Complete Documentation Suite
+## Migration from Legacy Components
 
-- **[Documentation Index](./DOCUMENTATION_INDEX.md)** - Central hub for all documentation
-- **[API Documentation](./API_DOCUMENTATION.md)** - Complete API reference
-- **[User Guide](./USER_GUIDE.md)** - End-user documentation
-- **[Integration Guide](./INTEGRATION_GUIDE.md)** - Developer integration guide
-- **[Troubleshooting Guide](./TROUBLESHOOTING_GUIDE.md)** - Common issues and solutions
-- **[Examples](./EXAMPLES.md)** - Practical usage examples
+If migrating from older PDF viewer implementations:
 
-### Quick Examples
+1. Replace callback dependencies with refs
+2. Update navigation functions to use functional state updates
+3. Add proper cleanup mechanisms
+4. Implement memory management patterns
+5. Add comprehensive error handling
 
-See [EXAMPLES.md](./EXAMPLES.md) for complete usage examples:
-- Basic document viewer
-- With watermark
-- Protected documents
-- Custom page loading
-- Mobile-optimized
-- With analytics
-- Multi-document viewer
-- Embedded viewer
-- Print-friendly view
-- Collaborative viewing
+## Performance Considerations
+
+- Components use React.memo for performance optimization
+- Callbacks are memoized to prevent unnecessary re-renders
+- Memory management prevents excessive resource usage
+- Lazy loading for large documents
+- Efficient canvas management
+
+## Browser Compatibility
+
+All components are tested and compatible with:
+- Chrome 90+
+- Firefox 88+
+- Safari 14+
+- Edge 90+
+
+## Security Features
+
+DRM and security features are consistently implemented:
+- Screenshot prevention
+- Text selection control
+- Print blocking
+- Download restrictions
+- Watermark overlay support

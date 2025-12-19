@@ -136,7 +136,7 @@ class LRUCache<T> {
  */
 export class CacheManager {
   private pageCache: LRUCache<string>;
-  private annotationCache: LRUCache<any[]>;
+  private annotationCache: LRUCache<unknown[]>;
   private options: Required<CacheOptions>;
 
   constructor(options: CacheOptions = {}) {
@@ -148,7 +148,7 @@ export class CacheManager {
     };
 
     this.pageCache = new LRUCache<string>(this.options.maxPagesInMemory);
-    this.annotationCache = new LRUCache<any[]>(this.options.maxAnnotationsInMemory);
+    this.annotationCache = new LRUCache<unknown[]>(this.options.maxAnnotationsInMemory);
   }
 
   /**
@@ -178,7 +178,7 @@ export class CacheManager {
   /**
    * Cache annotations for a document page
    */
-  cacheAnnotations(documentId: string, pageNumber: number, annotations: any[]): void {
+  cacheAnnotations(documentId: string, pageNumber: number, annotations: unknown[]): void {
     const key = this.getAnnotationCacheKey(documentId, pageNumber);
     this.annotationCache.set(key, annotations, this.options.annotationCacheTTL);
   }
@@ -186,7 +186,7 @@ export class CacheManager {
   /**
    * Get cached annotations
    */
-  getCachedAnnotations(documentId: string, pageNumber: number): any[] | null {
+  getCachedAnnotations(documentId: string, pageNumber: number): unknown[] | null {
     const key = this.getAnnotationCacheKey(documentId, pageNumber);
     return this.annotationCache.get(key);
   }

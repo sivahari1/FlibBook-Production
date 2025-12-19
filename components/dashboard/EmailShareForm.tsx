@@ -38,7 +38,14 @@ export const EmailShareForm: React.FC<EmailShareFormProps> = ({
     setSuccess(false);
 
     try {
-      const payload: any = {
+      const payload: {
+        documentId: string;
+        email: string;
+        canDownload: boolean;
+        expiresAt?: string;
+        note?: string;
+        watermarkText?: string;
+      } = {
         documentId,
         email: formData.email,
         canDownload: formData.canDownload,

@@ -44,6 +44,8 @@ export default function FilesSharedWithMe({ initialShares = [] }: FilesSharedWit
     if (!initialShares.length) {
       fetchShares()
     }
+    // Empty dependency array is correct here - we only want to fetch once on mount if no initial shares
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const fetchShares = async () => {

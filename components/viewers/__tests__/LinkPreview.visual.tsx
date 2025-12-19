@@ -8,7 +8,7 @@
 import LinkPreview from '../LinkPreview';
 import { LinkMetadata } from '@/lib/types/content';
 
-export default function LinkPreviewVisualTest() {
+function LinkPreviewVisualTest() {
   // Test Case 1: Full metadata with image
   const fullMetadata: LinkMetadata = {
     url: 'https://example.com/article',
@@ -93,3 +93,7 @@ export default function LinkPreviewVisualTest() {
     </div>
   );
 }
+
+LinkPreviewVisualTest.displayName = 'LinkPreviewVisualTest';
+
+export default LinkPreviewVisualTest;

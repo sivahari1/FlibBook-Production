@@ -25,6 +25,10 @@ export const BOOKSHOP_CATEGORIES: CategoryStructure[] = [
     ]
   },
   {
+    name: 'Computer Science',
+    subcategories: []
+  },
+  {
     name: 'Functional MRI',
     subcategories: []
   },

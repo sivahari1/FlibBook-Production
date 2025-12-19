@@ -82,7 +82,7 @@ export const ForgotPasswordForm: React.FC = () => {
         />
 
         <div className="text-center text-sm text-gray-600">
-          <p>Didn't receive the email? Check your spam folder or try again in a few minutes.</p>
+          <p>Didn&apos;t receive the email? Check your spam folder or try again in a few minutes.</p>
         </div>
       </div>
     );

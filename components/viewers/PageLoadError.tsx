@@ -15,7 +15,7 @@ interface PageLoadErrorProps {
  * Shows error message with retry button for failed page loads
  * Requirements: 2.4
  */
-export default function PageLoadError({ 
+function PageLoadError({ 
   pageNumber, 
   error, 
   onRetry, 
@@ -66,3 +66,7 @@ export default function PageLoadError({
     </div>
   );
 }
+
+PageLoadError.displayName = 'PageLoadError';
+
+export default PageLoadError;

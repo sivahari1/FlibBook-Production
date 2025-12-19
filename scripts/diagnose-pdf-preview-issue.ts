@@ -91,8 +91,8 @@ async function diagnosePDFPreviewIssue() {
     // 5. Check PDF.js worker
     console.log('\n\n=== PDF.js Configuration ===');
     const workerPath = 'public/pdf.worker.min.js';
-    const fs = require('fs');
-    const path = require('path');
+    import fs from 'fs';
+    import path from 'path';
     const workerExists = fs.existsSync(path.join(process.cwd(), workerPath));
     console.log(`PDF.js worker file: ${workerExists ? '✅ Exists' : '❌ Missing'}`);
 

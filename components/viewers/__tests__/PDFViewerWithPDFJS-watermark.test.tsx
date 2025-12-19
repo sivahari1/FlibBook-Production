@@ -190,7 +190,7 @@ describe('PDFViewerWithPDFJS - Watermark Integration', () => {
       });
 
       // Initial zoom level (1.0)
-      let watermark = screen.getByTestId('watermark-overlay');
+      const watermark = screen.getByTestId('watermark-overlay');
       expect(watermark).toHaveAttribute('data-fontsize', String(48 * 1.0));
 
       // Simulate zoom in by clicking zoom button

@@ -536,7 +536,7 @@ describe('PDFViewerWithPDFJS Save Blocking Property Tests', () => {
               cancelable: true,
             });
 
-            let preventDefaultSpy = vi.spyOn(saveEvent, 'preventDefault');
+            const preventDefaultSpy = vi.spyOn(saveEvent, 'preventDefault');
             window.dispatchEvent(saveEvent);
             expect(preventDefaultSpy).toHaveBeenCalled();
 

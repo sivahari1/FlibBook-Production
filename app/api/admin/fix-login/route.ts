@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
       fixesApplied: Object.keys(fixes),
     });
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error fixing admin login:', error);
     return NextResponse.json(
       { 
@@ -184,7 +184,7 @@ export async function GET(request: NextRequest) {
       hasIssues: issues.length > 0,
     });
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error diagnosing admin login:', error);
     return NextResponse.json(
       { 

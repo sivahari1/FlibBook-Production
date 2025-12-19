@@ -15,7 +15,7 @@ async function verifyPassword() {
   
   // Try to connect to database
   try {
-    const { prisma } = require('../lib/db');
+    import { prisma } from '../lib/db';
     
     console.log('Attempting to fetch user from database...');
     const user = await prisma.user.findUnique({

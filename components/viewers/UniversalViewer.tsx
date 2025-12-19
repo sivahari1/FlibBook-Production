@@ -1,126 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ContentType, EnhancedDocument, WatermarkConfig, ViewerAnalyticsEvent } from '@/lib/types/content';
 import ImageViewer from './ImageViewer';
 import VideoPlayer from './VideoPlayer';
 import LinkPreview from './LinkPreview';
-import { FlipBookContainerWithDRM } from '../flipbook/FlipBookContainerWithDRM';
 
-interface PageData {
-  pageNumber: number;
-  pageUrl: string;
-  dimensions: {
-    width: number;
-    height: number;
-  };
-}
-
-interface FlipBookWrapperProps {
-  documentId: string;
-  watermarkText: string;
-  userEmail: string;
-  allowTextSelection: boolean;
-  enableScreenshotPrevention: boolean;
-  showWatermark: boolean;
-}
-
-function FlipBookWrapper({
-  documentId,
-  watermarkText,
-  userEmail,
-  allowTextSelection,
-  enableScreenshotPrevention,
-  showWatermark,
-}: FlipBookWrapperProps) {
-  const [pages, setPages] = useState<PageData[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const fetchPages = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-
-        const response = await fetch(`/api/documents/${documentId}/pages`);
-        const data = await response.json();
-
-        if (!response.ok) {
-          throw new Error(data.message || 'Failed to load document pages');
-        }
-
-        if (!data.pages || data.pages.length === 0) {
-          throw new Error('Document has no pages. Please convert the document first.');
-        }
-
-        setPages(data.pages);
-        setLoading(false);
-      } catch (err) {
-        console.error('Error fetching pages:', err);
-        setError(err instanceof Error ? err.message : 'Failed to load pages');
-        setLoading(false);
-      }
-    };
-
-    if (documentId) {
-      fetchPages();
-    }
-  }, [documentId]);
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
-          <p className="text-white">Loading document pages...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500">
-        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-8 max-w-md w-full mx-4 text-center">
-          <div className="text-red-600 dark:text-red-400 text-6xl mb-4">⚠️</div>
-          <h2 className="text-2xl font-bold mb-2 text-gray-900 dark:text-white">
-            Failed to Load Document
-          </h2>
-          <p className="text-gray-600 dark:text-gray-300 mb-6">{error}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            Retry
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // Transform pages to the format expected by FlipBookContainerWithDRM
-  const transformedPages = pages.map(page => ({
-    pageNumber: page.pageNumber,
-    imageUrl: page.pageUrl,
-    width: page.dimensions.width || 800,
-    height: page.dimensions.height || 1000,
-  }));
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500">
-      <FlipBookContainerWithDRM
-        documentId={documentId}
-        pages={transformedPages}
-        watermarkText={watermarkText}
-        userEmail={userEmail}
-        allowTextSelection={allowTextSelection}
-        enableScreenshotPrevention={enableScreenshotPrevention}
-        showWatermark={showWatermark}
-      />
-    </div>
-  );
-}
+// FlipBookWrapper has been deprecated and removed as part of the unified viewer system
+// PDF content now routes directly to SimpleDocumentViewer via UnifiedViewer
 
 interface UniversalViewerProps {
   content: EnhancedDocument;
@@ -130,7 +17,7 @@ interface UniversalViewerProps {
   shareKey?: string;
 }
 
-export default function UniversalViewer({
+function UniversalViewer({
   content,
   watermark,
   onAnalytics,
@@ -223,15 +110,23 @@ export default function UniversalViewer({
   // Route to appropriate viewer based on content type
   switch (content.contentType) {
     case ContentType.PDF:
+      // DEPRECATED: PDF content should now use UnifiedViewer instead of UniversalViewer
+      // This fallback maintains compatibility but should be migrated to UnifiedViewer
       return (
-        <FlipBookWrapper
-          documentId={content.id}
-          watermarkText={watermark?.text || 'Protected Document'}
-          userEmail={watermark?.text || 'User'}
-          allowTextSelection={!requireEmail}
-          enableScreenshotPrevention={true}
-          showWatermark={!!watermark}
-        />
+        <div className="flex items-center justify-center min-h-screen bg-gray-100 dark:bg-slate-900">
+          <div className="text-center max-w-md mx-auto px-4">
+            <div className="text-yellow-600 dark:text-yellow-400 text-6xl mb-4">⚠️</div>
+            <h2 className="text-2xl font-bold mb-2 text-gray-900 dark:text-white">
+              Deprecated PDF Viewer
+            </h2>
+            <p className="text-gray-600 dark:text-gray-300 mb-4">
+              This PDF viewer has been deprecated. Please use the UnifiedViewer component for PDF content.
+            </p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Document ID: {content.id}
+            </p>
+          </div>
+        </div>
       );
 
     case ContentType.IMAGE:
@@ -297,10 +192,14 @@ export default function UniversalViewer({
               Unsupported Content Type
             </h2>
             <p className="text-gray-600 dark:text-gray-300">
-              The content type "{content.contentType}" is not supported by this viewer.
+              The content type &quot;{content.contentType}&quot; is not supported by this viewer.
             </p>
           </div>
         </div>
       );
   }
 }
+
+UniversalViewer.displayName = 'UniversalViewer';
+
+export default UniversalViewer;

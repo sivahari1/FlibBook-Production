@@ -45,6 +45,7 @@ export const ShareLinkModal: React.FC<ShareLinkModalProps> = ({
     if (isOpen) {
       fetchShareLinks();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, documentId]);
 
   const fetchShareLinks = async () => {
@@ -71,7 +72,11 @@ export const ShareLinkModal: React.FC<ShareLinkModalProps> = ({
     setError(null);
 
     try {
-      const body: any = {};
+      const body: {
+        expiresAt?: string;
+        password?: string;
+        maxViews?: number;
+      } = {};
       
       if (expiresAt) {
         body.expiresAt = new Date(expiresAt).toISOString();
@@ -110,9 +115,9 @@ export const ShareLinkModal: React.FC<ShareLinkModalProps> = ({
       
       // Copy the new share URL to clipboard
       await copyToClipboard(newShareLink.shareUrl, newShareLink.shareKey);
-    } catch (err: any) {
+    } catch (err) {
       console.error('Error creating share link:', err);
-      setError(err.message || 'Failed to create share link');
+      setError(err instanceof Error ? err.message : 'Failed to create share link');
     } finally {
       setIsCreating(false);
     }

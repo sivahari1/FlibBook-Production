@@ -105,13 +105,15 @@ export async function convertPdfToImages(
             context,
           };
         },
-        reset(canvasAndContext: any, width: number, height: number) {
+        reset(canvasAndContext: { canvas: HTMLCanvasElement; context: CanvasRenderingContext2D }, width: number, height: number) {
           canvasAndContext.canvas.width = width;
           canvasAndContext.canvas.height = height;
         },
-        destroy(canvasAndContext: any) {
-          canvasAndContext.canvas.width = 0;
-          canvasAndContext.canvas.height = 0;
+        destroy(canvasAndContext: { canvas: HTMLCanvasElement | null; context: CanvasRenderingContext2D | null }) {
+          if (canvasAndContext.canvas) {
+            canvasAndContext.canvas.width = 0;
+            canvasAndContext.canvas.height = 0;
+          }
           canvasAndContext.canvas = null;
           canvasAndContext.context = null;
         },
@@ -126,7 +128,7 @@ export async function convertPdfToImages(
         useSystemFonts: true,
         isEvalSupported: false,
         useWorkerFetch: false,
-        canvasFactory: NodeCanvasFactory as any,
+        canvasFactory: NodeCanvasFactory as unknown as pdfjsLib.CanvasFactory,
       });
       const pdfDocument = await loadingTask.promise;
       const pageCount = pdfDocument.numPages;
@@ -220,7 +222,7 @@ export async function convertPdfToImages(
  * @returns Page conversion result
  */
 async function convertAndUploadPage(
-  pdfDocument: any,
+  pdfDocument: pdfjsLib.PDFDocumentProxy,
   pageNumber: number,
   userId: string,
   documentId: string,

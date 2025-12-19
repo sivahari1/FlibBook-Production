@@ -27,6 +27,8 @@ vi.mock('react-pageflip', () => ({
   },
 }));
 
+
+
 vi.mock('@/components/annotations/AnnotationsContainer', () => ({
   AnnotationsContainer: () => <div data-testid="annotations-container" />,
 }));

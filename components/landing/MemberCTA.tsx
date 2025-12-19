@@ -92,7 +92,7 @@ export default function MemberCTA() {
             className="inline-flex items-center gap-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white px-10 py-5 rounded-xl text-lg font-bold hover:shadow-2xl transition-all duration-300 hover:scale-105"
           >
             <UserPlus className="w-6 h-6" />
-            Register as a Member - It's Free!
+            Register as a Member - It&apos;s Free!
           </Link>
           <p className="text-sm text-gray-600 dark:text-gray-400 mt-4">
             Already have an account?{' '}

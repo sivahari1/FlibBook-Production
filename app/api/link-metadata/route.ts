@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
       success: true,
       metadata
     })
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Link metadata fetch error:', error)
     
     return NextResponse.json(

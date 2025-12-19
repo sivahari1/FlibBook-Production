@@ -91,7 +91,7 @@ function getErrorTitle(category: PDFJSErrorCategory): string {
  * 
  * Requirements: 2.4, 7.1, 7.5
  */
-export default function PDFJSErrorDisplay({
+function PDFJSErrorDisplay({
   error,
   onRetry,
   onClose,
@@ -213,3 +213,7 @@ export default function PDFJSErrorDisplay({
     </div>
   );
 }
+
+PDFJSErrorDisplay.displayName = 'PDFJSErrorDisplay';
+
+export default PDFJSErrorDisplay;

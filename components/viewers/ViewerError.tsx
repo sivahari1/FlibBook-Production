@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import { RefreshCw, AlertTriangle, FileX, Wifi, Shield } from 'lucide-react';
 
 interface ViewerErrorProps {
@@ -15,7 +16,7 @@ interface ViewerErrorProps {
  * Provides user-friendly error messages with appropriate actions
  * Requirements: 2.4
  */
-export default function ViewerError({ 
+function ViewerError({ 
   error, 
   type = 'generic', 
   onRetry, 
@@ -112,3 +113,7 @@ export default function ViewerError({
     </div>
   );
 }
+
+ViewerError.displayName = 'ViewerError';
+
+export default ViewerError;

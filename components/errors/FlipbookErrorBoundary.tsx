@@ -15,7 +15,7 @@ interface Props {
   children: ReactNode;
   fallback?: (error: Error, reset: () => void) => ReactNode;
   onError?: (error: Error, errorInfo: ErrorInfo) => void;
-  resetKeys?: any[];
+  resetKeys?: unknown[];
 }
 
 interface State {

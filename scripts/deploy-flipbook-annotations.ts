@@ -65,7 +65,7 @@ async function runMigrations(): Promise<boolean> {
   
   try {
     // Check if migrations are needed
-    const { execSync } = require('child_process');
+    import { execSync } from 'child_process';
     
     // Run Prisma migrations
     execSync('npx prisma migrate deploy', { stdio: 'inherit' });

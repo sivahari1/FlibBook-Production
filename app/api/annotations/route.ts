@@ -8,6 +8,7 @@ import { authOptions } from '@/lib/auth';
 import { annotationService } from '@/lib/services/annotations';
 import { createAnnotationSchema } from '@/lib/validation/annotations';
 import { z } from 'zod';
+import type { AnnotationWhereClause } from '@/lib/types/api';
 
 // GET /api/annotations - List annotations with filtering
 export async function GET(request: NextRequest) {
@@ -25,8 +26,8 @@ export async function GET(request: NextRequest) {
     // Parse query parameters
     const documentId = searchParams.get('documentId');
     const pageNumber = searchParams.get('pageNumber');
-    const mediaType = searchParams.get('mediaType');
-    const visibility = searchParams.get('visibility');
+    // const mediaType = searchParams.get('mediaType'); // Reserved for future filtering
+    // const visibility = searchParams.get('visibility'); // Reserved for future filtering
     const userId = searchParams.get('userId');
     const page = parseInt(searchParams.get('page') || '1');
     const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100);
@@ -42,11 +43,9 @@ export async function GET(request: NextRequest) {
     }
 
     // Build filters
-    const filters: any = {
+    const filters: AnnotationWhereClause = {
       documentId,
       ...(pageNumber && { pageNumber: parseInt(pageNumber) }),
-      ...(mediaType && { mediaType }),
-      ...(visibility && { visibility }),
       ...(userId && { userId })
     };
 
@@ -99,7 +98,7 @@ export async function GET(request: NextRequest) {
     }
 
     return response;
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error fetching annotations:', error);
     
     // Provide more specific error message
@@ -156,7 +155,7 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json(annotation, { status: 201 });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error creating annotation:', error);
     
     if (error instanceof z.ZodError) {

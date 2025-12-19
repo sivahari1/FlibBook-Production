@@ -5,7 +5,7 @@
  * Validates: Requirements 15.1, 15.2, 15.3, 15.4, 15.5
  */
 
-import { describe, test, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, test, expect, beforeEach, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 import { GET as getAnnotations, POST as createAnnotation } from '../route';
 import { 
@@ -33,8 +33,15 @@ vi.mock('@/lib/services/annotations', () => ({
 import { getServerSession } from 'next-auth';
 import { annotationService } from '@/lib/services/annotations';
 
-const mockGetServerSession = getServerSession as any;
-const mockAnnotationService = annotationService as any;
+type MockedFunction = ReturnType<typeof vi.fn>;
+const mockGetServerSession = getServerSession as unknown as MockedFunction;
+const mockAnnotationService = annotationService as {
+  getAnnotations: MockedFunction;
+  createAnnotation: MockedFunction;
+  getAnnotationById: MockedFunction;
+  updateAnnotation: MockedFunction;
+  deleteAnnotation: MockedFunction;
+};
 
 describe('Annotation API Permissions', () => {
   beforeEach(() => {
@@ -42,7 +49,7 @@ describe('Annotation API Permissions', () => {
   });
 
   describe('POST /api/annotations - Create Annotation', () => {
-    const createMockRequest = (body: any) => {
+    const createMockRequest = (body: unknown) => {
       return {
         json: async () => body,
         url: 'http://localhost:3000/api/annotations',
@@ -228,7 +235,7 @@ describe('Annotation API Permissions', () => {
   });
 
   describe('PATCH /api/annotations/[id] - Update Annotation', () => {
-    const createMockRequest = (body: any) => {
+    const createMockRequest = (body: unknown) => {
       return {
         json: async () => body,
       } as NextRequest;

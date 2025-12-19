@@ -13,14 +13,14 @@ export class FlipbookError extends Error {
   public readonly statusCode: number;
   public readonly isOperational: boolean;
   public readonly timestamp: Date;
-  public readonly context?: Record<string, any>;
+  public readonly context?: Record<string, unknown>;
 
   constructor(
     message: string,
     code: string,
     statusCode: number = 500,
     isOperational: boolean = true,
-    context?: Record<string, any>
+    context?: Record<string, unknown>
   ) {
     super(message);
     this.name = this.constructor.name;
@@ -50,7 +50,7 @@ export class FlipbookError extends Error {
  * Requirement: 18.1
  */
 export class PDFConversionError extends FlipbookError {
-  constructor(message: string, context?: Record<string, any>) {
+  constructor(message: string, context?: Record<string, unknown>) {
     super(message, 'PDF_CONVERSION_ERROR', 500, true, context);
   }
 
@@ -95,7 +95,7 @@ export class PDFConversionError extends FlipbookError {
  * Requirement: 18.2
  */
 export class MediaUploadError extends FlipbookError {
-  constructor(message: string, context?: Record<string, any>) {
+  constructor(message: string, context?: Record<string, unknown>) {
     super(message, 'MEDIA_UPLOAD_ERROR', 400, true, context);
   }
 
@@ -140,7 +140,7 @@ export class MediaUploadError extends FlipbookError {
  * Requirement: 18.3
  */
 export class NetworkError extends FlipbookError {
-  constructor(message: string, context?: Record<string, any>) {
+  constructor(message: string, context?: Record<string, unknown>) {
     super(message, 'NETWORK_ERROR', 503, true, context);
   }
 
@@ -185,7 +185,7 @@ export class NetworkError extends FlipbookError {
  * Requirement: 18.4
  */
 export class PermissionError extends FlipbookError {
-  constructor(message: string, context?: Record<string, any>) {
+  constructor(message: string, context?: Record<string, unknown>) {
     super(message, 'PERMISSION_ERROR', 403, true, context);
   }
 
@@ -230,7 +230,7 @@ export class PermissionError extends FlipbookError {
  * Requirement: 18.2
  */
 export class AnnotationError extends FlipbookError {
-  constructor(message: string, context?: Record<string, any>) {
+  constructor(message: string, context?: Record<string, unknown>) {
     super(message, 'ANNOTATION_ERROR', 400, true, context);
   }
 
@@ -268,7 +268,7 @@ export class AnnotationError extends FlipbookError {
  * Requirement: 18.1
  */
 export class PageLoadError extends FlipbookError {
-  constructor(message: string, context?: Record<string, any>) {
+  constructor(message: string, context?: Record<string, unknown>) {
     super(message, 'PAGE_LOAD_ERROR', 500, true, context);
   }
 
@@ -299,7 +299,7 @@ export class PageLoadError extends FlipbookError {
  * Requirement: 18.4
  */
 export class SecurityError extends FlipbookError {
-  constructor(message: string, context?: Record<string, any>) {
+  constructor(message: string, context?: Record<string, unknown>) {
     super(message, 'SECURITY_ERROR', 403, true, context);
   }
 
@@ -337,7 +337,7 @@ export class SecurityError extends FlipbookError {
  * Requirement: 18.2
  */
 export class ValidationError extends FlipbookError {
-  constructor(message: string, context?: Record<string, any>) {
+  constructor(message: string, context?: Record<string, unknown>) {
     super(message, 'VALIDATION_ERROR', 400, true, context);
   }
 
@@ -355,7 +355,7 @@ export class ValidationError extends FlipbookError {
     );
   }
 
-  static outOfRange(field: string, value: any, min: any, max: any) {
+  static outOfRange(field: string, value: number | string, min: number | string, max: number | string) {
     return new ValidationError(
       `Field '${field}' value ${value} is out of range [${min}, ${max}].`,
       { field, value, min, max, reason: 'out_of_range' }
@@ -366,27 +366,27 @@ export class ValidationError extends FlipbookError {
 /**
  * Error type guards
  */
-export function isFlipbookError(error: any): error is FlipbookError {
+export function isFlipbookError(error: unknown): error is FlipbookError {
   return error instanceof FlipbookError;
 }
 
-export function isPDFConversionError(error: any): error is PDFConversionError {
+export function isPDFConversionError(error: unknown): error is PDFConversionError {
   return error instanceof PDFConversionError;
 }
 
-export function isMediaUploadError(error: any): error is MediaUploadError {
+export function isMediaUploadError(error: unknown): error is MediaUploadError {
   return error instanceof MediaUploadError;
 }
 
-export function isNetworkError(error: any): error is NetworkError {
+export function isNetworkError(error: unknown): error is NetworkError {
   return error instanceof NetworkError;
 }
 
-export function isPermissionError(error: any): error is PermissionError {
+export function isPermissionError(error: unknown): error is PermissionError {
   return error instanceof PermissionError;
 }
 
-export function isSecurityError(error: any): error is SecurityError {
+export function isSecurityError(error: unknown): error is SecurityError {
   return error instanceof SecurityError;
 }
 

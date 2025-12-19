@@ -121,6 +121,8 @@ export function MediaPlayerModal({
         mediaRef.current.src = '';
       }
     };
+    // Empty dependency array is correct here - cleanup only on unmount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Reset state when modal closes
@@ -134,6 +136,8 @@ export function MediaPlayerModal({
         mediaRef.current.currentTime = 0;
       }
     }
+    // mediaRef is a ref and doesn't need to be in dependencies
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
   const getMediaUrl = () => {
@@ -155,7 +159,7 @@ export function MediaPlayerModal({
         {/* Selected Text Display */}
         <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-lg">
           <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Annotated text:</p>
-          <p className="text-sm font-medium">"{annotation.selectedText}"</p>
+          <p className="text-sm font-medium">&quot;{annotation.selectedText}&quot;</p>
         </div>
 
         {/* Error Message */}

@@ -49,7 +49,7 @@ class AnnotationService {
   }): Promise<{ annotations: DocumentAnnotation[]; total: number }> {
     const startTime = Date.now();
     const { filters, pagination, sorting, userId } = options;
-    const where: any = {
+    const where: Record<string, unknown> = {
       documentId: filters.documentId,
     };
 
@@ -88,7 +88,7 @@ class AnnotationService {
     // For single page queries, skip the count query
     const needsCount = pagination && pagination.page > 1;
 
-    const queries: Promise<any>[] = [
+    const queries: Promise<DocumentAnnotation[] | number>[] = [
       this.db.documentAnnotation.findMany({
         where,
         orderBy,
@@ -253,7 +253,7 @@ class AnnotationService {
    * Get annotation statistics for a document
    */
   async getAnnotationStats(documentId: string, userId?: string) {
-    const where: any = { documentId };
+    const where: Record<string, unknown> = { documentId };
 
     if (userId) {
       where.OR = [
@@ -281,11 +281,11 @@ class AnnotationService {
 
     return {
       total,
-      byType: byType.reduce((acc: Record<string, number>, item: any) => {
+      byType: byType.reduce((acc: Record<string, number>, item: { mediaType: string; _count: { mediaType: number } }) => {
         acc[item.mediaType] = item._count.mediaType;
         return acc;
       }, {} as Record<string, number>),
-      byPage: byPage.reduce((acc: Record<number, number>, item: any) => {
+      byPage: byPage.reduce((acc: Record<number, number>, item: { pageNumber: number; _count: { pageNumber: number } }) => {
         acc[item.pageNumber] = item._count.pageNumber;
         return acc;
       }, {} as Record<number, number>),

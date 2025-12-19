@@ -124,6 +124,7 @@ export default function BookShopPage() {
       fetchCategories()
       fetchItems()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, session, page, categoryFilter, searchQuery, publishedFilter])
 
   const handleCreate = () => {

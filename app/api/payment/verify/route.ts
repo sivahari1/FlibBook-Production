@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
     let validatedData;
     try {
       validatedData = verifyPaymentSchema.parse(body);
-    } catch (error) {
+    } catch (error: unknown) {
       if (error instanceof ZodError) {
         return NextResponse.json(
           { error: error.issues[0].message },
@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
       throw error;
     }
 
-    const { razorpayOrderId, razorpayPaymentId, razorpaySignature, bookShopItemId } = validatedData;
+    const { razorpayOrderId, razorpayPaymentId, razorpaySignature } = validatedData;
 
     // Find payment record
     const payment = await prisma.payment.findUnique({
@@ -260,7 +260,7 @@ export async function POST(req: NextRequest) {
       itemId: result.id,
       message: 'Payment verified and document added to My jstudyroom',
     });
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error verifying payment', {
       error: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : undefined,

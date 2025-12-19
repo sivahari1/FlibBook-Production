@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import ImageViewer from '@/components/viewers/ImageViewer';
 import VideoPlayer from '@/components/viewers/VideoPlayer';
 import LinkPreview from '@/components/viewers/LinkPreview';
@@ -23,6 +23,8 @@ interface PreviewViewerClientProps {
   videoUrl?: string;
   linkUrl?: string;
   metadata?: any;
+  // Reliability features
+  enableReliabilityFeatures?: boolean;
 }
 
 /**
@@ -49,6 +51,7 @@ export default function PreviewViewerClient({
   videoUrl,
   linkUrl,
   metadata,
+  enableReliabilityFeatures = true,
 }: PreviewViewerClientProps) {
   const [loading] = useState(false);
   const [error] = useState<string | null>(null);
@@ -71,6 +74,7 @@ export default function PreviewViewerClient({
         text: watermarkText || userEmail,
         opacity: watermarkOpacity || 0.3,
         fontSize: watermarkSize || 16,
+        position: 'center' as const,
       }
     : undefined;
 
@@ -188,7 +192,14 @@ export default function PreviewViewerClient({
           pdfUrl={pdfUrl}
           watermark={watermarkConfig}
           enableScreenshotPrevention={true}
+          enableReliabilityFeatures={enableReliabilityFeatures}
           onClose={() => window.location.href = '/dashboard'}
+          onRenderingError={(error, diagnostics) => {
+            console.error('[PreviewViewerClient] PDF rendering error:', error);
+            if (diagnostics) {
+              console.error('[PreviewViewerClient] Diagnostics:', diagnostics);
+            }
+          }}
         />
       );
 
@@ -226,7 +237,12 @@ export default function PreviewViewerClient({
         <ImageViewer
           imageUrl={imageUrl}
           metadata={imageMetadata}
-          watermark={watermarkConfig}
+          watermark={watermarkConfig ? {
+            text: watermarkConfig.text,
+            opacity: watermarkConfig.opacity,
+            fontSize: watermarkConfig.fontSize,
+            position: 'center' as const,
+          } : undefined}
           allowZoom={true}
           allowDownload={false}
           title={documentTitle}
@@ -270,7 +286,12 @@ export default function PreviewViewerClient({
         <VideoPlayer
           videoUrl={videoUrl}
           metadata={videoMetadata}
-          watermark={watermarkConfig}
+          watermark={watermarkConfig ? {
+            text: watermarkConfig.text,
+            opacity: watermarkConfig.opacity,
+            fontSize: watermarkConfig.fontSize,
+            position: 'center' as const,
+          } : undefined}
           autoplay={false}
           controls={true}
           title={documentTitle}

@@ -471,7 +471,7 @@ describe('PDFViewerWithPDFJS Text Selection Prevention Property Tests', () => {
               cancelable: true,
             });
 
-            let preventDefaultSpy = vi.spyOn(selectStartEvent, 'preventDefault');
+            const preventDefaultSpy = vi.spyOn(selectStartEvent, 'preventDefault');
             container.dispatchEvent(selectStartEvent);
             expect(preventDefaultSpy).toHaveBeenCalled();
 

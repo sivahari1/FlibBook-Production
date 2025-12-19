@@ -1,63 +1,47 @@
-import { PrismaClient } from '@prisma/client';
+#!/usr/bin/env tsx
 
-const prisma = new PrismaClient();
+/**
+ * Diagnostic script to check viewer rendering issues
+ */
 
-async function diagnoseViewerIssue() {
-  try {
-    console.log('🔍 Diagnosing viewer issue...\n');
+console.log('=== Viewer Diagnostic ===');
 
-    // Get the most recent document
-    const document = await prisma.document.findFirst({
-      where: {
-        contentType: 'PDF',
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-      include: {
-        pages: {
-          orderBy: {
-            pageNumber: 'asc',
-          },
-        },
-      },
-    });
+// Check if there are multiple toolbars being rendered
+console.log('Checking for duplicate toolbars...');
 
-    if (!document) {
-      console.log('❌ No PDF documents found');
-      return;
-    }
+// This would be run in browser console
+const diagnosticCode = `
+// Check for duplicate toolbars
+const toolbars = document.querySelectorAll('[data-testid*="toolbar"]');
+console.log('Found toolbars:', toolbars.length);
+toolbars.forEach((toolbar, index) => {
+  console.log(\`Toolbar \${index + 1}:\`, toolbar.getAttribute('data-testid'), toolbar.className);
+});
 
-    console.log('📄 Document:', {
-      id: document.id,
-      title: document.title,
-      contentType: document.contentType,
-      pageCount: document.pages.length,
-    });
+// Check for navigation elements
+const navElements = document.querySelectorAll('[data-testid*="navigation"], [data-testid*="page"]');
+console.log('Found navigation elements:', navElements.length);
+navElements.forEach((nav, index) => {
+  console.log(\`Nav \${index + 1}:\`, nav.getAttribute('data-testid'), nav.className);
+});
 
-    if (document.pages.length === 0) {
-      console.log('\n⚠️  Document has no pages! It needs to be converted.');
-      console.log('Run: npm run convert-document', document.id);
-      return;
-    }
+// Check for zoom controls
+const zoomElements = document.querySelectorAll('[data-testid*="zoom"]');
+console.log('Found zoom elements:', zoomElements.length);
+zoomElements.forEach((zoom, index) => {
+  console.log(\`Zoom \${index + 1}:\`, zoom.getAttribute('data-testid'), zoom.className);
+});
 
-    console.log('\n📑 Pages:');
-    document.pages.slice(0, 3).forEach((page) => {
-      console.log(`  Page ${page.pageNumber}:`, {
-        url: page.pageUrl.substring(0, 80) + '...',
-        dimensions: page.dimensions,
-      });
-    });
+// Check PDF viewer ref
+const pdfViewer = document.querySelector('[data-testid="pdfjs-viewer-container"]');
+console.log('PDF viewer container found:', !!pdfViewer);
 
-    console.log('\n✅ Document has pages and should display correctly');
-    console.log('\n🔗 View URL:');
-    console.log(`   http://localhost:3000/dashboard/documents/${document.id}/view`);
-    
-  } catch (error) {
-    console.error('❌ Error:', error);
-  } finally {
-    await prisma.$disconnect();
-  }
-}
+// Check if hideToolbar is working
+const pdfToolbar = document.querySelector('[data-testid="pdfjs-toolbar"]');
+console.log('PDF.js toolbar found (should be hidden):', !!pdfToolbar);
+`;
 
-diagnoseViewerIssue();
+console.log('Run this code in browser console:');
+console.log(diagnosticCode);
+
+export {};

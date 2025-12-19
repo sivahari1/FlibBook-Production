@@ -80,7 +80,7 @@ export async function GET(
     }
 
     return NextResponse.json(member)
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error fetching member details:', error)
     return NextResponse.json(
       { error: 'Failed to fetch member details' },

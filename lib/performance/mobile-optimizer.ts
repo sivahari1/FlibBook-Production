@@ -64,7 +64,7 @@ export interface DeviceInfo {
 export class MobileOptimizer {
   private options: Required<MobileOptimizationOptions>;
   private deviceInfo: DeviceInfo;
-  private touchHandlers: Map<string, any> = new Map();
+  private touchHandlers: Map<string, (event: TouchEvent) => void> = new Map();
 
   constructor(options: MobileOptimizationOptions = {}) {
     this.options = {
@@ -264,7 +264,7 @@ export class MobileOptimizer {
   /**
    * Debounce function
    */
-  private debounce<T extends (...args: any[]) => any>(
+  private debounce<T extends (...args: unknown[]) => unknown>(
     func: T,
     delay: number
   ): (...args: Parameters<T>) => void {
@@ -284,7 +284,7 @@ export class MobileOptimizer {
   /**
    * Throttle function
    */
-  private throttle<T extends (...args: any[]) => any>(
+  private throttle<T extends (...args: unknown[]) => unknown>(
     func: T,
     delay: number
   ): (...args: Parameters<T>) => void {

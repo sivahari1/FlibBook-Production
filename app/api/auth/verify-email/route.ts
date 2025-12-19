@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
         email: true, 
         emailVerified: true,
         userRole: true,
-      } as any, // Type assertion for newly added field
+      },
     });
 
     if (!user) {
@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Determine redirect URL based on user role
-    const redirectUrl = (user as any).userRole === 'MEMBER' ? '/login' : '/dashboard';
+    const redirectUrl = user.userRole === 'MEMBER' ? '/login' : '/dashboard';
 
     // If already verified, return success (idempotent)
     if (user.emailVerified) {
@@ -121,7 +121,7 @@ export async function POST(request: NextRequest) {
       data: {
         emailVerified: true,
         emailVerifiedAt: new Date(),
-      } as any, // Type assertion needed due to Prisma client generation issue
+      },
     });
 
     // Invalidate all email verification tokens for this user
@@ -131,7 +131,7 @@ export async function POST(request: NextRequest) {
     logger.logAuthAttempt('verify_email', true, {
       userId,
       email: user.email,
-      userRole: (user as any).userRole,
+      userRole: user.userRole,
     });
 
     return NextResponse.json(
@@ -142,7 +142,7 @@ export async function POST(request: NextRequest) {
       },
       { status: 200 }
     );
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Email verification error', { 
       error: error instanceof Error ? error.message : 'Unknown error' 
     });

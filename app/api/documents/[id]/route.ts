@@ -58,7 +58,7 @@ export async function GET(
     delete (documentResponse as any)._count
 
     return NextResponse.json(documentResponse)
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error fetching document', error)
     return NextResponse.json(
       { error: 'Failed to fetch document' },
@@ -155,7 +155,7 @@ export async function DELETE(
     return NextResponse.json({
       message: 'Document deleted successfully'
     })
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error deleting document', error)
     return NextResponse.json(
       { error: 'Failed to delete document' },

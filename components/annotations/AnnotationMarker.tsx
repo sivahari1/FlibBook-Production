@@ -81,7 +81,7 @@ export function AnnotationMarker({
             {annotation.mediaType === 'AUDIO' ? '🎵 Audio' : '🎬 Video'} Annotation
           </div>
           <div className="text-gray-300 line-clamp-2">
-            "{annotation.selectedText}"
+            &quot;{annotation.selectedText}&quot;
           </div>
           {isPrivate && (
             <div className="text-yellow-400 text-xs mt-1">

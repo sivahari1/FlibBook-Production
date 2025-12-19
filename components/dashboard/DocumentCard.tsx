@@ -3,7 +3,7 @@
 import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { useState } from 'react';
-import { ContentType } from '@/lib/types/content';
+import { ContentType, ContentMetadata } from '@/lib/types/content';
 
 interface DocumentCardProps {
   document: {
@@ -13,7 +13,7 @@ interface DocumentCardProps {
     fileSize: bigint;
     createdAt: string;
     contentType?: string;
-    metadata?: any;
+    metadata?: ContentMetadata;
     linkUrl?: string;
   };
   onDelete: (id: string) => void;
@@ -94,9 +94,9 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
   };
 
   // Get type-specific metadata display
-  const getMetadataDisplay = () => {
+  const getMetadataDisplay = (): string | null => {
     const contentType = document.contentType || 'PDF';
-    const metadata = document.metadata || {};
+    const metadata: ContentMetadata = document.metadata || {};
 
     switch (contentType) {
       case 'IMAGE':
@@ -229,7 +229,7 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
                 variant="secondary"
                 asChild
               >
-                <a href={`/dashboard/documents/${document.id}/preview`}>
+                <a href={`/dashboard/documents/${document.id}/view`}>
                   <svg
                     className="w-4 h-4 mr-1"
                     fill="none"

@@ -1,8 +1,18 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/role-check'
 import { prisma } from '@/lib/db'
 import { logger } from '@/lib/logger'
 import { ContentType } from '@/lib/types/content'
+
+interface TopPerformingItem {
+  id: string;
+  title: string;
+  contentType: string;
+  isFree: boolean;
+  price: number | null;
+  purchases: number;
+  revenue: number;
+}
 
 /**
  * GET /api/admin/bookshop/analytics
@@ -10,7 +20,7 @@ import { ContentType } from '@/lib/types/content'
  * Admin only
  * Requirements: 12.5
  */
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     // Verify admin role
     const authError = await requireAdmin()
@@ -122,7 +132,7 @@ export async function GET(request: NextRequest) {
     })
 
     // Get top performing items by content type
-    const topItemsByType: Record<string, any[]> = {}
+    const topItemsByType: Record<string, TopPerformingItem[]> = {}
     
     for (const type of Object.values(ContentType)) {
       const topItems = await prisma.bookShopItem.findMany({
@@ -180,7 +190,7 @@ export async function GET(request: NextRequest) {
       topItemsByType,
       generatedAt: new Date().toISOString()
     })
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error fetching BookShop analytics', {
       error: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : undefined

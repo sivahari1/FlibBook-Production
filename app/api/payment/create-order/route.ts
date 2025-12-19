@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
     let validatedData;
     try {
       validatedData = createPaymentOrderSchema.parse(body);
-    } catch (error) {
+    } catch (error: unknown) {
       if (error instanceof ZodError) {
         return NextResponse.json(
           { error: error.issues[0].message },
@@ -189,7 +189,7 @@ export async function POST(req: NextRequest) {
       currency: 'INR',
       paymentId: payment.id,
     });
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error creating Razorpay order', {
       error: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : undefined,

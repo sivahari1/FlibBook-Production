@@ -140,3 +140,11 @@ export function DynamicImageViewerExample({ imageData }: { imageData: any }) {
     />
   );
 }
+
+// Add display names to all example components
+BasicImageViewerExample.displayName = 'BasicImageViewerExample';
+WatermarkedImageViewerExample.displayName = 'WatermarkedImageViewerExample';
+NoZoomImageViewerExample.displayName = 'NoZoomImageViewerExample';
+DownloadableImageViewerExample.displayName = 'DownloadableImageViewerExample';
+SharedImageViewerExample.displayName = 'SharedImageViewerExample';
+DynamicImageViewerExample.displayName = 'DynamicImageViewerExample';

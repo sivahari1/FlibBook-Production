@@ -48,10 +48,10 @@ export async function GET() {
       },
       warning: 'This endpoint should be removed after debugging'
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json({
       success: false,
-      error: error.message,
+      error: error instanceof Error ? error.message : 'Unknown error',
       timestamp: new Date().toISOString()
     }, { status: 500 });
   }

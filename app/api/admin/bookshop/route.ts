@@ -5,6 +5,7 @@ import { logger } from '@/lib/logger'
 import { createBookShopItemSchema, bookShopQuerySchema } from '@/lib/validation/jstudyroom'
 import { ZodError } from 'zod'
 import { ContentType } from '@/lib/types/content'
+import type { BookshopWhereClause } from '@/lib/types/api'
 
 /**
  * GET /api/admin/bookshop
@@ -27,7 +28,7 @@ export async function GET(request: NextRequest) {
         category: searchParams.get('category') || undefined,
         search: searchParams.get('search') || undefined,
       })
-    } catch (error) {
+    } catch (error: unknown) {
       if (error instanceof ZodError) {
         return NextResponse.json(
           { error: error.issues[0].message },
@@ -41,7 +42,7 @@ export async function GET(request: NextRequest) {
     const isPublished = searchParams.get('isPublished')
 
     // Build where clause
-    const where: any = {}
+    const where: Partial<BookshopWhereClause> & { OR?: Array<{ title?: { contains: string; mode: 'insensitive' }; description?: { contains: string; mode: 'insensitive' } }> } = {}
     
     if (category) {
       where.category = category
@@ -142,7 +143,7 @@ export async function GET(request: NextRequest) {
         totalPages: Math.ceil(total / limit)
       }
     })
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error fetching Book Shop items', error)
 
     return NextResponse.json(
@@ -170,7 +171,7 @@ export async function POST(request: NextRequest) {
     let validatedData;
     try {
       validatedData = createBookShopItemSchema.parse(body)
-    } catch (error) {
+    } catch (error: unknown) {
       if (error instanceof ZodError) {
         return NextResponse.json(
           { error: error.issues[0].message },
@@ -272,7 +273,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(response, { status: 201 })
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error creating Book Shop item', error)
 
     return NextResponse.json(

@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/Input';
 import { ContentTypeSelector } from '@/components/upload/ContentTypeSelector';
 import { FileUploader } from '@/components/upload/FileUploader';
 import { LinkUploader } from '@/components/upload/LinkUploader';
+import { BookshopIntegrationSection } from '@/components/upload/BookshopIntegrationSection';
 import { ContentType, UploadData, BookShopItemData, LinkMetadata } from '@/lib/types/content';
 import { getAllowedContentTypes, canUploadToBookShop } from '@/lib/rbac/admin-privileges';
 import type { UserRole } from '@/lib/rbac/admin-privileges';
@@ -22,7 +23,7 @@ import type { UserRole } from '@/lib/rbac/admin-privileges';
 interface EnhancedUploadModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onUpload: (data: UploadData) => Promise<void>;
+  onUploadSuccess?: () => void;
   userRole: UserRole;
   showBookShopOption?: boolean;
 }
@@ -30,7 +31,7 @@ interface EnhancedUploadModalProps {
 export const EnhancedUploadModal: React.FC<EnhancedUploadModalProps> = ({
   isOpen,
   onClose,
-  onUpload,
+  onUploadSuccess,
   userRole,
   showBookShopOption = false,
 }) => {
@@ -52,9 +53,13 @@ export const EnhancedUploadModal: React.FC<EnhancedUploadModalProps> = ({
   // BookShop options
   const [uploadToBookShop, setUploadToBookShop] = useState(false);
   const [bookShopCategory, setBookShopCategory] = useState('');
-  const [bookShopPrice, setBookShopPrice] = useState('0');
-  const [bookShopIsFree, setBookShopIsFree] = useState(true);
-  const [bookShopIsPublished, setBookShopIsPublished] = useState(true);
+  const [bookShopPrice, setBookShopPrice] = useState(0);
+  const [bookShopDescription, setBookShopDescription] = useState('');
+  const [bookShopErrors, setBookShopErrors] = useState<{
+    category?: string;
+    price?: string;
+    description?: string;
+  }>({});
 
   // UI state
   const [isUploading, setIsUploading] = useState(false);
@@ -75,9 +80,9 @@ export const EnhancedUploadModal: React.FC<EnhancedUploadModalProps> = ({
     setLinkMetadata(null);
     setUploadToBookShop(false);
     setBookShopCategory('');
-    setBookShopPrice('0');
-    setBookShopIsFree(true);
-    setBookShopIsPublished(true);
+    setBookShopPrice(0);
+    setBookShopDescription('');
+    setBookShopErrors({});
     setError('');
     setSuccessMessage('');
     setUploadProgress(0);
@@ -132,6 +137,11 @@ export const EnhancedUploadModal: React.FC<EnhancedUploadModalProps> = ({
 
   // Validate form
   const validateForm = (): boolean => {
+    // Clear previous errors
+    setError('');
+    setBookShopErrors({});
+
+    // Basic validation
     if (!title.trim()) {
       setError('Please enter a title');
       return false;
@@ -149,17 +159,23 @@ export const EnhancedUploadModal: React.FC<EnhancedUploadModalProps> = ({
       }
     }
 
+    // BookShop validation
     if (uploadToBookShop) {
+      const errors: typeof bookShopErrors = {};
+      
       if (!bookShopCategory.trim()) {
-        setError('Please enter a category for BookShop');
-        return false;
+        errors.category = 'Please select a category';
       }
-      if (!bookShopIsFree) {
-        const price = parseFloat(bookShopPrice);
-        if (isNaN(price) || price < 0) {
-          setError('Please enter a valid price');
-          return false;
-        }
+      
+      if (bookShopPrice < 0 || bookShopPrice === null || bookShopPrice === undefined) {
+        errors.price = 'Price must be 0 or greater';
+      } else if (bookShopPrice > 10000) {
+        errors.price = 'Price cannot exceed ₹10,000';
+      }
+
+      if (Object.keys(errors).length > 0) {
+        setBookShopErrors(errors);
+        return false;
       }
     }
 
@@ -198,12 +214,12 @@ export const EnhancedUploadModal: React.FC<EnhancedUploadModalProps> = ({
       if (uploadToBookShop && canUploadBookShop) {
         const bookShopData: BookShopItemData = {
           title: title.trim(),
-          description: description.trim() || undefined,
+          description: bookShopDescription.trim() || description.trim() || undefined,
           contentType: selectedType,
           category: bookShopCategory.trim(),
-          price: bookShopIsFree ? 0 : parseFloat(bookShopPrice),
-          isFree: bookShopIsFree,
-          isPublished: bookShopIsPublished,
+          price: bookShopPrice,
+          isFree: bookShopPrice === 0,
+          isPublished: true,
         };
 
         if (selectedType === ContentType.LINK) {
@@ -219,16 +235,67 @@ export const EnhancedUploadModal: React.FC<EnhancedUploadModalProps> = ({
       // Simulate progress (actual progress would come from upload API)
       setUploadProgress(30);
 
-      // Call upload handler
-      await onUpload(uploadData);
+      // Create FormData for API call
+      const formData = new FormData();
+      formData.append('contentType', selectedType);
+      formData.append('title', title.trim());
+      if (description.trim()) {
+        formData.append('description', description.trim());
+      }
 
+      if (selectedType === ContentType.LINK) {
+        formData.append('linkUrl', linkUrl);
+      } else if (selectedFile) {
+        formData.append('file', selectedFile);
+      }
+
+      // Add bookshop fields if enabled
+      if (uploadToBookShop && canUploadBookShop) {
+        formData.append('addToBookshop', 'true');
+        formData.append('bookshopCategory', bookShopCategory.trim());
+        formData.append('bookshopPrice', bookShopPrice.toString());
+        if (bookShopDescription.trim()) {
+          formData.append('bookshopDescription', bookShopDescription.trim());
+        }
+      }
+
+      // Call API directly instead of using onUpload handler
+      const response = await fetch('/api/documents/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Upload failed');
+      }
+
+      const result = await response.json();
       setUploadProgress(100);
-      
-      // Show success message with content details
-      // Requirement 9.5: Display success confirmation with content details
-      setSuccessMessage(
-        `Successfully uploaded ${selectedType.toLowerCase()}: "${title}"`
-      );
+
+      // Show appropriate success message
+      if (result.bookShopItem) {
+        setSuccessMessage(
+          `Successfully uploaded ${selectedType.toLowerCase()}: "${title}" and added to ${bookShopCategory} category in bookshop`
+        );
+      } else {
+        setSuccessMessage(
+          `Successfully uploaded ${selectedType.toLowerCase()}: "${title}"`
+        );
+      }
+
+      // Show warning if there was a partial failure
+      if (result.warning) {
+        setTimeout(() => {
+          setError(result.warning);
+        }, 2000);
+      }
+
+
+      // Call success callback if provided
+      if (onUploadSuccess) {
+        onUploadSuccess();
+      }
 
       // Reset form after short delay
       setTimeout(() => {
@@ -254,13 +321,7 @@ export const EnhancedUploadModal: React.FC<EnhancedUploadModalProps> = ({
     }
   };
 
-  // Handle price type change
-  const handlePriceTypeChange = (isFree: boolean) => {
-    setBookShopIsFree(isFree);
-    if (isFree) {
-      setBookShopPrice('0');
-    }
-  };
+
 
   return (
     <Modal
@@ -348,121 +409,21 @@ export const EnhancedUploadModal: React.FC<EnhancedUploadModalProps> = ({
           </div>
         )}
 
-        {/* BookShop Upload Option */}
+        {/* BookShop Integration Section */}
         {/* Requirement 11.1: Provide option to upload to BookShop for admins */}
         {canUploadBookShop && showBookShopOption && (
-          <div className="border-t border-gray-200 dark:border-gray-700 pt-6 space-y-4">
-            <div className="flex items-center">
-              <input
-                id="upload-to-bookshop"
-                type="checkbox"
-                checked={uploadToBookShop}
-                onChange={(e) => setUploadToBookShop(e.target.checked)}
-                disabled={isUploading}
-                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-              />
-              <label
-                htmlFor="upload-to-bookshop"
-                className="ml-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-              >
-                Upload to BookShop
-              </label>
-            </div>
-
-            {uploadToBookShop && (
-              <div className="ml-6 space-y-4 bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
-                {/* Category */}
-                <Input
-                  label="Category"
-                  type="text"
-                  value={bookShopCategory}
-                  onChange={(e) => setBookShopCategory(e.target.value)}
-                  placeholder="e.g., Mathematics, Science, Literature"
-                  disabled={isUploading}
-                  required={uploadToBookShop}
-                />
-
-                {/* Pricing */}
-                <div className="space-y-3">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Pricing
-                  </label>
-                  <div className="flex items-center space-x-4">
-                    <label className="flex items-center">
-                      <input
-                        type="radio"
-                        checked={bookShopIsFree}
-                        onChange={() => handlePriceTypeChange(true)}
-                        disabled={isUploading}
-                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-                      />
-                      <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">
-                        Free
-                      </span>
-                    </label>
-                    <label className="flex items-center">
-                      <input
-                        type="radio"
-                        checked={!bookShopIsFree}
-                        onChange={() => handlePriceTypeChange(false)}
-                        disabled={isUploading}
-                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-                      />
-                      <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">
-                        Paid
-                      </span>
-                    </label>
-                  </div>
-
-                  {!bookShopIsFree && (
-                    <Input
-                      label="Price (₹)"
-                      type="number"
-                      value={bookShopPrice}
-                      onChange={(e) => setBookShopPrice(e.target.value)}
-                      placeholder="0.00"
-                      min="0"
-                      step="0.01"
-                      disabled={isUploading}
-                      required={!bookShopIsFree}
-                    />
-                  )}
-                </div>
-
-                {/* Visibility */}
-                <div className="space-y-3">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Visibility
-                  </label>
-                  <div className="flex items-center space-x-4">
-                    <label className="flex items-center">
-                      <input
-                        type="radio"
-                        checked={bookShopIsPublished}
-                        onChange={() => setBookShopIsPublished(true)}
-                        disabled={isUploading}
-                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-                      />
-                      <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">
-                        Published
-                      </span>
-                    </label>
-                    <label className="flex items-center">
-                      <input
-                        type="radio"
-                        checked={!bookShopIsPublished}
-                        onChange={() => setBookShopIsPublished(false)}
-                        disabled={isUploading}
-                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-                      />
-                      <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">
-                        Draft
-                      </span>
-                    </label>
-                  </div>
-                </div>
-              </div>
-            )}
+          <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
+            <BookshopIntegrationSection
+              isEnabled={uploadToBookShop}
+              onToggle={setUploadToBookShop}
+              category={bookShopCategory}
+              onCategoryChange={setBookShopCategory}
+              price={bookShopPrice}
+              onPriceChange={setBookShopPrice}
+              description={bookShopDescription}
+              onDescriptionChange={setBookShopDescription}
+              errors={bookShopErrors}
+            />
           </div>
         )}
 

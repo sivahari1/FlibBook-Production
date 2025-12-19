@@ -4,12 +4,17 @@
  * Provides fallback rendering when PDF.js is unavailable or encounters errors.
  * Falls back to native browser PDF viewer or download option.
  * 
- * Requirements: 2.5
+ * INFINITE LOOP PREVENTION APPLIED:
+ * - Callback dependencies stabilized with refs
+ * - Consistent with main viewer patterns
+ * - Proper cleanup and error handling
+ * 
+ * Requirements: 2.5, 1.1, 1.2
  */
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Download, AlertCircle, Info } from 'lucide-react';
 import {
   FallbackMethod,
@@ -74,10 +79,21 @@ export default function PDFJSFallbackViewer({
     fallbackConfig.showNotification
   );
   
-  // Notify parent when fallback is used
+  // Notify parent when fallback is used with stable dependencies
+  // Requirements: 1.1, 1.2 - Use ref for callback to prevent infinite loops
+  const onFallbackUsedRef = useRef(onFallbackUsed);
+  
+  // Update ref when prop changes
   useEffect(() => {
-    onFallbackUsed?.(fallbackConfig.method);
-  }, [fallbackConfig.method, onFallbackUsed]);
+    onFallbackUsedRef.current = onFallbackUsed;
+  }, [onFallbackUsed]);
+
+  useEffect(() => {
+    // Use ref-based callback to avoid dependency
+    if (onFallbackUsedRef.current) {
+      onFallbackUsedRef.current(fallbackConfig.method);
+    }
+  }, [fallbackConfig.method]); // FIXED: Only depend on method - use ref for callback
   
   // Get fallback URL
   const fallbackUrl = getFallbackURL(pdfUrl, fallbackConfig.method);

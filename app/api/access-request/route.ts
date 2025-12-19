@@ -4,8 +4,6 @@ import { sendAccessRequestNotification } from '@/lib/email';
 import { logger } from '@/lib/logger';
 import { sanitizeString } from '@/lib/sanitization';
 import { checkRateLimit as checkRateLimitUtil, RATE_LIMITS } from '@/lib/rate-limit';
-import { accessRequestSchema } from '@/lib/validation/jstudyroom';
-import { ZodError } from 'zod';
 
 /**
  * Check if IP has exceeded rate limit (using centralized rate limit)
@@ -180,7 +178,7 @@ export async function POST(request: NextRequest) {
       message: 'Access request submitted successfully',
       requestId: accessRequest.id,
     });
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error creating access request', {
       error: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : undefined,

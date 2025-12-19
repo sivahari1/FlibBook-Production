@@ -60,6 +60,7 @@ export default function AccessRequestsPage() {
 
   useEffect(() => {
     fetchRequests()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statusFilter, page])
 
   const handleViewDetails = (request: AccessRequest) => {

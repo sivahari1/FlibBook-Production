@@ -148,7 +148,7 @@ export const ContentFilter: React.FC<ContentFilterProps> = ({
           )}
           {searchQuery && (
             <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-              Search: "{searchQuery}"
+              Search: &quot;{searchQuery}&quot;
               <button
                 onClick={() => {
                   setSearchQuery('');

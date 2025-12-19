@@ -13,6 +13,7 @@ import { authOptions } from '@/lib/auth'
 import { getEmailSharesForUser } from '@/lib/documents'
 import { logger } from '@/lib/logger'
 import { InboxItem } from '@/lib/types/sharing'
+import type { EmailShareWithDocument } from '@/lib/types/api'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -64,7 +65,7 @@ export async function GET(request: NextRequest) {
 
     // Filter out expired shares and apply pagination
     const now = new Date()
-    const activeShares = emailShares.filter((share: any) => {
+    const activeShares = emailShares.filter((share: EmailShareWithDocument) => {
       if (!share.expiresAt) return true
       return share.expiresAt > now
     })
@@ -73,7 +74,7 @@ export async function GET(request: NextRequest) {
     const paginatedShares = activeShares.slice(offset, offset + limit)
 
     // Transform to InboxItem format
-    const inboxItems: InboxItem[] = paginatedShares.map((share: any) => ({
+    const inboxItems: InboxItem[] = paginatedShares.map((share: EmailShareWithDocument) => ({
       id: share.id,
       document: {
         id: share.document.id,
@@ -113,7 +114,7 @@ export async function GET(request: NextRequest) {
       { status: 200 }
     )
 
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error retrieving inbox', {
       error: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : undefined

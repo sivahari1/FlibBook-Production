@@ -1,5 +1,4 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { NextRequest } from 'next/server';
 
 // Mock the database
 vi.mock('../../../../lib/db', () => ({
@@ -67,10 +66,12 @@ const mockAnnotation = {
 };
 
 describe('Annotations API Integration', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
-    vi.mocked(require('next-auth').getServerSession).mockResolvedValue(mockSession);
-    vi.mocked(require('../../../../lib/security/media-security').validateMediaAccess).mockResolvedValue(true);
+    const { getServerSession } = await import('next-auth');
+    const { validateMediaAccess } = await import('../../../../lib/security/media-security');
+    vi.mocked(getServerSession).mockResolvedValue(mockSession);
+    vi.mocked(validateMediaAccess).mockResolvedValue(true);
   });
 
   afterEach(() => {
@@ -82,7 +83,7 @@ describe('Annotations API Integration', () => {
       // This test validates Requirements 14.2, 17.2
       // Property: Annotation retrieval returns correct data
       
-      const db = require('../../../../lib/db').default;
+      const db = (await import('../../../../lib/db')).default;
       db.document.findUnique.mockResolvedValue(mockDocument);
       db.annotation.findMany.mockResolvedValue([mockAnnotation]);
 

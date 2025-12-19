@@ -1,12 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { hash } from 'bcryptjs';
 import { prisma } from '@/lib/db';
-import { sanitizeString, sanitizeEmail } from '@/lib/sanitization';
 import { logger } from '@/lib/logger';
 import { generateVerificationToken } from '@/lib/tokens';
 import { sendVerificationEmail } from '@/lib/email';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
 import { memberRegistrationSchema } from '@/lib/validation/jstudyroom';
 import { ZodError } from 'zod';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
@@ -25,7 +22,7 @@ export async function POST(request: NextRequest) {
     let validatedData;
     try {
       validatedData = memberRegistrationSchema.parse(body);
-    } catch (error) {
+    } catch (error: unknown) {
       if (error instanceof ZodError) {
         return NextResponse.json(
           { error: error.issues[0].message },
@@ -115,7 +112,7 @@ export async function POST(request: NextRequest) {
         });
         // Don't fail registration if email fails - user can resend later
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to generate token or send verification email', {
         userId: user.id,
         error
@@ -139,7 +136,7 @@ export async function POST(request: NextRequest) {
       },
       { status: 201 }
     );
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Registration error', error);
     return NextResponse.json(
       { error: 'An error occurred during registration' },

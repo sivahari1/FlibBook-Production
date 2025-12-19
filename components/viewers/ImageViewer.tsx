@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import DRMProtection from '../security/DRMProtection';
 import DevToolsDetector from '../security/DevToolsDetector';
 import { ImageMetadata, WatermarkConfig } from '@/lib/types/content';
@@ -46,24 +46,24 @@ export default function ImageViewer({
     setLoading(false);
   };
 
-  // Zoom controls
-  const zoomIn = () => {
+  // Zoom controls - allowZoom is a prop that rarely changes, keep dependency
+  const zoomIn = useCallback(() => {
     if (allowZoom) {
-      setScale(Math.min(scale + 0.25, 3));
+      setScale(prev => Math.min(prev + 0.25, 3));
     }
-  };
+  }, [allowZoom]);
 
-  const zoomOut = () => {
+  const zoomOut = useCallback(() => {
     if (allowZoom) {
-      setScale(Math.max(scale - 0.25, 0.5));
+      setScale(prev => Math.max(prev - 0.25, 0.5));
     }
-  };
+  }, [allowZoom]);
 
-  const resetZoom = () => {
+  const resetZoom = useCallback(() => {
     if (allowZoom) {
       setScale(1);
     }
-  };
+  }, [allowZoom]);
 
   // Keyboard shortcuts for zoom
   useEffect(() => {
@@ -84,7 +84,7 @@ export default function ImageViewer({
 
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [scale, allowZoom]);
+  }, [allowZoom, zoomIn, zoomOut, resetZoom]);
 
   return (
     <DRMProtection>

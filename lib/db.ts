@@ -63,8 +63,9 @@ export async function testDatabaseConnection(maxRetries = 3): Promise<boolean> {
       await prisma.$queryRaw`SELECT 1`
       console.log('✅ Database connection successful')
       return true
-    } catch (error: any) {
-      console.error(`❌ Database connection attempt ${attempt}/${maxRetries} failed:`, error.message)
+    } catch (error) {
+      const err = error as Error;
+      console.error(`❌ Database connection attempt ${attempt}/${maxRetries} failed:`, err.message)
       
       if (attempt < maxRetries) {
         // Wait before retrying (exponential backoff)

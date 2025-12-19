@@ -41,7 +41,15 @@ export const LinkShareForm: React.FC<LinkShareFormProps> = ({
     setError(null);
 
     try {
-      const payload: any = {
+      const payload: {
+        documentId: string;
+        canDownload: boolean;
+        expiresAt?: string;
+        maxViews?: number;
+        password?: string;
+        restrictToEmail?: string;
+        watermarkText?: string;
+      } = {
         documentId,
         canDownload: formData.canDownload,
       };

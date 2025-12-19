@@ -64,7 +64,7 @@ export async function GET(
       views: analytics
     });
 
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error fetching analytics', error);
     return NextResponse.json(
       { error: 'Failed to fetch analytics' },

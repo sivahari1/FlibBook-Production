@@ -12,7 +12,7 @@ export interface LogContext {
   method?: string;
   statusCode?: number;
   duration?: number;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 /**
@@ -238,7 +238,7 @@ export function createRequestLogger() {
 /**
  * Helper to sanitize sensitive data from logs
  */
-export function sanitizeLogData(data: any): any {
+export function sanitizeLogData(data: unknown): unknown {
   if (!data || typeof data !== 'object') return data;
   
   const sensitiveKeys = [

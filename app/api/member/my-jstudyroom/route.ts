@@ -10,7 +10,7 @@ import { ZodError } from 'zod';
  * GET /api/member/my-jstudyroom
  * List all documents in Member's My jstudyroom
  */
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const session = await getServerSession(authOptions);
 
@@ -82,7 +82,7 @@ export async function GET(request: NextRequest) {
         total: (user?.freeDocumentCount || 0) + (user?.paidDocumentCount || 0),
       },
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error fetching My jstudyroom items:', error);
     return NextResponse.json(
       { error: 'Failed to fetch My jstudyroom items' },
@@ -120,7 +120,7 @@ export async function POST(request: NextRequest) {
     let validatedData;
     try {
       validatedData = addToMyJstudyroomSchema.parse(body);
-    } catch (error) {
+    } catch (error: unknown) {
       if (error instanceof ZodError) {
         return NextResponse.json(
           { error: error.issues[0].message },
@@ -204,7 +204,7 @@ export async function POST(request: NextRequest) {
         total: (user?.freeDocumentCount || 0) + (user?.paidDocumentCount || 0),
       },
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error adding document to My jstudyroom:', error);
     return NextResponse.json(
       { error: 'Failed to add document to My jstudyroom' },

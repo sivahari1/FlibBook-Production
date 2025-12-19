@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useCallback } from 'react';
-import { X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, BookOpen, Scroll, Menu } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, BookOpen, Scroll, Menu, Maximize, Minimize } from 'lucide-react';
 import { ViewMode } from './SimpleDocumentViewer';
 
 export interface ViewerToolbarProps {
@@ -14,6 +14,14 @@ export interface ViewerToolbarProps {
   onViewModeChange: (mode: ViewMode) => void;
   onZoomChange: (zoom: number) => void;
   onClose?: () => void;
+  // Flipbook navigation features
+  enableFlipbookNavigation?: boolean;
+  showPageNumbers?: boolean;
+  enableZoom?: boolean;
+  // Fullscreen functionality
+  enableFullscreen?: boolean;
+  isFullscreen?: boolean;
+  onToggleFullscreen?: () => void;
 }
 
 /**
@@ -39,6 +47,14 @@ const ViewerToolbar = React.memo(function ViewerToolbar({
   onViewModeChange,
   onZoomChange,
   onClose,
+  // Flipbook navigation features
+  enableFlipbookNavigation = false,
+  showPageNumbers = true,
+  enableZoom = true,
+  // Fullscreen functionality
+  enableFullscreen = true,
+  isFullscreen = false,
+  onToggleFullscreen,
 }: ViewerToolbarProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
@@ -135,6 +151,22 @@ const ViewerToolbar = React.memo(function ViewerToolbar({
           role="group"
           aria-label="Page navigation controls"
         >
+          {/* First page button (flipbook style) */}
+          {enableFlipbookNavigation && (
+            <button
+              onClick={() => onPageChange(1)}
+              disabled={currentPage === 1}
+              className="p-2 text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
+              title="First page (Home)"
+              aria-label="Go to first page"
+              data-testid="first-page-button"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+              </svg>
+            </button>
+          )}
+
           <button
             onClick={handlePrevPage}
             disabled={currentPage === 1}
@@ -146,32 +178,34 @@ const ViewerToolbar = React.memo(function ViewerToolbar({
             <ChevronLeft className="w-4 h-4" aria-hidden="true" />
           </button>
 
-          <div className="flex items-center gap-1 bg-gray-700 rounded px-2 py-1">
-            <label htmlFor="page-input" className="sr-only">
-              Current page number
-            </label>
-            <input
-              id="page-input"
-              type="number"
-              value={currentPage}
-              onChange={handlePageInputChange}
-              onKeyDown={handlePageInputKeyDown}
-              className="w-10 bg-transparent text-white text-center text-sm outline-none focus:ring-2 focus:ring-blue-500 rounded"
-              min={1}
-              max={totalPages}
-              aria-label={`Page ${currentPage} of ${totalPages}. Enter page number to navigate`}
-              aria-describedby="page-count"
-              data-testid="page-input"
-            />
-            <span 
-              id="page-count"
-              className="text-gray-400 text-sm whitespace-nowrap" 
-              data-testid="page-count"
-              aria-label={`Total pages: ${totalPages}`}
-            >
-              / {totalPages}
-            </span>
-          </div>
+          {showPageNumbers && (
+            <div className="flex items-center gap-1 bg-gray-700 rounded px-2 py-1">
+              <label htmlFor="page-input" className="sr-only">
+                Current page number
+              </label>
+              <input
+                id="page-input"
+                type="number"
+                value={currentPage}
+                onChange={handlePageInputChange}
+                onKeyDown={handlePageInputKeyDown}
+                className="w-10 bg-transparent text-white text-center text-sm outline-none focus:ring-2 focus:ring-blue-500 rounded"
+                min={1}
+                max={totalPages}
+                aria-label={`Page ${currentPage} of ${totalPages}. Enter page number to navigate`}
+                aria-describedby="page-count"
+                data-testid="page-input"
+              />
+              <span 
+                id="page-count"
+                className="text-gray-400 text-sm whitespace-nowrap" 
+                data-testid="page-count"
+                aria-label={`Total pages: ${totalPages}`}
+              >
+                / {totalPages}
+              </span>
+            </div>
+          )}
 
           <button
             onClick={handleNextPage}
@@ -183,6 +217,22 @@ const ViewerToolbar = React.memo(function ViewerToolbar({
           >
             <ChevronRight className="w-4 h-4" aria-hidden="true" />
           </button>
+
+          {/* Last page button (flipbook style) */}
+          {enableFlipbookNavigation && (
+            <button
+              onClick={() => onPageChange(totalPages)}
+              disabled={currentPage === totalPages}
+              className="p-2 text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
+              title="Last page (End)"
+              aria-label="Go to last page"
+              data-testid="last-page-button"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+              </svg>
+            </button>
+          )}
         </div>
 
         {/* Zoom controls - compact */}
@@ -192,34 +242,38 @@ const ViewerToolbar = React.memo(function ViewerToolbar({
           role="group"
           aria-label="View and zoom controls"
         >
-          <button
-            onClick={handleZoomOut}
-            disabled={zoomLevel <= 0.5}
-            className="p-2 text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
-            title="Zoom out"
-            aria-label={`Zoom out. Current zoom level is ${Math.round(zoomLevel * 100)}%`}
-            data-testid="zoom-out-button"
-          >
-            <ZoomOut className="w-4 h-4" aria-hidden="true" />
-          </button>
-          <span 
-            className="text-gray-400 text-xs w-10 text-center"
-            data-testid="zoom-level"
-            aria-label={`Current zoom level: ${Math.round(zoomLevel * 100)} percent`}
-            role="status"
-          >
-            {Math.round(zoomLevel * 100)}%
-          </span>
-          <button
-            onClick={handleZoomIn}
-            disabled={zoomLevel >= 3.0}
-            className="p-2 text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
-            title="Zoom in"
-            aria-label={`Zoom in. Current zoom level is ${Math.round(zoomLevel * 100)}%`}
-            data-testid="zoom-in-button"
-          >
-            <ZoomIn className="w-4 h-4" aria-hidden="true" />
-          </button>
+          {enableZoom && (
+            <>
+              <button
+                onClick={handleZoomOut}
+                disabled={zoomLevel <= 0.5}
+                className="p-2 text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
+                title="Zoom out"
+                aria-label={`Zoom out. Current zoom level is ${Math.round(zoomLevel * 100)}%`}
+                data-testid="zoom-out-button"
+              >
+                <ZoomOut className="w-4 h-4" aria-hidden="true" />
+              </button>
+              <span 
+                className="text-gray-400 text-xs w-10 text-center"
+                data-testid="zoom-level"
+                aria-label={`Current zoom level: ${Math.round(zoomLevel * 100)} percent`}
+                role="status"
+              >
+                {Math.round(zoomLevel * 100)}%
+              </span>
+              <button
+                onClick={handleZoomIn}
+                disabled={zoomLevel >= 3.0}
+                className="p-2 text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
+                title="Zoom in"
+                aria-label={`Zoom in. Current zoom level is ${Math.round(zoomLevel * 100)}%`}
+                data-testid="zoom-in-button"
+              >
+                <ZoomIn className="w-4 h-4" aria-hidden="true" />
+              </button>
+            </>
+          )}
 
           {/* View mode toggle */}
           <button
@@ -235,6 +289,23 @@ const ViewerToolbar = React.memo(function ViewerToolbar({
               <Scroll className="w-4 h-4" aria-hidden="true" />
             )}
           </button>
+
+          {/* Fullscreen toggle */}
+          {enableFullscreen && onToggleFullscreen && (
+            <button
+              onClick={onToggleFullscreen}
+              className="p-2 text-gray-400 hover:text-white transition-colors flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
+              title={isFullscreen ? 'Exit fullscreen (F11)' : 'Enter fullscreen (F11)'}
+              aria-label={`${isFullscreen ? 'Exit' : 'Enter'} fullscreen mode`}
+              data-testid="fullscreen-toggle"
+            >
+              {isFullscreen ? (
+                <Minimize className="w-4 h-4" aria-hidden="true" />
+              ) : (
+                <Maximize className="w-4 h-4" aria-hidden="true" />
+              )}
+            </button>
+          )}
         </div>
       </div>
 
@@ -287,6 +358,22 @@ const ViewerToolbar = React.memo(function ViewerToolbar({
           role="group"
           aria-label="Mobile page navigation controls"
         >
+          {/* First page button (flipbook style) */}
+          {enableFlipbookNavigation && (
+            <button
+              onClick={() => onPageChange(1)}
+              disabled={currentPage === 1}
+              className="p-2 text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-800 rounded"
+              title="First page (Home)"
+              aria-label="Go to first page"
+              data-testid="mobile-first-page-button"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+              </svg>
+            </button>
+          )}
+
           <button
             onClick={handlePrevPage}
             disabled={currentPage === 1}
@@ -298,32 +385,34 @@ const ViewerToolbar = React.memo(function ViewerToolbar({
             <ChevronLeft className="w-5 h-5" aria-hidden="true" />
           </button>
 
-          <div className="flex items-center space-x-2 bg-gray-700 rounded px-3 py-1">
-            <label htmlFor="mobile-page-input" className="sr-only">
-              Current page number
-            </label>
-            <input
-              id="mobile-page-input"
-              type="number"
-              value={currentPage}
-              onChange={handlePageInputChange}
-              onKeyDown={handlePageInputKeyDown}
-              className="w-12 bg-transparent text-white text-center outline-none text-sm focus:ring-2 focus:ring-blue-500 rounded"
-              min={1}
-              max={totalPages}
-              aria-label={`Page ${currentPage} of ${totalPages}. Enter page number to navigate`}
-              aria-describedby="mobile-page-count"
-              data-testid="mobile-page-input"
-            />
-            <span 
-              id="mobile-page-count"
-              className="text-gray-400 text-sm" 
-              data-testid="mobile-page-count"
-              aria-label={`Total pages: ${totalPages}`}
-            >
-              of {totalPages}
-            </span>
-          </div>
+          {showPageNumbers && (
+            <div className="flex items-center space-x-2 bg-gray-700 rounded px-3 py-1">
+              <label htmlFor="mobile-page-input" className="sr-only">
+                Current page number
+              </label>
+              <input
+                id="mobile-page-input"
+                type="number"
+                value={currentPage}
+                onChange={handlePageInputChange}
+                onKeyDown={handlePageInputKeyDown}
+                className="w-12 bg-transparent text-white text-center outline-none text-sm focus:ring-2 focus:ring-blue-500 rounded"
+                min={1}
+                max={totalPages}
+                aria-label={`Page ${currentPage} of ${totalPages}. Enter page number to navigate`}
+                aria-describedby="mobile-page-count"
+                data-testid="mobile-page-input"
+              />
+              <span 
+                id="mobile-page-count"
+                className="text-gray-400 text-sm" 
+                data-testid="mobile-page-count"
+                aria-label={`Total pages: ${totalPages}`}
+              >
+                of {totalPages}
+              </span>
+            </div>
+          )}
 
           <button
             onClick={handleNextPage}
@@ -335,6 +424,22 @@ const ViewerToolbar = React.memo(function ViewerToolbar({
           >
             <ChevronRight className="w-5 h-5" aria-hidden="true" />
           </button>
+
+          {/* Last page button (flipbook style) */}
+          {enableFlipbookNavigation && (
+            <button
+              onClick={() => onPageChange(totalPages)}
+              disabled={currentPage === totalPages}
+              className="p-2 text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-800 rounded"
+              title="Last page (End)"
+              aria-label="Go to last page"
+              data-testid="mobile-last-page-button"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+              </svg>
+            </button>
+          )}
         </div>
 
         {/* Collapsible controls menu */}
@@ -347,34 +452,38 @@ const ViewerToolbar = React.memo(function ViewerToolbar({
             aria-label="Mobile view and zoom controls"
           >
             {/* Zoom controls */}
-            <button
-              onClick={handleZoomOut}
-              disabled={zoomLevel <= 0.5}
-              className="p-2 text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-800 rounded"
-              title="Zoom out"
-              aria-label={`Zoom out. Current zoom level is ${Math.round(zoomLevel * 100)}%`}
-              data-testid="mobile-zoom-out-button"
-            >
-              <ZoomOut className="w-5 h-5" aria-hidden="true" />
-            </button>
-            <span 
-              className="text-gray-400 text-sm w-12 text-center"
-              data-testid="mobile-zoom-level"
-              aria-label={`Current zoom level: ${Math.round(zoomLevel * 100)} percent`}
-              role="status"
-            >
-              {Math.round(zoomLevel * 100)}%
-            </span>
-            <button
-              onClick={handleZoomIn}
-              disabled={zoomLevel >= 3.0}
-              className="p-2 text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-800 rounded"
-              title="Zoom in"
-              aria-label={`Zoom in. Current zoom level is ${Math.round(zoomLevel * 100)}%`}
-              data-testid="mobile-zoom-in-button"
-            >
-              <ZoomIn className="w-5 h-5" aria-hidden="true" />
-            </button>
+            {enableZoom && (
+              <>
+                <button
+                  onClick={handleZoomOut}
+                  disabled={zoomLevel <= 0.5}
+                  className="p-2 text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-800 rounded"
+                  title="Zoom out"
+                  aria-label={`Zoom out. Current zoom level is ${Math.round(zoomLevel * 100)}%`}
+                  data-testid="mobile-zoom-out-button"
+                >
+                  <ZoomOut className="w-5 h-5" aria-hidden="true" />
+                </button>
+                <span 
+                  className="text-gray-400 text-sm w-12 text-center"
+                  data-testid="mobile-zoom-level"
+                  aria-label={`Current zoom level: ${Math.round(zoomLevel * 100)} percent`}
+                  role="status"
+                >
+                  {Math.round(zoomLevel * 100)}%
+                </span>
+                <button
+                  onClick={handleZoomIn}
+                  disabled={zoomLevel >= 3.0}
+                  className="p-2 text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-800 rounded"
+                  title="Zoom in"
+                  aria-label={`Zoom in. Current zoom level is ${Math.round(zoomLevel * 100)}%`}
+                  data-testid="mobile-zoom-in-button"
+                >
+                  <ZoomIn className="w-5 h-5" aria-hidden="true" />
+                </button>
+              </>
+            )}
 
             {/* View mode toggle */}
             <button
@@ -390,6 +499,23 @@ const ViewerToolbar = React.memo(function ViewerToolbar({
                 <Scroll className="w-5 h-5" aria-hidden="true" />
               )}
             </button>
+
+            {/* Fullscreen toggle */}
+            {enableFullscreen && onToggleFullscreen && (
+              <button
+                onClick={onToggleFullscreen}
+                className="p-2 text-gray-400 hover:text-white transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-800 rounded"
+                title={isFullscreen ? 'Exit fullscreen (F11)' : 'Enter fullscreen (F11)'}
+                aria-label={`${isFullscreen ? 'Exit' : 'Enter'} fullscreen mode`}
+                data-testid="mobile-fullscreen-toggle"
+              >
+                {isFullscreen ? (
+                  <Minimize className="w-5 h-5" aria-hidden="true" />
+                ) : (
+                  <Maximize className="w-5 h-5" aria-hidden="true" />
+                )}
+              </button>
+            )}
           </div>
         )}
       </div>

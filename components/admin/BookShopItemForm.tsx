@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/Input'
 import { ContentTypeSelector } from '@/components/upload/ContentTypeSelector'
 import { FileUploader } from '@/components/upload/FileUploader'
 import { LinkUploader } from '@/components/upload/LinkUploader'
-import { ContentType, LinkMetadata } from '@/lib/types/content'
+import { ContentType, LinkMetadata, ContentMetadata } from '@/lib/types/content'
 import { getAllCategories, getCategoryStructure } from '@/lib/bookshop-categories'
 
 interface BookShopItem {
@@ -21,7 +21,7 @@ interface BookShopItem {
   isPublished: boolean
   contentType?: string
   linkUrl?: string | null
-  metadata?: any
+  metadata?: ContentMetadata
 }
 
 interface Document {
@@ -32,10 +32,24 @@ interface Document {
   contentType?: string
 }
 
+interface BookShopItemSubmitData {
+  title: string
+  description: string | null
+  category: string
+  isFree: boolean
+  isPublished: boolean
+  contentType: ContentType
+  linkUrl?: string
+  metadata?: ContentMetadata
+  documentId?: string
+  file?: File
+  price?: number
+}
+
 interface BookShopItemFormProps {
   item: BookShopItem | null
   mode: 'create' | 'edit'
-  onSubmit: (data: any) => Promise<void>
+  onSubmit: (data: BookShopItemSubmitData) => Promise<void>
   onCancel: () => void
   existingCategories: string[]
 }
@@ -98,6 +112,8 @@ export default function BookShopItemForm({
     }
 
     fetchDocuments()
+    // Empty dependency array is correct here - we only want to fetch once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -152,7 +168,7 @@ export default function BookShopItemForm({
       }
 
       // Prepare data
-      const submitData: any = {
+      const submitData: BookShopItemSubmitData = {
         title: formData.title.trim(),
         description: formData.description.trim() || null,
         category: finalCategory,

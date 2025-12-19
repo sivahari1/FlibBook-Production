@@ -170,7 +170,7 @@ export async function GET(
       requiresPassword: false // Already validated
     });
 
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Share link validation error', {
       error: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : undefined

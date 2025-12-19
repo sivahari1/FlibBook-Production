@@ -151,7 +151,7 @@ export async function POST(request: NextRequest) {
       { success: true, shareId: emailShare.id },
       { status: 201 }
     )
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error creating email share', { error })
     return NextResponse.json(
       { error: { code: 'INTERNAL_ERROR', message: 'Failed to create email share' } },

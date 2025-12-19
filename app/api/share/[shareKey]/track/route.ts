@@ -15,6 +15,8 @@ import { trackViewSchema } from '@/lib/validation/sharing'
 import { sanitizeString } from '@/lib/sanitization'
 import { prisma } from '@/lib/db'
 import { logger } from '@/lib/logger'
+import type { ValidationErrorDetail } from '@/lib/types/api'
+import type { ZodIssue } from 'zod'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -64,7 +66,8 @@ export async function POST(
           error: {
             code: 'VALIDATION_ERROR',
             message: 'Invalid input data',
-            details: validation.error.issues.map((err: any) => ({
+            details: validation.error.issues.map((err: ZodIssue): ValidationErrorDetail => ({
+              code: err.code,
               field: err.path.join('.'),
               message: err.message
             }))
@@ -130,7 +133,7 @@ export async function POST(
       { status: 201 }
     )
 
-  } catch (error) {
+  } catch (error: unknown) {
     // Log error but don't fail the request
     // Analytics tracking should not block document viewing
     logger.error('Error tracking analytics', {

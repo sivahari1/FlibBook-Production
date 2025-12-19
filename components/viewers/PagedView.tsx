@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { PageData } from './SimpleDocumentViewer';
 import LoadingSpinner from './LoadingSpinner';
 import PageLoadError from './PageLoadError';
+import { OptimizedImage } from './OptimizedImage';
 
 export interface PagedViewProps {
   pages: PageData[];
@@ -137,20 +138,34 @@ export default function PagedView({
                 />
               </div>
             )}
-            <img
+            <OptimizedImage
               src={`${page.pageUrl}${isRetrying ? `?retry=${Date.now()}` : ''}`}
               alt={`Page ${page.pageNumber} of document`}
+              width={page.dimensions?.width || 800}
+              height={page.dimensions?.height || 1000}
               className="w-full h-full object-contain"
-              draggable={false}
-              onContextMenu={(e) => e.preventDefault()}
-              onLoadStart={handleImageLoadStart}
+              priority="high"
+              progressive={true}
+              networkSpeed="auto"
               onLoad={handleImageLoad}
-              onError={handleImageError}
+              onError={(error) => {
+                const mockEvent = {
+                  currentTarget: { src: page.pageUrl }
+                } as React.SyntheticEvent<HTMLImageElement>;
+                handleImageError(mockEvent);
+              }}
+              placeholder={
+                <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                  <LoadingSpinner 
+                    message={isRetrying ? 'Retrying...' : `Loading page ${currentPage}...`}
+                    size="md"
+                  />
+                </div>
+              }
               style={{
                 userSelect: 'none',
                 WebkitUserSelect: 'none',
               }}
-              role="img"
               aria-describedby={`page-${page.pageNumber}-description`}
             />
             <div 

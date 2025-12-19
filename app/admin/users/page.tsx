@@ -95,6 +95,7 @@ export default function UsersPage() {
     if (status === 'authenticated' && session?.user?.userRole === 'ADMIN') {
       fetchUsers()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, session, page, roleFilter, searchQuery])
 
   const handleEdit = (user: User) => {

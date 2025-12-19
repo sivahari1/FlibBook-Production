@@ -11,7 +11,6 @@ export default function LoginPage({
   const params = React.use(searchParams);
   const showSignupMessage = params.message === 'signup';
   const showResetSuccess = params.reset === 'success';
-  const callbackUrl = params.callbackUrl;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 px-4 py-12">
@@ -83,7 +82,7 @@ export default function LoginPage({
             
             <div className="mt-6 text-center">
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                Don't have an account?{' '}
+                Don&apos;t have an account?{' '}
                 <Link 
                   href="/#request-access"
                   className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium"

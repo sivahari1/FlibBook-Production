@@ -3,6 +3,7 @@ import { requireAdmin } from '@/lib/role-check'
 import { prisma } from '@/lib/db'
 import { logger } from '@/lib/logger'
 import { ContentType } from '@/lib/types/content'
+import type { BookshopItemUpdateData } from '@/lib/types/api'
 
 /**
  * PATCH /api/admin/bookshop/[id]
@@ -83,7 +84,7 @@ export async function PATCH(
     }
 
     // Build update data (Requirements: 12.2)
-    const updateData: any = {}
+    const updateData: BookshopItemUpdateData = {}
     
     if (documentId !== undefined) {
       updateData.documentId = documentId
@@ -155,7 +156,7 @@ export async function PATCH(
     }
 
     return NextResponse.json(response)
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error updating Book Shop item', error, {
       itemId: 'unknown'
     })
@@ -264,7 +265,7 @@ export async function DELETE(
       },
       preservedPurchases: false
     })
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error deleting Book Shop item', error, {
       itemId: 'unknown'
     })

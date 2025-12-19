@@ -1,6 +1,6 @@
 import Link from 'next/link';
 
-export default function Footer() {
+function Footer() {
   return (
     <footer className="bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 text-gray-300 py-8 mt-auto">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -42,3 +42,7 @@ export default function Footer() {
     </footer>
   );
 }
+
+Footer.displayName = 'Footer';
+
+export default Footer;

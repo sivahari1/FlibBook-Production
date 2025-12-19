@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Image from 'next/image';
 
 export interface WatermarkOverlayProps {
   text: string;
@@ -10,14 +11,30 @@ export interface WatermarkOverlayProps {
 }
 
 /**
+ * Utility function to check if URL is external
+ */
+function isExternalUrl(url: string): boolean {
+  try {
+    const urlObj = new URL(url);
+    return urlObj.origin !== window.location.origin;
+  } catch {
+    // If URL parsing fails, assume it's a relative path (internal)
+    return false;
+  }
+}
+
+/**
  * WatermarkOverlay - Displays watermark text or image over document content
  * 
  * Positioned above content with high z-index to ensure visibility while
  * not interfering with navigation controls. Supports both text and image watermarks.
  * 
+ * Uses Next.js Image component for optimization when possible, falls back to
+ * unoptimized loading for external URLs.
+ * 
  * Requirements: 8.5
  */
-export default function WatermarkOverlay({
+function WatermarkOverlay({
   text,
   opacity = 0.2,
   fontSize = 24,
@@ -43,15 +60,20 @@ export default function WatermarkOverlay({
       }}
     >
       {imageUrl ? (
-        // Image watermark
-        <img
-          src={imageUrl}
-          alt="Watermark"
-          className="max-w-full max-h-full object-contain"
-          style={{
-            opacity: opacity,
-          }}
-        />
+        // Image watermark - optimized with Next.js Image when possible
+        <div className="relative w-full h-full flex items-center justify-center">
+          <Image
+            src={imageUrl}
+            alt="Watermark"
+            fill
+            className="object-contain"
+            style={{
+              opacity: opacity,
+            }}
+            unoptimized={isExternalUrl(imageUrl)}
+            priority={false}
+          />
+        </div>
       ) : (
         // Text watermark
         <div
@@ -68,3 +90,7 @@ export default function WatermarkOverlay({
     </div>
   );
 }
+
+WatermarkOverlay.displayName = 'WatermarkOverlay';
+
+export default WatermarkOverlay;

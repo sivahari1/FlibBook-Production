@@ -11,7 +11,7 @@ interface LoadingSpinnerProps {
  * 
  * Provides consistent loading UI across viewer components
  */
-export default function LoadingSpinner({ 
+function LoadingSpinner({ 
   message = 'Loading...', 
   size = 'md',
   className = ''
@@ -34,3 +34,7 @@ export default function LoadingSpinner({
     </div>
   );
 }
+
+LoadingSpinner.displayName = 'LoadingSpinner';
+
+export default LoadingSpinner;

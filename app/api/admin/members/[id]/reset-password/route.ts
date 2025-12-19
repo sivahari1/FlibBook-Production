@@ -62,7 +62,7 @@ export async function POST(
       success: true,
       message: 'Password reset email sent'
     })
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error sending password reset email:', error)
     return NextResponse.json(
       { error: 'Failed to send password reset email' },

@@ -14,12 +14,10 @@ export default async function SharedFilesPage() {
     redirect('/login');
   }
 
-  // Verify user is a MEMBER
-  if (session.user?.userRole !== 'MEMBER') {
+  // Allow MEMBER or ADMIN role (admins can test member features)
+  if (session.user?.userRole !== 'MEMBER' && session.user?.userRole !== 'ADMIN') {
     // Redirect to appropriate dashboard based on role
-    if (session.user?.userRole === 'ADMIN') {
-      redirect('/admin');
-    } else if (session.user?.userRole === 'PLATFORM_USER') {
+    if (session.user?.userRole === 'PLATFORM_USER') {
       redirect('/dashboard');
     } else if (session.user?.userRole === 'READER_USER') {
       redirect('/reader');

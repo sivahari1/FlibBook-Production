@@ -90,7 +90,7 @@ export async function GET(
       { error: 'No media URL found for this annotation' },
       { status: 404 }
     );
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error streaming media:', error);
     return NextResponse.json(
       { error: 'Internal server error' },

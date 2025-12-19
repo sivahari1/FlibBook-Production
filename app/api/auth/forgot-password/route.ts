@@ -113,7 +113,7 @@ export async function POST(request: NextRequest) {
       success: true,
       message: 'If an account exists with this email, you will receive a password reset link shortly.',
     });
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Password reset request error', {
       error: error instanceof Error ? error.message : 'Unknown error',
     });

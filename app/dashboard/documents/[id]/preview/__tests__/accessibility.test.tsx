@@ -10,9 +10,8 @@
 
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import PreviewClient from '../PreviewClient';
-import { beforeEach } from 'node:test';
 
 // Mock Next.js Link component
 vi.mock('next/link', () => ({

@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
       },
       message: 'Subscription activated successfully',
     });
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error verifying payment', error);
     return NextResponse.json(
       { error: 'Failed to verify payment' },

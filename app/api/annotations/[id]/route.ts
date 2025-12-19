@@ -52,7 +52,7 @@ export async function GET(
     }
 
     return NextResponse.json(annotation);
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error fetching annotation:', error);
     
     if (error instanceof Error) {
@@ -126,7 +126,7 @@ export async function PATCH(
     }
 
     return NextResponse.json(annotation);
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error updating annotation:', error);
     
     if (error instanceof z.ZodError) {
@@ -202,7 +202,7 @@ export async function DELETE(
       { message: 'Annotation deleted successfully' },
       { status: 200 }
     );
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error deleting annotation:', error);
     
     if (error instanceof Error) {

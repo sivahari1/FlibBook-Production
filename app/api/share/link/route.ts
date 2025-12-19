@@ -121,7 +121,7 @@ export async function POST(request: NextRequest) {
       },
       { status: 201 }
     )
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error creating link share', { error })
     return NextResponse.json(
       { error: { code: 'INTERNAL_ERROR', message: 'Failed to create share link' } },

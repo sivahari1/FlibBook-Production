@@ -97,10 +97,10 @@ export function isLocalStorageAvailable(): boolean {
 }
 
 // Validation helpers
-function isValidViewMode(value: any): value is 'continuous' | 'paged' {
+function isValidViewMode(value: unknown): value is 'continuous' | 'paged' {
   return value === 'continuous' || value === 'paged';
 }
 
-function isValidZoom(value: any): value is number {
+function isValidZoom(value: unknown): value is number {
   return typeof value === 'number' && value >= 0.5 && value <= 3.0;
 }

@@ -72,7 +72,7 @@ export async function PATCH(
       isActive: updatedShareLink.isActive,
       message: 'Share link deactivated successfully',
     });
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error deactivating share link', error);
     return NextResponse.json(
       { error: 'Failed to deactivate share link' },

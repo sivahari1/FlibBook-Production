@@ -73,7 +73,7 @@ export async function POST(
           country = geoData.country_name;
           city = geoData.city;
         }
-      } catch (error) {
+      } catch (error: unknown) {
         // Silently fail geolocation - it's optional
         console.error('Geolocation lookup failed:', error);
       }
@@ -115,7 +115,7 @@ export async function POST(
       success: true,
       analyticsId: viewAnalytics.id,
     });
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error recording view analytics', error);
     return NextResponse.json(
       { error: 'Failed to record view analytics' },

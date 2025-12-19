@@ -9,7 +9,7 @@ async function diagnose() {
   try {
     // 1. Check if NextAuth API route exists
     console.log('1️⃣ Checking NextAuth API Route...');
-    const fs = require('fs');
+    import fs from 'fs';
     const nextAuthPath = 'app/api/auth/[...nextauth]/route.ts';
     if (fs.existsSync(nextAuthPath)) {
       console.log('✅ NextAuth API route exists');

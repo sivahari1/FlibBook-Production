@@ -3,6 +3,7 @@
 import { useState, memo } from 'react';
 import { Button } from '@/components/ui/Button';
 import { PaymentModal } from './PaymentModal';
+import { ContentMetadata } from '@/lib/types/content';
 
 interface BookShopItem {
   id: string;
@@ -15,7 +16,7 @@ interface BookShopItem {
   isPublished: boolean;
   inMyJstudyroom: boolean;
   contentType?: string;
-  metadata?: any;
+  metadata?: ContentMetadata;
   previewUrl?: string;
   linkUrl?: string;
   document: {
@@ -23,7 +24,7 @@ interface BookShopItem {
     title: string;
     filename: string;
     contentType?: string;
-    metadata?: any;
+    metadata?: ContentMetadata;
     thumbnailUrl?: string;
     linkUrl?: string;
   };
@@ -50,7 +51,7 @@ const BookShopItemCardComponent = ({ item, onAddToMyJstudyroom, userLimits }: Bo
 
   // Get content type from document or item
   const contentType = item.document?.contentType || item.contentType || 'PDF';
-  const metadata = item.document?.metadata || item.metadata || {};
+  const metadata: ContentMetadata = item.document?.metadata || item.metadata || {};
   const thumbnailUrl = item.document?.thumbnailUrl || item.previewUrl;
   const linkUrl = item.document?.linkUrl || item.linkUrl;
 

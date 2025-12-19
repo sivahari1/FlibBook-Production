@@ -10,7 +10,7 @@ interface LinkPreviewProps {
   title?: string;
 }
 
-export default function LinkPreview({
+function LinkPreview({
   linkUrl,
   metadata,
   allowDirectAccess,
@@ -134,3 +134,7 @@ export default function LinkPreview({
     </div>
   );
 }
+
+LinkPreview.displayName = 'LinkPreview';
+
+export default LinkPreview;

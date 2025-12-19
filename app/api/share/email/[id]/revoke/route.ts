@@ -80,7 +80,7 @@ export async function DELETE(
       { status: 200 }
     )
 
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error revoking email share', {
       error: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : undefined

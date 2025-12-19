@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { BookShopItemCard } from './BookShopItemCard';
 import { getCategoryStructure } from '@/lib/bookshop-categories';
+import { ContentMetadata } from '@/lib/types/content';
+import { useToast } from '@/components/ui/Toast';
 
 interface BookShopItem {
   id: string;
@@ -15,7 +17,7 @@ interface BookShopItem {
   isPublished: boolean;
   inMyJstudyroom: boolean;
   contentType?: string;
-  metadata?: any;
+  metadata?: ContentMetadata;
   previewUrl?: string;
   linkUrl?: string;
   document: {
@@ -23,7 +25,7 @@ interface BookShopItem {
     title: string;
     filename: string;
     contentType?: string;
-    metadata?: any;
+    metadata?: ContentMetadata;
     thumbnailUrl?: string;
     linkUrl?: string;
   };
@@ -45,6 +47,9 @@ export function BookShop() {
     paidLimit: number;
   } | null>(null);
 
+  // Toast notifications
+  const { showToast, ToastContainer } = useToast();
+
   // Cache key for BookShop data
   const CACHE_KEY = 'bookshop_items_cache';
   const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
@@ -64,6 +69,8 @@ export function BookShop() {
     // Always fetch fresh data in background
     fetchItems();
     fetchUserLimits();
+    // Empty dependency array is correct here - we only want to fetch once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Debounce search query (300ms)
@@ -200,7 +207,19 @@ export function BookShop() {
     }
   };
 
-  const handleAddToMyJstudyroom = async () => {
+  const handleAddToMyJstudyroom = async (itemId: string) => {
+    // Find the item that was added
+    const addedItem = items.find(item => item.id === itemId);
+    
+    // Show success notification
+    if (addedItem) {
+      showToast({
+        message: `"${addedItem.title}" has been successfully added to your Study Room!`,
+        type: 'success',
+        duration: 5000
+      });
+    }
+    
     // Refresh items and limits after adding
     await fetchItems();
     await fetchUserLimits();
@@ -279,14 +298,16 @@ export function BookShop() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Book Shop</h2>
-        <p className="text-gray-600 dark:text-gray-400 mt-1">
-          Browse and add documents to your personal collection
-        </p>
-      </div>
+    <>
+      <ToastContainer />
+      <div className="space-y-6">
+        {/* Header */}
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Book Shop</h2>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">
+            Browse and add documents to your personal collection
+          </p>
+        </div>
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-4">
@@ -381,6 +402,7 @@ export function BookShop() {
           ))}
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 }

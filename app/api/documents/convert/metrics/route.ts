@@ -6,7 +6,7 @@
  * Requirements: 17.1
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import {
@@ -16,7 +16,7 @@ import {
   getPerformanceSummary,
 } from '@/lib/performance/conversion-monitor';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     // Authenticate user (admin only)
     const session = await getServerSession(authOptions);
@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
       targetMet,
       summary,
     });
-  } catch (error) {
+  } catch (error: unknown) {
     return NextResponse.json(
       {
         success: false,

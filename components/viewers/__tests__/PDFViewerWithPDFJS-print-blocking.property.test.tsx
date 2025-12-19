@@ -536,7 +536,7 @@ describe('PDFViewerWithPDFJS Print Blocking Property Tests', () => {
               cancelable: true,
             });
 
-            let preventDefaultSpy = vi.spyOn(printEvent, 'preventDefault');
+            const preventDefaultSpy = vi.spyOn(printEvent, 'preventDefault');
             window.dispatchEvent(printEvent);
             expect(preventDefaultSpy).toHaveBeenCalled();
 

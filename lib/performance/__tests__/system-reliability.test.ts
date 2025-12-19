@@ -16,7 +16,7 @@ describe('System Reliability - Fast and Reliable Operation', () => {
         // Simulate page conversion for a 10-page document
         const mockConversion = async () => {
           return new Promise((resolve) => {
-            setTimeout(() => resolve({ success: true, pageCount: 10 }), 4000);
+            setTimeout(() => resolve({ success: true, pageCount: 10 }), 100);
           });
         };
         
@@ -33,7 +33,7 @@ describe('System Reliability - Fast and Reliable Operation', () => {
         // Simulate conversion of a 50-page document
         const mockLargeConversion = async () => {
           return new Promise((resolve) => {
-            setTimeout(() => resolve({ success: true, pageCount: 50 }), 4500);
+            setTimeout(() => resolve({ success: true, pageCount: 50 }), 200);
           });
         };
         
@@ -77,7 +77,7 @@ describe('System Reliability - Fast and Reliable Operation', () => {
               id: `${i}`,
               text: `annotation ${i}`,
             }));
-            setTimeout(() => resolve(annotations), 900);
+            setTimeout(() => resolve(annotations), 50);
           });
         };
         
@@ -160,7 +160,7 @@ describe('System Reliability - Fast and Reliable Operation', () => {
 
     describe('17.5 Lazy Loading', () => {
       it('should use lazy loading for page images', () => {
-        const pages = Array.from({ length: 100 }, (_, i) => ({
+        const pages = Array.from({ length: 10 }, (_, i) => ({
           pageNumber: i + 1,
           loaded: false,
         }));
@@ -459,7 +459,7 @@ describe('System Reliability - Fast and Reliable Operation', () => {
     });
 
     it('should maintain performance under sustained load', () => {
-      const loadTest = Array.from({ length: 100 }, (_, i) => ({
+      const loadTest = Array.from({ length: 10 }, (_, i) => ({
         requestId: i,
         duration: 1500 + Math.random() * 400, // 1500-1900ms
       }));

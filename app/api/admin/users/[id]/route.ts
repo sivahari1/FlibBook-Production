@@ -3,6 +3,7 @@ import { requireAdmin, getCurrentUser } from '@/lib/role-check'
 import { prisma } from '@/lib/db'
 import { logger } from '@/lib/logger'
 import { logUserUpdate, getClientIp } from '@/lib/audit-log'
+import type { UserUpdateData } from '@/lib/types/api'
 
 /**
  * PATCH /api/admin/users/[id]
@@ -54,7 +55,7 @@ export async function PATCH(
     }
 
     // Build update data
-    const updateData: any = {}
+    const updateData: UserUpdateData = {}
     
     if (userRole !== undefined) {
       updateData.userRole = userRole
@@ -112,7 +113,7 @@ export async function PATCH(
       success: true,
       user
     })
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error updating user', {
       error: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : undefined

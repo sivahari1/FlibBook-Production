@@ -571,7 +571,7 @@ describe('PDFViewerWithPDFJS Context Menu Prevention Property Tests', () => {
               cancelable: true,
             });
 
-            let preventDefaultSpy = vi.spyOn(contextMenuEvent, 'preventDefault');
+            const preventDefaultSpy = vi.spyOn(contextMenuEvent, 'preventDefault');
             container.dispatchEvent(contextMenuEvent);
             expect(preventDefaultSpy).toHaveBeenCalled();
 

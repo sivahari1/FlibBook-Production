@@ -251,7 +251,7 @@ export function MediaUploadModal({
         <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
           <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Selected text:</p>
           <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
-            "{selectedText.length > 100 ? selectedText.substring(0, 100) + '...' : selectedText}"
+            &quot;{selectedText.length > 100 ? selectedText.substring(0, 100) + '...' : selectedText}&quot;
           </p>
         </div>
 

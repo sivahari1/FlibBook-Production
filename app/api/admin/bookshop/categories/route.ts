@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/role-check'
 import { prisma } from '@/lib/db'
 import { logger } from '@/lib/logger'
@@ -8,7 +8,7 @@ import { logger } from '@/lib/logger'
  * Get all unique categories from Book Shop items
  * Admin only
  */
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     // Verify admin role
     const authError = await requireAdmin()
@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
     })
 
     return NextResponse.json({ categories })
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error fetching Book Shop categories', {
       error: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : undefined

@@ -191,7 +191,7 @@ export const RegisterForm: React.FC = () => {
         </div>
 
         <p className="text-sm text-gray-600 text-center">
-          Didn't receive the email? Check your spam folder or click "Resend Verification Email" above.
+          Didn&apos;t receive the email? Check your spam folder or click &quot;Resend Verification Email&quot; above.
         </p>
       </div>
     );

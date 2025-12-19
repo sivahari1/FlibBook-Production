@@ -58,7 +58,7 @@ export async function POST(
       success: true,
       isActive: updatedMember.isActive
     })
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error toggling member status:', error)
     return NextResponse.json(
       { error: 'Failed to update member status' },

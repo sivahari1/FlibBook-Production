@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
     const buffer = new Uint8Array(arrayBuffer);
 
     // Upload to Supabase storage
-    const { data, error } = await supabase.storage
+    const { error } = await supabase.storage
       .from('document-media')
       .upload(filePath, buffer, {
         contentType: file.type,
@@ -118,7 +118,7 @@ export async function POST(request: NextRequest) {
       mediaType,
       uploadPath: filePath
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error uploading media:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
@@ -173,7 +173,7 @@ export async function DELETE(request: NextRequest) {
       { message: 'File deleted successfully' },
       { status: 200 }
     );
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error deleting media:', error);
     return NextResponse.json(
       { error: 'Internal server error' },

@@ -135,10 +135,10 @@ export default function AccessRequestForm() {
             Platform User Request Submitted!
           </h3>
           <p className="text-lg text-gray-700 dark:text-gray-300 mb-6">
-            Thank you for your interest in becoming a Platform User. We've received your access request and our admin team will review it shortly.
+            Thank you for your interest in becoming a Platform User. We&apos;ve received your access request and our admin team will review it shortly.
           </p>
           <p className="text-gray-600 dark:text-gray-400 mb-4">
-            You'll receive an email at <strong className="text-gray-900 dark:text-white">{formData.email}</strong> once your request is approved with your login credentials.
+            You&apos;ll receive an email at <strong className="text-gray-900 dark:text-white">{formData.email}</strong> once your request is approved with your login credentials.
           </p>
           <p className="text-sm text-gray-500 dark:text-gray-400 mb-8">
             Need immediate access to shared documents?{' '}
@@ -179,7 +179,7 @@ export default function AccessRequestForm() {
             <ol className="text-sm text-gray-600 dark:text-gray-400 space-y-1 list-decimal list-inside">
               <li>Submit your access request with details about your use case</li>
               <li>Our admin team will review your request (typically within 24-48 hours)</li>
-              <li>If approved, you'll receive an email with your login credentials</li>
+              <li>If approved, you&apos;ll receive an email with your login credentials</li>
               <li>Log in and start uploading and sharing documents immediately</li>
             </ol>
           </div>

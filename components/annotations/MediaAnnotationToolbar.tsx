@@ -38,6 +38,7 @@ export function MediaAnnotationToolbar({
       }, 3000);
       return () => clearTimeout(timer);
     }
+    // onClose is a callback prop and should be stable, but we include it for completeness
   }, [visible, canCreateAnnotation, onClose]);
 
   if (!visible) return null;

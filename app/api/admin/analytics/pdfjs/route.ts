@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
       stats,
       timestamp: new Date().toISOString(),
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Failed to fetch PDF.js analytics:', error);
     return NextResponse.json(
       { 
@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
       success: true,
       message: 'Event tracked successfully',
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Failed to track PDF.js event:', error);
     return NextResponse.json(
       { 

@@ -108,7 +108,7 @@ export async function POST(
       emailSent,
       message: 'Password reset successfully'
     })
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error resetting password', {
       error: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : undefined

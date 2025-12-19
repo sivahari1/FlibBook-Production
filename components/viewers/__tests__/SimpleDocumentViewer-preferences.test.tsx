@@ -27,6 +27,8 @@ vi.mock('../WatermarkOverlay', () => ({
   },
 }));
 
+
+
 // Mock keyboard navigation hook
 vi.mock('@/hooks/useKeyboardNavigation', () => ({
   useKeyboardNavigation: vi.fn(),

@@ -161,7 +161,7 @@ export async function POST(request: NextRequest) {
       },
       { status: 200 }
     );
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Resend verification error', {
       error: error instanceof Error ? error.message : 'Unknown error',
     });

@@ -61,13 +61,14 @@ async function rollbackDatabase(backupFile?: string): Promise<boolean> {
     console.log(`📁 Using backup: ${backup}`);
     
     // Confirm rollback
-    const readline = require('readline').createInterface({
+    import readline from 'readline';
+    const rl = readline.createInterface({
       input: process.stdin,
       output: process.stdout,
     });
     
     const answer = await new Promise<string>((resolve) => {
-      readline.question('⚠️  This will restore the database. Continue? (yes/no): ', resolve);
+      rl.question('⚠️  This will restore the database. Continue? (yes/no): ', resolve);
     });
     
     readline.close();

@@ -7,6 +7,7 @@
 import { getServerSession } from 'next-auth'
 import { authOptions } from './auth'
 import { NextResponse } from 'next/server'
+import { SessionWithUser } from './types/common'
 
 export type UserRole = 'ADMIN' | 'PLATFORM_USER' | 'READER_USER'
 
@@ -106,35 +107,35 @@ export async function requireAuth() {
 /**
  * Get user role from session (client-side helper)
  */
-export function getUserRole(session: any): UserRole | null {
+export function getUserRole(session: SessionWithUser | null): UserRole | null {
   return session?.user?.userRole || null
 }
 
 /**
  * Check if user is admin (client-side helper)
  */
-export function isAdmin(session: any): boolean {
+export function isAdmin(session: SessionWithUser | null): boolean {
   return session?.user?.userRole === 'ADMIN'
 }
 
 /**
  * Check if user is platform user (client-side helper)
  */
-export function isPlatformUser(session: any): boolean {
+export function isPlatformUser(session: SessionWithUser | null): boolean {
   return session?.user?.userRole === 'PLATFORM_USER'
 }
 
 /**
  * Check if user is reader user (client-side helper)
  */
-export function isReaderUser(session: any): boolean {
+export function isReaderUser(session: SessionWithUser | null): boolean {
   return session?.user?.userRole === 'READER_USER'
 }
 
 /**
  * Check if user can upload documents (client-side helper)
  */
-export function canUploadDocuments(session: any): boolean {
+export function canUploadDocuments(session: SessionWithUser | null): boolean {
   const role = getUserRole(session)
   return role === 'ADMIN' || role === 'PLATFORM_USER'
 }
@@ -142,7 +143,7 @@ export function canUploadDocuments(session: any): boolean {
 /**
  * Check if user can manage documents (client-side helper)
  */
-export function canManageDocuments(session: any): boolean {
+export function canManageDocuments(session: SessionWithUser | null): boolean {
   const role = getUserRole(session)
   return role === 'ADMIN' || role === 'PLATFORM_USER'
 }

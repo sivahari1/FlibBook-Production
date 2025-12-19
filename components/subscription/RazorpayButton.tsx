@@ -9,9 +9,36 @@ interface RazorpayButtonProps {
   onError: (error: string) => void;
 }
 
+interface RazorpayResponse {
+  razorpay_order_id: string;
+  razorpay_payment_id: string;
+  razorpay_signature: string;
+}
+
+interface RazorpayOptions {
+  key: string;
+  amount: number;
+  currency: string;
+  name: string;
+  description: string;
+  order_id: string;
+  handler: (response: RazorpayResponse) => Promise<void>;
+  prefill?: {
+    name?: string;
+    email?: string;
+  };
+  theme?: {
+    color?: string;
+  };
+}
+
+interface RazorpayInstance {
+  open: () => void;
+}
+
 declare global {
   interface Window {
-    Razorpay: any;
+    Razorpay: new (options: RazorpayOptions) => RazorpayInstance;
   }
 }
 
@@ -59,7 +86,7 @@ export default function RazorpayButton({ plan, onSuccess, onError }: RazorpayBut
         name: 'FlipBook DRM',
         description: `${plan.charAt(0).toUpperCase() + plan.slice(1)} Subscription`,
         order_id: orderData.orderId,
-        handler: async function (response: any) {
+        handler: async function (response: RazorpayResponse) {
           try {
             // Verify payment on backend
             const verifyResponse = await fetch('/api/subscription/verify-payment', {

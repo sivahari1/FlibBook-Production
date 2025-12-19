@@ -8,7 +8,6 @@ export default async function AdminDashboard() {
   let totalUsers = 0
   let platformUsers = 0
   let members = 0
-  let admins = 0
   let hasError = false
   let errorMessage = ''
 
@@ -17,8 +16,7 @@ export default async function AdminDashboard() {
       prisma.accessRequest.count({ where: { status: 'PENDING' } }),
       prisma.user.count(),
       prisma.user.count({ where: { userRole: 'PLATFORM_USER' } }),
-      prisma.user.count({ where: { userRole: 'MEMBER' } }),
-      prisma.user.count({ where: { userRole: 'ADMIN' } })
+      prisma.user.count({ where: { userRole: 'MEMBER' } })
     ])
 
     // Process results safely
@@ -26,7 +24,6 @@ export default async function AdminDashboard() {
     if (results[1].status === 'fulfilled') totalUsers = results[1].value
     if (results[2].status === 'fulfilled') platformUsers = results[2].value
     if (results[3].status === 'fulfilled') members = results[3].value
-    if (results[4].status === 'fulfilled') admins = results[4].value
 
     // Check if any queries failed
     const failedResults = results.filter(r => r.status === 'rejected')

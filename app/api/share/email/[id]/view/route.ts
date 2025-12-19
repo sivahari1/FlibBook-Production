@@ -142,7 +142,7 @@ export async function POST(
         filename: emailShare.document.filename,
       }
     })
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Email share view error', {
       error: error instanceof Error ? error.message : 'Unknown error',
       shareId: (await params).id

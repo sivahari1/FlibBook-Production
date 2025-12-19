@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import type { Prisma } from '@prisma/client';
 
 interface ErrorReport {
   id: string;
@@ -16,7 +17,7 @@ interface ErrorReport {
   name: string;
   message: string;
   severity: string;
-  context?: Record<string, any>;
+  context?: Record<string, unknown>;
   userId?: string;
   sessionId?: string;
   userAgent?: string;
@@ -53,7 +54,7 @@ export async function POST(request: NextRequest) {
           name: report.name,
           message: report.message,
           severity: report.severity,
-          context: report.context as any,
+          context: (report.context || {}) as Prisma.JsonObject,
           userId: session?.user?.id || report.userId,
           sessionId: report.sessionId,
           userAgent: report.userAgent,
@@ -74,7 +75,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ success: true });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error in error reporting endpoint:', error);
     return NextResponse.json(
       { error: 'Failed to process error report' },
@@ -131,15 +132,12 @@ export async function GET(request: NextRequest) {
     const since = new Date(now.getTime() - timeRangeMs);
 
     // Build query
-    const where: any = {
+    const where: Prisma.ErrorLogWhereInput = {
       timestamp: {
         gte: since,
       },
+      ...(severity && { severity }),
     };
-
-    if (severity) {
-      where.severity = severity;
-    }
 
     // Get error statistics
     const [totalErrors, errorsByType, errorsBySeverity, recentErrors] = await Promise.all([
@@ -198,7 +196,7 @@ export async function GET(request: NextRequest) {
       })),
       recentErrors,
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error fetching error statistics:', error);
     return NextResponse.json(
       { error: 'Failed to fetch error statistics' },

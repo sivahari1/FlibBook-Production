@@ -91,13 +91,14 @@ describe('Property 4: Page data structure validity', () => {
           expect(data.totalPages).toBe(pageCount);
 
           // Verify each page has required properties
-          data.pages.forEach((page: any, index: number) => {
+          data.pages.forEach((page: unknown, index: number) => {
             expect(page).toHaveProperty('pageNumber');
             expect(page).toHaveProperty('pageUrl');
             expect(page).toHaveProperty('dimensions');
 
             // Verify pageNumber is correct (1-indexed)
-            expect(page.pageNumber).toBe(index + 1);
+            expect(page).toHaveProperty('pageNumber');
+            expect((page as { pageNumber: number }).pageNumber).toBe(index + 1);
             expect(typeof page.pageNumber).toBe('number');
 
             // Verify pageUrl is a string

@@ -7,7 +7,7 @@ interface PerformanceMetric {
   operation: string;
   duration: number;
   timestamp: number;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 class AnnotationPerformanceMonitor {
@@ -18,7 +18,7 @@ class AnnotationPerformanceMonitor {
   /**
    * Record a performance metric
    */
-  record(operation: string, duration: number, metadata?: Record<string, any>) {
+  record(operation: string, duration: number, metadata?: Record<string, unknown>) {
     const metric: PerformanceMetric = {
       operation,
       duration,
@@ -121,13 +121,13 @@ export const annotationPerformanceMonitor = new AnnotationPerformanceMonitor();
  */
 export function measurePerformance(operation: string) {
   return function (
-    target: any,
+    target: unknown,
     propertyKey: string,
     descriptor: PropertyDescriptor
   ) {
     const originalMethod = descriptor.value;
 
-    descriptor.value = async function (...args: any[]) {
+    descriptor.value = async function (...args: unknown[]) {
       const startTime = Date.now();
       try {
         const result = await originalMethod.apply(this, args);
@@ -157,7 +157,7 @@ export function measurePerformance(operation: string) {
 export async function measureAsync<T>(
   operation: string,
   fn: () => Promise<T>,
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
 ): Promise<T> {
   const startTime = Date.now();
   try {

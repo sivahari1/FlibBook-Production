@@ -207,6 +207,7 @@ export default function ViewerClient({ shareKey, userEmail }: ViewerClientProps)
     if (shareKey) {
       validateShareLink();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shareKey]);
 
   // Handle password verification success

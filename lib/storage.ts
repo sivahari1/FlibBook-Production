@@ -121,7 +121,7 @@ export async function getSignedUrl(
   bucketName: string = BUCKET_NAME,
   options?: {
     download?: boolean;
-    transform?: any;
+    transform?: Record<string, unknown>;
   }
 ): Promise<{ url?: string; error?: string }> {
   try {
@@ -204,7 +204,7 @@ export function getPublicUrl(path: string, bucketName: string = BUCKET_NAME): st
 export async function listFiles(
   path: string,
   bucketName: string = BUCKET_NAME
-): Promise<{ files?: any[]; error?: string }> {
+): Promise<{ files?: Array<Record<string, unknown>>; error?: string }> {
   try {
     const supabaseAdmin = getSupabaseAdmin()
     const { data, error } = await supabaseAdmin.storage

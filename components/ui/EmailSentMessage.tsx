@@ -37,7 +37,7 @@ export const EmailSentMessage: React.FC<EmailSentMessageProps> = ({
           )}
           {!message && (
             <p className="text-sm text-green-800">
-              We've sent an email to <strong>{email}</strong>
+              We&apos;ve sent an email to <strong>{email}</strong>
             </p>
           )}
           {additionalInfo && (

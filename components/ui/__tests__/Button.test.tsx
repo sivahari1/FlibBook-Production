@@ -4,6 +4,7 @@
  * Validates: Requirements 2.2, 2.3
  */
 
+import React from 'react';
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { Button } from '../Button';

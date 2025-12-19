@@ -135,7 +135,7 @@ export async function POST(
       viewCount: shareLink.viewCount,
       createdAt: shareLink.createdAt,
     });
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error creating share link', error);
     return NextResponse.json(
       { error: 'Failed to create share link' },

@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
       success: true,
       message: 'Password changed successfully',
     });
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error changing password', {
       error: error instanceof Error ? error.message : 'Unknown error',
     });

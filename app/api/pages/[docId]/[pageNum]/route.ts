@@ -91,7 +91,7 @@ export async function GET(
       { headers }
     );
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Page retrieval error:', error);
     
     return NextResponse.json(

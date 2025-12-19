@@ -21,8 +21,9 @@ async function diagnoseNetwork() {
   // Test 2: DNS resolution
   console.log('2. Testing DNS resolution...');
   try {
-    const dns = require('dns').promises;
-    const addresses = await dns.resolve4(poolerHost);
+    import dns from 'dns';
+    const dnsPromises = dns.promises;
+    const addresses = await dnsPromises.resolve4(poolerHost);
     console.log('   Pooler resolves to:', addresses.join(', '));
     console.log('   ✅ DNS resolution works\n');
   } catch (error) {
@@ -33,7 +34,7 @@ async function diagnoseNetwork() {
   console.log('3. Testing database connection...');
   console.log('   This may take up to 10 seconds...');
   try {
-    const { prisma } = require('../lib/db');
+    import { prisma } from '../lib/db';
     
     const timeout = new Promise((_, reject) => 
       setTimeout(() => reject(new Error('Timeout after 10s')), 10000)

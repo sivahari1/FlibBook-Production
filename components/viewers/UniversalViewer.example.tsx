@@ -3,6 +3,7 @@
  * Demonstrates different content types and configurations
  */
 
+import Image from 'next/image';
 import UniversalViewer from './UniversalViewer';
 import { ContentType, EnhancedDocument } from '@/lib/types/content';
 
@@ -309,11 +310,15 @@ export function ContentGridExample({ contents }: { contents: EnhancedDocument[] 
           className="border rounded-lg p-4 cursor-pointer hover:shadow-lg transition-shadow"
         >
           {content.thumbnailUrl && (
-            <img
-              src={content.thumbnailUrl}
-              alt={content.title}
-              className="w-full h-48 object-cover rounded mb-2"
-            />
+            <div className="relative w-full h-48 mb-2">
+              <Image
+                src={content.thumbnailUrl}
+                alt={content.title}
+                fill
+                className="object-cover rounded"
+                unoptimized={content.thumbnailUrl.startsWith('http')}
+              />
+            </div>
           )}
           <h3 className="font-bold">{content.title}</h3>
           <p className="text-sm text-gray-600">{content.contentType}</p>
@@ -322,3 +327,13 @@ export function ContentGridExample({ contents }: { contents: EnhancedDocument[] 
     </div>
   );
 }
+
+// Add display names to all example components
+PDFExample.displayName = 'PDFExample';
+ImageExample.displayName = 'ImageExample';
+VideoExample.displayName = 'VideoExample';
+LinkExample.displayName = 'LinkExample';
+DynamicContentExample.displayName = 'DynamicContentExample';
+AnalyticsExample.displayName = 'AnalyticsExample';
+ErrorHandlingExample.displayName = 'ErrorHandlingExample';
+ContentGridExample.displayName = 'ContentGridExample';

@@ -20,7 +20,7 @@ export async function GET() {
       const { prisma } = await import('@/lib/db');
       await prisma.$queryRaw`SELECT 1`;
       dbStatus = 'connected';
-    } catch (error) {
+    } catch (error: unknown) {
       dbStatus = 'error';
       console.error('Database connection error:', error);
     }
@@ -33,7 +33,7 @@ export async function GET() {
       env: envCheck,
       nextauth_url: process.env.NEXTAUTH_URL, // Safe to expose this
     });
-  } catch (error) {
+  } catch (error: unknown) {
     return NextResponse.json(
       {
         status: 'error',

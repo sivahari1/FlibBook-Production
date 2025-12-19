@@ -8,6 +8,8 @@
  * Requirements: 3.1, 3.2, 4.5
  */
 
+import React from 'react';
+
 import { render, screen, waitFor, within } from '@testing-library/react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import '@testing-library/jest-dom';

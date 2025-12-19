@@ -51,7 +51,7 @@ describe('POST /api/documents/convert', () => {
   });
 
   it('should return 400 if documentId is missing', async () => {
-    vi.mocked(getServerSession).mockResolvedValue(mockSession as any);
+    vi.mocked(getServerSession).mockResolvedValue(mockSession as ReturnType<typeof getServerSession>);
 
     const request = new NextRequest('http://localhost:3000/api/documents/convert', {
       method: 'POST',
@@ -67,7 +67,7 @@ describe('POST /api/documents/convert', () => {
   });
 
   it('should return 404 if document does not exist', async () => {
-    vi.mocked(getServerSession).mockResolvedValue(mockSession as any);
+    vi.mocked(getServerSession).mockResolvedValue(mockSession as ReturnType<typeof getServerSession>);
     vi.mocked(prisma.document.findUnique).mockResolvedValue(null);
 
     const request = new NextRequest('http://localhost:3000/api/documents/convert', {
@@ -84,11 +84,11 @@ describe('POST /api/documents/convert', () => {
   });
 
   it('should return 403 if user does not own the document', async () => {
-    vi.mocked(getServerSession).mockResolvedValue(mockSession as any);
+    vi.mocked(getServerSession).mockResolvedValue(mockSession as ReturnType<typeof getServerSession>);
     vi.mocked(prisma.document.findUnique).mockResolvedValue({
       ...mockDocument,
       userId: 'different-user',
-    } as any);
+    } as typeof mockDocument);
 
     const request = new NextRequest('http://localhost:3000/api/documents/convert', {
       method: 'POST',

@@ -45,7 +45,7 @@ export default function UserCreationModal({
     if (isOpen && !formData.password) {
       setFormData(prev => ({ ...prev, password: generateSecurePassword(16) }))
     }
-  }, [isOpen])
+  }, [isOpen, formData.password])
 
   const handleGeneratePassword = () => {
     const newPassword = generateSecurePassword(16)

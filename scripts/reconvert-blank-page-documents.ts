@@ -150,7 +150,8 @@ async function reconvertDocument(doc: BlankPageDocument): Promise<ReconversionRe
     console.log(`   ✅ Downloaded PDF (${(pdfBuffer.length / 1024).toFixed(2)} KB)`);
 
     // Create temp directory and write PDF
-    const tempDir = await fs.mkdtemp(path.join(require('os').tmpdir(), 'reconvert-'));
+    import os from 'os';
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'reconvert-'));
     const pdfPath = path.join(tempDir, 'document.pdf');
     await fs.writeFile(pdfPath, pdfBuffer);
 

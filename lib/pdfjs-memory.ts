@@ -31,10 +31,10 @@ export interface MemoryConfig {
  * Default memory configuration
  */
 export const DEFAULT_MEMORY_CONFIG: MemoryConfig = {
-  maxRenderedPages: 5, // Keep 5 rendered pages in memory
-  maxPageObjects: 10, // Keep 10 page objects in memory
-  enableMonitoring: true,
-  warningThreshold: 100, // Warn if memory usage exceeds 100MB
+  maxRenderedPages: 2, // Keep only 2 rendered pages in memory (current + 1)
+  maxPageObjects: 3, // Keep only 3 page objects in memory
+  enableMonitoring: false, // Disable excessive monitoring
+  warningThreshold: 50, // Warn if memory usage exceeds 50MB
 };
 
 /**
@@ -278,6 +278,11 @@ export class PDFMemoryManager {
    * Check memory usage and log warnings if needed
    */
   private checkMemoryUsage(): void {
+    // Only check if monitoring is enabled
+    if (!this.config.enableMonitoring) {
+      return;
+    }
+    
     const memoryMB = this.totalMemoryUsed / (1024 * 1024);
     
     if (memoryMB > this.config.warningThreshold) {

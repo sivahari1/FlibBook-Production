@@ -2,13 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/db'
-import { getDocumentsByUserId, getUserStorageInfo } from '@/lib/documents'
+import { getUserStorageInfo } from '@/lib/documents'
 import { uploadFile } from '@/lib/storage'
 import { validateFile, validateStorageQuota } from '@/lib/validation'
 import { SUBSCRIPTION_PLANS, SubscriptionTier } from '@/lib/razorpay'
 import { sanitizeString, sanitizeFilename } from '@/lib/sanitization'
 import { logger } from '@/lib/logger'
 import { requirePlatformUser } from '@/lib/role-check'
+import type { DocumentWhereClause } from '@/lib/types/api'
 
 // Force dynamic rendering - don't try to statically analyze this route
 export const dynamic = 'force-dynamic'
@@ -38,7 +39,7 @@ export async function GET(request: NextRequest) {
     const searchQuery = searchParams.get('search')
 
     // Build where clause for filtering
-    const whereClause: any = {
+    const whereClause: Partial<DocumentWhereClause> & { OR?: Array<{ title?: { contains: string; mode: 'insensitive' }; filename?: { contains: string; mode: 'insensitive' } }> } = {
       userId: session.user.id
     }
 
@@ -100,7 +101,7 @@ export async function GET(request: NextRequest) {
       subscription: user?.subscription || 'free',
       totalCount: documents.length
     })
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error fetching documents', error)
     return NextResponse.json(
       { error: 'Failed to fetch documents' },
@@ -281,7 +282,7 @@ export async function POST(request: NextRequest) {
       },
       { status: 201 }
     )
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error uploading document', error)
     return NextResponse.json(
       { error: 'Failed to upload document' },

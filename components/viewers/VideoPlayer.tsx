@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import DRMProtection from '../security/DRMProtection';
 import DevToolsDetector from '../security/DevToolsDetector';
 import { VideoMetadata, WatermarkConfig } from '@/lib/types/content';
@@ -58,17 +58,19 @@ export default function VideoPlayer({
     setLoading(false);
   };
 
-  // Play/Pause toggle
-  const togglePlayPause = () => {
+  // Play/Pause toggle - use functional update to avoid dependency on isPlaying
+  const togglePlayPause = useCallback(() => {
     if (videoRef.current) {
-      if (isPlaying) {
-        videoRef.current.pause();
-      } else {
-        videoRef.current.play();
-      }
-      setIsPlaying(!isPlaying);
+      setIsPlaying(current => {
+        if (current) {
+          videoRef.current?.pause();
+        } else {
+          videoRef.current?.play();
+        }
+        return !current;
+      });
     }
-  };
+  }, []); // Remove isPlaying dependency
 
   // Update current time
   const handleTimeUpdate = () => {
@@ -96,35 +98,42 @@ export default function VideoPlayer({
     }
   };
 
-  // Toggle mute
-  const toggleMute = () => {
+  // Toggle mute - use functional update to avoid dependency on isMuted
+  const toggleMute = useCallback(() => {
     if (videoRef.current) {
-      const newMuted = !isMuted;
-      videoRef.current.muted = newMuted;
-      setIsMuted(newMuted);
-      if (newMuted) {
-        setVolume(0);
-      } else {
-        setVolume(videoRef.current.volume);
-      }
+      setIsMuted(current => {
+        const newMuted = !current;
+        if (videoRef.current) {
+          videoRef.current.muted = newMuted;
+          if (newMuted) {
+            setVolume(0);
+          } else {
+            setVolume(videoRef.current.volume);
+          }
+        }
+        return newMuted;
+      });
     }
-  };
+  }, []); // Remove isMuted dependency
 
-  // Toggle fullscreen
-  const toggleFullscreen = () => {
+  // Toggle fullscreen - use functional update to avoid dependency on isFullscreen
+  const toggleFullscreen = useCallback(() => {
     const videoContainer = videoRef.current?.parentElement;
     if (!videoContainer) return;
 
-    if (!isFullscreen) {
-      if (videoContainer.requestFullscreen) {
-        videoContainer.requestFullscreen();
+    setIsFullscreen(current => {
+      if (!current) {
+        if (videoContainer.requestFullscreen) {
+          videoContainer.requestFullscreen();
+        }
+      } else {
+        if (document.exitFullscreen) {
+          document.exitFullscreen();
+        }
       }
-    } else {
-      if (document.exitFullscreen) {
-        document.exitFullscreen();
-      }
-    }
-  };
+      return !current;
+    });
+  }, []); // Remove isFullscreen dependency
 
   // Listen for fullscreen changes
   useEffect(() => {
@@ -163,7 +172,7 @@ export default function VideoPlayer({
 
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [isPlaying, metadata.duration]);
+  }, [isPlaying, metadata.duration, togglePlayPause, toggleMute, toggleFullscreen]);
 
   return (
     <DRMProtection>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
 import { formatDistanceToNow, format } from 'date-fns'
@@ -48,11 +48,7 @@ export default function MemberDetails({ memberId, onClose }: MemberDetailsProps)
   const [error, setError] = useState<string | null>(null)
   const [actionLoading, setActionLoading] = useState(false)
 
-  useEffect(() => {
-    fetchMemberDetails()
-  }, [memberId])
-
-  const fetchMemberDetails = async () => {
+  const fetchMemberDetails = useCallback(async () => {
     try {
       setLoading(true)
       const response = await fetch(`/api/admin/members/${memberId}`)
@@ -68,7 +64,11 @@ export default function MemberDetails({ memberId, onClose }: MemberDetailsProps)
     } finally {
       setLoading(false)
     }
-  }
+  }, [memberId])
+
+  useEffect(() => {
+    fetchMemberDetails()
+  }, [fetchMemberDetails])
 
   const handleToggleActive = async () => {
     if (!member) return

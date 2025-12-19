@@ -4,6 +4,7 @@ import React, { useRef, useEffect, useState, useMemo, useCallback } from 'react'
 import { PageData } from './SimpleDocumentViewer';
 import LoadingSpinner from './LoadingSpinner';
 import PageLoadError from './PageLoadError';
+import { OptimizedImage } from './OptimizedImage';
 
 export interface ContinuousScrollViewProps {
   pages: PageData[];
@@ -152,12 +153,8 @@ export default function ContinuousScrollView({
     return () => observer.disconnect();
   }, [pages, debouncedOnPageVisible, useVirtualScrolling]);
 
-  // Memoized image cache functions
-  const getCachedImage = useCallback((url: string): HTMLImageElement | null => {
-    return imageCache.get(url) || null;
-  }, []);
-
-  const setCachedImage = useCallback((url: string, img: HTMLImageElement) => {
+  // Memoized image cache functions - these don't need useCallback as they don't depend on props/state
+  const setCachedImage = (url: string, img: HTMLImageElement) => {
     // Limit cache size to prevent memory issues
     if (imageCache.size >= 50) {
       const firstKey = imageCache.keys().next().value;
@@ -166,14 +163,14 @@ export default function ContinuousScrollView({
       }
     }
     imageCache.set(url, img);
-  }, []);
+  };
 
-  // Handle image load start
+  // Handle image load start - no dependencies needed
   const handleImageLoadStart = useCallback((pageNumber: number) => {
     setLoadingPages(prev => new Set(prev).add(pageNumber));
   }, []);
 
-  // Handle image load success
+  // Handle image load success - remove setCachedImage dependency since it's now a regular function
   const handleImageLoad = useCallback((pageNumber: number, img: HTMLImageElement, url: string) => {
     setLoadingPages(prev => {
       const newSet = new Set(prev);
@@ -188,9 +185,9 @@ export default function ContinuousScrollView({
     
     // Cache the loaded image
     setCachedImage(url, img);
-  }, [setCachedImage]);
+  }, []); // Remove setCachedImage dependency
 
-  // Handle image load error
+  // Handle image load error - keep onPageError dependency as it's a prop
   const handleImageError = useCallback((pageNumber: number, event: React.SyntheticEvent<HTMLImageElement>) => {
     const img = event.currentTarget;
     const errorMessage = img.src ? 'Failed to load page image' : 'Invalid page URL';
@@ -204,7 +201,7 @@ export default function ContinuousScrollView({
     onPageError(pageNumber, errorMessage);
   }, [onPageError]);
 
-  // Handle page retry
+  // Handle page retry - keep onPageRetry dependency as it's a prop
   const handleRetry = useCallback((pageNumber: number) => {
     setRetryingPages(prev => new Set(prev).add(pageNumber));
     onPageRetry(pageNumber);
@@ -246,7 +243,7 @@ export default function ContinuousScrollView({
                 onImageLoad={handleImageLoad}
                 onImageError={handleImageError}
                 onRetry={handleRetry}
-                getCachedImage={getCachedImage}
+
               />
             ))}
           </div>
@@ -267,7 +264,7 @@ export default function ContinuousScrollView({
         onImageLoad={handleImageLoad}
         onImageError={handleImageError}
         onRetry={handleRetry}
-        getCachedImage={getCachedImage}
+
       />
     ));
   };
@@ -305,7 +302,6 @@ const PageRenderer = React.memo(({
   onImageLoad,
   onImageError,
   onRetry,
-  getCachedImage,
 }: {
   page: PageData;
   zoomLevel: number;
@@ -317,7 +313,6 @@ const PageRenderer = React.memo(({
   onImageLoad: (pageNumber: number, img: HTMLImageElement, url: string) => void;
   onImageError: (pageNumber: number, event: React.SyntheticEvent<HTMLImageElement>) => void;
   onRetry: (pageNumber: number) => void;
-  getCachedImage: (url: string) => HTMLImageElement | null;
 }) => {
   const shouldRender = !visiblePages || visiblePages.has(page.pageNumber);
   
@@ -352,21 +347,35 @@ const PageRenderer = React.memo(({
               />
             </div>
           )}
-          <img
+          <OptimizedImage
             src={`${page.pageUrl}${retryingPages.has(page.pageNumber) ? `?retry=${Date.now()}` : ''}`}
             alt={`Page ${page.pageNumber} of document`}
+            width={page.dimensions?.width || 800}
+            height={page.dimensions?.height || 1000}
             className="w-full h-full object-contain"
-            loading="lazy"
-            draggable={false}
-            onContextMenu={(e) => e.preventDefault()}
-            onLoadStart={() => onImageLoadStart(page.pageNumber)}
-            onLoad={(e) => onImageLoad(page.pageNumber, e.currentTarget, page.pageUrl)}
-            onError={(e) => onImageError(page.pageNumber, e)}
+            priority={page.pageNumber <= 3 ? 'high' : 'normal'}
+            progressive={true}
+            networkSpeed="auto"
+            onLoad={() => {
+              const img = new Image();
+              img.src = page.pageUrl;
+              onImageLoad(page.pageNumber, img, page.pageUrl);
+            }}
+            onError={(error) => {
+              const mockEvent = {
+                currentTarget: { src: page.pageUrl }
+              } as React.SyntheticEvent<HTMLImageElement>;
+              onImageError(page.pageNumber, mockEvent);
+            }}
+            placeholder={
+              <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                <div className="text-gray-400">Loading page {page.pageNumber}...</div>
+              </div>
+            }
             style={{
               userSelect: 'none',
               WebkitUserSelect: 'none',
             }}
-            role="img"
             aria-describedby={`page-${page.pageNumber}-description`}
           />
           <div 
@@ -388,7 +397,7 @@ const PageRenderer = React.memo(({
 PageRenderer.displayName = 'PageRenderer';
 
 // Debounce utility function
-function debounce<T extends (...args: any[]) => any>(
+function debounce<T extends (...args: unknown[]) => unknown>(
   func: T,
   wait: number
 ): (...args: Parameters<T>) => void {

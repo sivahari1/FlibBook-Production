@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import type { BookshopWhereClause } from '@/lib/types/api';
 
 export async function GET(request: NextRequest) {
   try {
@@ -11,7 +12,7 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search');
 
     // Build where clause
-    const where: any = {
+    const where: Partial<BookshopWhereClause> & { OR?: Array<{ title?: { contains: string; mode: 'insensitive' }; description?: { contains: string; mode: 'insensitive' } }> } = {
       isPublished: true,
     };
 
@@ -62,13 +63,13 @@ export async function GET(request: NextRequest) {
     }
 
     // Add inMyJstudyroom flag to each item
-    const itemsWithStatus = items.map((item: any) => ({
+    const itemsWithStatus = items.map((item) => ({
       ...item,
       inMyJstudyroom: userItems.has(item.id),
     }));
 
     return NextResponse.json(itemsWithStatus);
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error fetching book shop items:', error);
     return NextResponse.json(
       { error: 'Failed to fetch book shop items' },

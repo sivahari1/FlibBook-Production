@@ -361,7 +361,7 @@ describe('End-to-End System Reliability Integration', () => {
       await Promise.all(
         users.map(async (user) => {
           const userStart = Date.now();
-          await new Promise(resolve => setTimeout(resolve, 500 + Math.random() * 500));
+          await new Promise(resolve => setTimeout(resolve, 50 + Math.random() * 50));
           user.status = 'loaded';
           user.loadTime = Date.now() - userStart;
         })

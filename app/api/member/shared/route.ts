@@ -21,7 +21,7 @@ export const runtime = 'nodejs'
 /**
  * Get shared files for authenticated Member
  */
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     // Verify authentication
     const session = await getServerSession(authOptions)
@@ -96,7 +96,7 @@ export async function GET(request: NextRequest) {
       { status: 200 }
     )
 
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error retrieving shared files', {
       error: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : undefined

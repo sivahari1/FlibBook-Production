@@ -41,6 +41,7 @@ export function ErrorToast({
 
       return () => clearTimeout(timer);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoClose, autoCloseDelay, severity]);
 
   const handleClose = () => {

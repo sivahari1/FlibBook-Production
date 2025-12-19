@@ -261,3 +261,15 @@ export function SharedVideoViewer() {
     />
   );
 }
+
+// Add display names to all example components
+BasicVideoPlayer.displayName = 'BasicVideoPlayer';
+VideoPlayerWithWatermark.displayName = 'VideoPlayerWithWatermark';
+AutoplayVideoPlayer.displayName = 'AutoplayVideoPlayer';
+DetailedVideoPlayer.displayName = 'DetailedVideoPlayer';
+WebMVideoPlayer.displayName = 'WebMVideoPlayer';
+MOVVideoPlayer.displayName = 'MOVVideoPlayer';
+ShortVideoPlayer.displayName = 'ShortVideoPlayer';
+NativeControlsVideoPlayer.displayName = 'NativeControlsVideoPlayer';
+BookShopVideoViewer.displayName = 'BookShopVideoViewer';
+SharedVideoViewer.displayName = 'SharedVideoViewer';

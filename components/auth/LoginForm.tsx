@@ -163,7 +163,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ showRoleButtons = true }) 
           router.refresh();
         } else {
           // User clicked wrong role - show error and redirect
-          const errorMsg = `Access Denied: You don't have permission to access this dashboard. Your role is ${userRole.replace('_', ' ')}`;
+          const errorMsg = `Access Denied: You don&apos;t have permission to access this dashboard. Your role is ${userRole.replace('_', ' ')}`;
           setServerError(errorMsg);
           showToast('error', errorMsg);
           

@@ -15,6 +15,8 @@ import {
 import { sanitizeString } from '@/lib/sanitization';
 import { logger } from '@/lib/logger';
 import { requirePlatformUser } from '@/lib/role-check';
+import { getAllCategories } from '@/lib/bookshop-categories';
+import type { DocumentMetadata } from '@/lib/types/api';
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -48,6 +50,12 @@ export async function POST(request: NextRequest) {
     const descriptionRaw = formData.get('description') as string | null;
     const linkUrl = formData.get('linkUrl') as string | null;
     const file = formData.get('file') as File | null;
+    
+    // Parse bookshop integration fields
+    const addToBookshop = formData.get('addToBookshop') === 'true';
+    const bookshopCategory = formData.get('bookshopCategory') as string | null;
+    const bookshopPrice = formData.get('bookshopPrice') ? parseFloat(formData.get('bookshopPrice') as string) : null;
+    const bookshopDescription = formData.get('bookshopDescription') as string | null;
 
     // Validate content type
     // Requirement 9.3: Content type validation
@@ -62,13 +70,45 @@ export async function POST(request: NextRequest) {
 
     // Sanitize inputs
     const title = sanitizeString(titleRaw);
-    const description = descriptionRaw ? sanitizeString(descriptionRaw) : undefined;
 
     if (!title) {
       return NextResponse.json(
         { error: 'Title is required' },
         { status: 400 }
       );
+    }
+
+    // Validate bookshop integration fields
+    if (addToBookshop) {
+      if (!bookshopCategory) {
+        return NextResponse.json(
+          { error: 'Category is required when adding to bookshop' },
+          { status: 400 }
+        );
+      }
+
+      // Validate category is from allowed list
+      const allowedCategories = getAllCategories();
+      if (!allowedCategories.includes(bookshopCategory)) {
+        return NextResponse.json(
+          { error: 'Invalid category selected' },
+          { status: 400 }
+        );
+      }
+
+      if (bookshopPrice === null || bookshopPrice === undefined || bookshopPrice < 0) {
+        return NextResponse.json(
+          { error: 'Price must be 0 or greater when adding to bookshop' },
+          { status: 400 }
+        );
+      }
+
+      if (bookshopPrice > 10000) {
+        return NextResponse.json(
+          { error: 'Price cannot exceed ₹10,000' },
+          { status: 400 }
+        );
+      }
     }
 
     // Validate content type specific requirements
@@ -151,9 +191,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Process content based on type
-    let fileUrl: string | undefined;
     let thumbnailUrl: string | undefined;
-    let metadata: any = {};
+    let metadata: DocumentMetadata = {};
     let storagePath: string | undefined;
     let mimeType: string | undefined;
     let fileSize: number = 0;
@@ -187,9 +226,8 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      fileUrl = processingResult.fileUrl;
       thumbnailUrl = processingResult.thumbnailUrl;
-      metadata = processingResult.metadata;
+      metadata = processingResult.metadata as DocumentMetadata;
       storagePath = processingResult.fileUrl;
       mimeType = file.type;
       fileSize = file.size;
@@ -208,7 +246,7 @@ export async function POST(request: NextRequest) {
         mimeType: mimeType || 'text/html',
         linkUrl: contentType === ContentType.LINK ? linkUrl || undefined : undefined,
         thumbnailUrl: thumbnailUrl || undefined,
-        metadata: metadata || {},
+        metadata: metadata as any || {},
         userId: session.user.id
       }
     });
@@ -219,6 +257,44 @@ export async function POST(request: NextRequest) {
       contentType,
       fileSize
     });
+
+    // Create bookshop item if requested
+    let bookshopItem = null;
+    let warningMessage = null;
+    
+    if (addToBookshop && bookshopCategory && bookshopPrice) {
+      try {
+        bookshopItem = await prisma.bookShopItem.create({
+          data: {
+            title,
+            description: bookshopDescription || descriptionRaw || '',
+            category: bookshopCategory,
+            price: Math.round(bookshopPrice), // Convert to integer (paise)
+            contentType,
+            documentId: documentId,
+            isFree: bookshopPrice === 0,
+            isPublished: true
+          }
+        });
+
+        logger.info('Bookshop item created successfully', {
+          userId: session.user.id,
+          documentId,
+          bookshopItemId: bookshopItem.id,
+          category: bookshopCategory,
+          price: bookshopPrice
+        });
+      } catch (error) {
+        // Log error but don't fail the upload
+        logger.error('Failed to create bookshop item', {
+          userId: session.user.id,
+          documentId,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+        
+        warningMessage = 'Document uploaded successfully, but could not be added to bookshop. You can add it to bookshop later from the document details page.';
+      }
+    }
 
     // Update user's storage usage only if not admin
     // Requirement 1.3: Admin quota counter invariance
@@ -244,14 +320,26 @@ export async function POST(request: NextRequest) {
       metadata: document.metadata as any
     };
 
+    // Prepare success message
+    let successMessage = 'Document uploaded successfully';
+    if (bookshopItem) {
+      successMessage = `Document uploaded successfully and added to ${bookshopCategory} category in bookshop`;
+    }
+
     const response: UploadResponse = {
       success: true,
       document: documentResponse as any,
-      quotaRemaining
+      bookShopItem: bookshopItem ? {
+        ...bookshopItem,
+        metadata: {}
+      } as any : undefined,
+      quotaRemaining,
+      message: successMessage,
+      warning: warningMessage || undefined
     };
 
     return NextResponse.json(response, { status: 201 });
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error uploading document', error);
     return NextResponse.json(
       { error: 'Failed to upload document' },

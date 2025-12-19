@@ -304,7 +304,7 @@ export function FlipBookViewer({
   }, []);
 
   // Handle page flip
-  const handleFlip = useCallback((e: any) => {
+  const handleFlip = useCallback((e: { data: number }) => {
     const newPage = e.data;
     setCurrentPage(newPage);
     onPageChange?.(newPage);

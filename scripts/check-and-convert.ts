@@ -36,7 +36,7 @@ async function main() {
   console.log('=' .repeat(60));
 
   // Import and run the conversion script
-  const { execSync } = require('child_process');
+  import { execSync } from 'child_process';
   
   try {
     execSync('npx tsx scripts/convert-documents-simple.ts', {

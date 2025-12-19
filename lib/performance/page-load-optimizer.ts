@@ -122,8 +122,9 @@ export class PageLoadOptimizer {
       try {
         const fidObserver = new PerformanceObserver((list) => {
           const entries = list.getEntries();
-          entries.forEach((entry: any) => {
-            this.metrics.fid = entry.processingStart - entry.startTime;
+          entries.forEach((entry) => {
+            const perfEntry = entry as PerformanceEventTiming;
+            this.metrics.fid = perfEntry.processingStart - perfEntry.startTime;
           });
         });
         fidObserver.observe({ entryTypes: ['first-input'] });
@@ -136,8 +137,9 @@ export class PageLoadOptimizer {
         let clsValue = 0;
         const clsObserver = new PerformanceObserver((list) => {
           for (const entry of list.getEntries()) {
-            if (!(entry as any).hadRecentInput) {
-              clsValue += (entry as any).value;
+            const layoutShift = entry as LayoutShift;
+            if (!layoutShift.hadRecentInput) {
+              clsValue += layoutShift.value;
               this.metrics.cls = clsValue;
             }
           }
@@ -346,7 +348,7 @@ export class PageLoadOptimizer {
       
       // Set loading priority
       if ('fetchPriority' in img) {
-        (img as any).fetchPriority = priority;
+        (img as HTMLImageElement & { fetchPriority: string }).fetchPriority = priority;
       }
       
       // Set decoding mode

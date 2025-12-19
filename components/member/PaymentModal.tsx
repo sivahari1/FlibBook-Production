@@ -16,9 +16,47 @@ interface PaymentModalProps {
   onSuccess: () => void;
 }
 
+interface RazorpayResponse {
+  razorpay_order_id: string;
+  razorpay_payment_id: string;
+  razorpay_signature: string;
+}
+
+interface RazorpayError {
+  reason?: string;
+  description?: string;
+}
+
+interface RazorpayOptions {
+  key: string | undefined;
+  amount: number;
+  currency: string;
+  name: string;
+  description: string;
+  order_id: string;
+  handler: (response: RazorpayResponse) => Promise<void>;
+  modal: {
+    ondismiss: () => void;
+    escape: boolean;
+    animation: boolean;
+  };
+  theme: {
+    color: string;
+  };
+  retry: {
+    enabled: boolean;
+    max_count: number;
+  };
+}
+
+interface RazorpayInstance {
+  open: () => void;
+  on: (event: string, handler: (response: { error: RazorpayError }) => void) => void;
+}
+
 declare global {
   interface Window {
-    Razorpay: any;
+    Razorpay: new (options: RazorpayOptions) => RazorpayInstance;
   }
 }
 
@@ -90,7 +128,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
         name: 'jstudyroom',
         description: bookShopItem.title,
         order_id: orderData.orderId,
-        handler: async (response: any) => {
+        handler: async (response: RazorpayResponse) => {
           try {
             setPaymentStep('verifying');
             
@@ -148,7 +186,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
 
       const razorpay = new window.Razorpay(options);
       
-      razorpay.on('payment.failed', function (response: any) {
+      razorpay.on('payment.failed', function (response: { error: RazorpayError }) {
         setIsProcessing(false);
         setPaymentStep('failed');
         const reason = response.error?.reason || response.error?.description || 'Payment failed';

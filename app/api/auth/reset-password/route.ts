@@ -133,7 +133,7 @@ export async function POST(request: NextRequest) {
       success: true,
       message: 'Your password has been reset successfully. Please log in with your new password.',
     });
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Password reset error', {
       error: error instanceof Error ? error.message : 'Unknown error',
     });

@@ -5,7 +5,7 @@ import { DocumentList } from '@/components/dashboard/DocumentList';
 import { UploadButton } from '@/components/dashboard/UploadButton';
 import { ContentFilter } from '@/components/dashboard/ContentFilter';
 import { useRouter } from 'next/navigation';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { ContentType } from '@/lib/types/content';
 

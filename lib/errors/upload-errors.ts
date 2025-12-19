@@ -15,7 +15,7 @@ export class UploadError extends Error {
   constructor(
     message: string,
     public code: string,
-    public details?: any
+    public details?: Record<string, unknown>
   ) {
     super(message);
     this.name = 'UploadError';
@@ -139,7 +139,7 @@ const ERROR_MESSAGES: Record<UploadErrorCode, string> = {
  * Get user-friendly error message for an error code
  * Requirements: 9.4
  */
-export function getErrorMessage(code: UploadErrorCode, details?: any): string {
+export function getErrorMessage(code: UploadErrorCode, details?: Record<string, unknown>): string {
   let message = ERROR_MESSAGES[code] || ERROR_MESSAGES[UploadErrorCodes.UNKNOWN_ERROR];
   
   // Add specific details for certain error types
@@ -162,7 +162,7 @@ export function getErrorMessage(code: UploadErrorCode, details?: any): string {
  */
 export function createUploadError(
   code: UploadErrorCode,
-  details?: any
+  details?: Record<string, unknown>
 ): UploadError {
   const message = getErrorMessage(code, details);
   return new UploadError(message, code, details);

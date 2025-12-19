@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
       deletedCount,
       timestamp: new Date().toISOString(),
     });
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Token cleanup job failed', { error });
 
     return NextResponse.json(

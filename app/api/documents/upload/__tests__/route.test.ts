@@ -251,3 +251,134 @@ describe('Property-Based Tests - Upload API', () => {
     );
   });
 });
+
+/**
+ * **Feature: free-upload-fix, Property 5: Edge case validation handling**
+ * For any price input that is null, undefined, or negative, the validation should reject it, but price 0 should be accepted
+ * **Validates: Requirements 3.3**
+ */
+describe('Property 5: Edge case validation handling', () => {
+  // Helper function that replicates the backend validation logic from upload route
+  const validateBackendBookShopPrice = (bookShopPrice: number | null | undefined): { isValid: boolean; error?: string } => {
+    if (bookShopPrice === null || bookShopPrice === undefined || bookShopPrice < 0) {
+      return { isValid: false, error: 'Price must be 0 or greater when adding to bookshop' };
+    } else if (bookShopPrice > 10000) {
+      return { isValid: false, error: 'Price cannot exceed ₹10,000' };
+    }
+    return { isValid: true };
+  };
+
+  it('should reject null and undefined prices', () => {
+    fc.assert(
+      fc.property(
+        fc.constantFrom(null, undefined),
+        (price) => {
+          const result = validateBackendBookShopPrice(price);
+          
+          // Property: null and undefined should be rejected
+          expect(result.isValid).toBe(false);
+          expect(result.error).toBe('Price must be 0 or greater when adding to bookshop');
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+
+  it('should reject negative prices', () => {
+    fc.assert(
+      fc.property(
+        fc.float({ min: Math.fround(-1000), max: Math.fround(-0.01), noNaN: true }),
+        (price) => {
+          const result = validateBackendBookShopPrice(price);
+          
+          // Property: negative prices should be rejected
+          expect(result.isValid).toBe(false);
+          expect(result.error).toBe('Price must be 0 or greater when adding to bookshop');
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+
+  it('should accept price exactly 0', () => {
+    const result = validateBackendBookShopPrice(0);
+    
+    // Property: price 0 should be accepted (edge case for free content)
+    expect(result.isValid).toBe(true);
+    expect(result.error).toBeUndefined();
+  });
+
+  it('should accept valid positive prices', () => {
+    fc.assert(
+      fc.property(
+        fc.float({ min: Math.fround(0.01), max: Math.fround(10000), noNaN: true }),
+        (price) => {
+          const result = validateBackendBookShopPrice(price);
+          
+          // Property: positive prices within range should be accepted
+          expect(result.isValid).toBe(true);
+          expect(result.error).toBeUndefined();
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+
+  it('should reject prices above upper limit', () => {
+    fc.assert(
+      fc.property(
+        fc.float({ min: Math.fround(10000.01), max: Math.fround(100000), noNaN: true }),
+        (price) => {
+          const result = validateBackendBookShopPrice(price);
+          
+          // Property: prices above limit should be rejected
+          expect(result.isValid).toBe(false);
+          expect(result.error).toBe('Price cannot exceed ₹10,000');
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+
+  it('should handle boundary values correctly', () => {
+    const boundaryValues = [0, 0.01, 9999.99, 10000];
+    
+    boundaryValues.forEach(price => {
+      const result = validateBackendBookShopPrice(price);
+      
+      // Property: All boundary values within range should be valid
+      expect(result.isValid).toBe(true);
+      expect(result.error).toBeUndefined();
+    });
+  });
+
+  it('should handle edge cases with special values', () => {
+    const edgeCases = [
+      { price: -0, shouldBeValid: true }, // Negative zero should be treated as 0
+      { price: Number.MIN_VALUE, shouldBeValid: true }, // Smallest positive number
+      { price: 10000, shouldBeValid: true }, // Exact upper boundary
+      { price: 10000.001, shouldBeValid: false }, // Just above upper boundary
+    ];
+    
+    edgeCases.forEach(({ price, shouldBeValid }) => {
+      const result = validateBackendBookShopPrice(price);
+      
+      expect(result.isValid).toBe(shouldBeValid);
+      if (!shouldBeValid) {
+        expect(result.error).toBeDefined();
+      }
+    });
+  });
+
+  it('should ensure zero representations are consistently accepted', () => {
+    const zeroRepresentations = [0, 0.0, -0, +0, Math.abs(-0)];
+    
+    zeroRepresentations.forEach(zero => {
+      const result = validateBackendBookShopPrice(zero);
+      
+      // Property: All representations of zero should be valid
+      expect(result.isValid).toBe(true);
+      expect(result.error).toBeUndefined();
+    });
+  });
+});

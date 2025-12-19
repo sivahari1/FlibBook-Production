@@ -41,7 +41,7 @@ export function PermissionError({
             <p>{message}</p>
             {action && (
               <p className="mt-1">
-                You don't have permission to {action}.
+                You don&apos;t have permission to {action}.
               </p>
             )}
           </div>

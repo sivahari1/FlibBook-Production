@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/role-check'
 import { prisma } from '@/lib/db'
 import { logger } from '@/lib/logger'
+import type { UserWhereClause } from '@/lib/types/api'
 
 /**
  * GET /api/admin/users
@@ -30,7 +31,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Build where clause
-    const where: any = {}
+    const where: UserWhereClause = {}
     
     if (role && ['ADMIN', 'PLATFORM_USER', 'READER_USER'].includes(role)) {
       where.userRole = role
@@ -90,7 +91,7 @@ export async function GET(request: NextRequest) {
         totalPages: Math.ceil(total / limit)
       }
     })
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error fetching users', {
       error: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : undefined

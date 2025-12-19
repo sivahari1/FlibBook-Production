@@ -8,6 +8,14 @@ import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import PDFViewerWithPDFJS from '../PDFViewerWithPDFJS';
+import { initializePDFJS, isPDFJSAvailable } from '@/lib/pdfjs-config';
+import { 
+  loadPDFDocument, 
+  renderPageToCanvas, 
+  cleanupCanvas, 
+  destroyPDFDocument,
+  PDFDocumentLoaderError 
+} from '@/lib/pdfjs-integration';
 
 // Mock PDF.js modules
 vi.mock('@/lib/pdfjs-config', () => ({
@@ -64,10 +72,8 @@ describe('PDFViewerWithPDFJS', () => {
 
   describe('Component Structure', () => {
     it('should render loading state initially', () => {
-      const { loadPDFDocument } = require('@/lib/pdfjs-integration');
-      
       // Mock loading that never resolves
-      loadPDFDocument.mockImplementation(() => new Promise(() => {}));
+      (loadPDFDocument as any).mockImplementation(() => new Promise(() => {}));
       
       render(<PDFViewerWithPDFJS {...defaultProps} />);
       
@@ -76,10 +82,7 @@ describe('PDFViewerWithPDFJS', () => {
     });
 
     it('should initialize PDF.js on mount', () => {
-      const { initializePDFJS } = require('@/lib/pdfjs-config');
-      const { loadPDFDocument } = require('@/lib/pdfjs-integration');
-      
-      loadPDFDocument.mockImplementation(() => new Promise(() => {}));
+      (loadPDFDocument as any).mockImplementation(() => new Promise(() => {}));
       
       render(<PDFViewerWithPDFJS {...defaultProps} />);
       
@@ -87,8 +90,6 @@ describe('PDFViewerWithPDFJS', () => {
     });
 
     it('should render canvas container when loaded', async () => {
-      const { loadPDFDocument, renderPageToCanvas } = require('@/lib/pdfjs-integration');
-      
       const mockDocument = {
         numPages: 5,
         getPage: vi.fn().mockResolvedValue({
@@ -98,13 +99,13 @@ describe('PDFViewerWithPDFJS', () => {
         destroy: vi.fn(),
       };
       
-      loadPDFDocument.mockResolvedValue({
+      (loadPDFDocument as any).mockResolvedValue({
         document: mockDocument,
         numPages: 5,
         loadTime: 1000,
       });
       
-      renderPageToCanvas.mockResolvedValue({
+      (renderPageToCanvas as any).mockResolvedValue({
         canvas: document.createElement('canvas'),
         viewport: { width: 800, height: 600 },
         renderTime: 500,
@@ -120,8 +121,7 @@ describe('PDFViewerWithPDFJS', () => {
 
   describe('Props', () => {
     it('should accept pdfUrl prop', () => {
-      const { loadPDFDocument } = require('@/lib/pdfjs-integration');
-      loadPDFDocument.mockImplementation(() => new Promise(() => {}));
+      (loadPDFDocument as any).mockImplementation(() => new Promise(() => {}));
       
       render(<PDFViewerWithPDFJS {...defaultProps} pdfUrl="https://example.com/custom.pdf" />);
       
@@ -133,8 +133,6 @@ describe('PDFViewerWithPDFJS', () => {
     });
 
     it('should render watermark when provided', async () => {
-      const { loadPDFDocument, renderPageToCanvas } = require('@/lib/pdfjs-integration');
-      
       const mockDocument = {
         numPages: 1,
         getPage: vi.fn().mockResolvedValue({
@@ -144,13 +142,13 @@ describe('PDFViewerWithPDFJS', () => {
         destroy: vi.fn(),
       };
       
-      loadPDFDocument.mockResolvedValue({
+      (loadPDFDocument as any).mockResolvedValue({
         document: mockDocument,
         numPages: 1,
         loadTime: 1000,
       });
       
-      renderPageToCanvas.mockResolvedValue({
+      (renderPageToCanvas as any).mockResolvedValue({
         canvas: document.createElement('canvas'),
         viewport: { width: 800, height: 600 },
         renderTime: 500,
@@ -173,7 +171,6 @@ describe('PDFViewerWithPDFJS', () => {
 
   describe('Callbacks', () => {
     it('should call onLoadComplete when PDF loads', async () => {
-      const { loadPDFDocument } = require('@/lib/pdfjs-integration');
       const onLoadComplete = vi.fn();
       
       const mockDocument = {
@@ -185,7 +182,7 @@ describe('PDFViewerWithPDFJS', () => {
         destroy: vi.fn(),
       };
       
-      loadPDFDocument.mockResolvedValue({
+      (loadPDFDocument as any).mockResolvedValue({
         document: mockDocument,
         numPages: 10,
         loadTime: 1000,
@@ -199,11 +196,9 @@ describe('PDFViewerWithPDFJS', () => {
     });
 
     it('should call onError when loading fails', async () => {
-      const { loadPDFDocument } = require('@/lib/pdfjs-integration');
-      const { PDFDocumentLoaderError } = require('@/lib/pdfjs-integration');
       const onError = vi.fn();
       
-      loadPDFDocument.mockRejectedValue(
+      (loadPDFDocument as any).mockRejectedValue(
         new PDFDocumentLoaderError('Failed to load', 'NETWORK_ERROR')
       );
       
@@ -217,8 +212,7 @@ describe('PDFViewerWithPDFJS', () => {
 
   describe('Error Handling', () => {
     it('should display error when PDF.js is not available', async () => {
-      const { isPDFJSAvailable } = require('@/lib/pdfjs-config');
-      isPDFJSAvailable.mockReturnValue(false);
+      (isPDFJSAvailable as any).mockReturnValue(false);
       
       render(<PDFViewerWithPDFJS {...defaultProps} />);
       
@@ -238,10 +232,7 @@ describe('PDFViewerWithPDFJS', () => {
     });
 
     it('should display specific error message for timeout', async () => {
-      const { loadPDFDocument } = require('@/lib/pdfjs-integration');
-      const { PDFDocumentLoaderError } = require('@/lib/pdfjs-integration');
-      
-      loadPDFDocument.mockRejectedValue(
+      (loadPDFDocument as any).mockRejectedValue(
         new PDFDocumentLoaderError('Timeout', 'TIMEOUT')
       );
       
@@ -253,10 +244,7 @@ describe('PDFViewerWithPDFJS', () => {
     });
 
     it('should display specific error message for invalid PDF', async () => {
-      const { loadPDFDocument } = require('@/lib/pdfjs-integration');
-      const { PDFDocumentLoaderError } = require('@/lib/pdfjs-integration');
-      
-      loadPDFDocument.mockRejectedValue(
+      (loadPDFDocument as any).mockRejectedValue(
         new PDFDocumentLoaderError('Invalid', 'INVALID_PDF')
       );
       
@@ -270,8 +258,6 @@ describe('PDFViewerWithPDFJS', () => {
 
   describe('Cleanup', () => {
     it('should cleanup PDF document on unmount', async () => {
-      const { loadPDFDocument, destroyPDFDocument } = require('@/lib/pdfjs-integration');
-      
       const mockDocument = {
         numPages: 1,
         getPage: vi.fn().mockResolvedValue({
@@ -281,7 +267,7 @@ describe('PDFViewerWithPDFJS', () => {
         destroy: vi.fn(),
       };
       
-      loadPDFDocument.mockResolvedValue({
+      (loadPDFDocument as any).mockResolvedValue({
         document: mockDocument,
         numPages: 1,
         loadTime: 1000,
@@ -299,8 +285,6 @@ describe('PDFViewerWithPDFJS', () => {
     });
 
     it('should cleanup canvas on unmount', async () => {
-      const { loadPDFDocument, renderPageToCanvas, cleanupCanvas } = require('@/lib/pdfjs-integration');
-      
       const mockDocument = {
         numPages: 1,
         getPage: vi.fn().mockResolvedValue({
@@ -312,13 +296,13 @@ describe('PDFViewerWithPDFJS', () => {
       
       const mockCanvas = document.createElement('canvas');
       
-      loadPDFDocument.mockResolvedValue({
+      (loadPDFDocument as any).mockResolvedValue({
         document: mockDocument,
         numPages: 1,
         loadTime: 1000,
       });
       
-      renderPageToCanvas.mockResolvedValue({
+      (renderPageToCanvas as any).mockResolvedValue({
         canvas: mockCanvas,
         viewport: { width: 800, height: 600 },
         renderTime: 500,
