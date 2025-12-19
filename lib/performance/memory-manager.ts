@@ -186,7 +186,7 @@ export class MemoryManager {
       ? Math.floor(this.options.maxPagesInMemory * 0.5)
       : this.options.maxPagesInMemory;
 
-    let pagesToRemove: number[] = [];
+    const pagesToRemove: number[] = [];
 
     // Remove oldest pages that are not in keep range
     for (const page of pagesByAccess) {

@@ -227,7 +227,7 @@ describe('Browser Cache Efficiency Property Tests', () => {
           // Arrange: Track cache performance
           let cacheHits = 0;
           let cacheMisses = 0;
-          let totalLoadTimes: number[] = [];
+          const totalLoadTimes: number[] = [];
           
           const pdfUrl = `${docData.baseUrl}/document.pdf`;
           

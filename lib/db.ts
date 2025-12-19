@@ -45,6 +45,9 @@ export const prisma =
     }
   })
 
+// Named export alias for backward compatibility
+export const db = prisma
+
 // Default export for compatibility
 export default prisma
 

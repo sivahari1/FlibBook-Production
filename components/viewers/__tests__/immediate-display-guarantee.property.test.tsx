@@ -241,7 +241,7 @@ describe('Property 10: Immediate display guarantee', () => {
         fc.webUrl(),
         async (documentId, documentTitle, pdfUrl) => {
           // Test that immediate display doesn't require manual actions
-          let refreshRequested = false;
+          const refreshRequested = false;
           let manualActionRequired = false;
           
           const handleLoadProgress = (progress: LoadProgress) => {

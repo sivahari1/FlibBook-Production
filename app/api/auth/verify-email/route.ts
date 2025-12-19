@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
 
       // Determine appropriate error message and action
       let message = 'Invalid verification link';
-      let action = 'resend';
+      const action = 'resend';
 
       if (validation.error === 'Token expired') {
         message = 'Your verification link has expired';

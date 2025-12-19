@@ -542,7 +542,7 @@ describe('Study Room (MyJstudyroom) Filtering Property Tests', () => {
           fc.array(myJstudyroomItemArbitrary, { minLength: 5, maxLength: 10 }),
           (items) => {
             // Apply filters that are unlikely to match
-            let filtered = filterBySearch(items, 'xyzabc123nonexistent');
+            const filtered = filterBySearch(items, 'xyzabc123nonexistent');
             
             // Result might be empty, which is valid
             expect(filtered.length).toBeGreaterThanOrEqual(0);

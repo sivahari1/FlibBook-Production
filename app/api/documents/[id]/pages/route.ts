@@ -116,7 +116,7 @@ export async function GET(
     }
 
     // Check memory cache first for faster response
-    let cachedDocumentData = await documentCacheManager.getDocumentCache(documentId);
+    const cachedDocumentData = await documentCacheManager.getDocumentCache(documentId);
     let pageUrls: string[] = [];
     
     if (cachedDocumentData && cachedDocumentData.pageUrls) {

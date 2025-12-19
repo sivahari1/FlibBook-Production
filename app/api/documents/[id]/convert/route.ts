@@ -14,7 +14,7 @@ import { authOptions } from '@/lib/auth';
 import { getConversionJobManager } from '@/lib/services/conversion-job-manager';
 import { getConversionManager } from '@/lib/services/centralized-conversion-manager';
 import { type ConversionPriority } from '@/lib/types/conversion';
-import { db } from '@/lib/db';
+import { prisma } from '@/lib/db';
 import { z } from 'zod';
 
 /**

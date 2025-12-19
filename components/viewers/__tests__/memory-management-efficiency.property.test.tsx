@@ -101,7 +101,7 @@ describe('Memory Management Efficiency Property Tests', () => {
           const memoryThreshold = memoryConstraints.availableMemory * memoryConstraints.memoryPressureThreshold;
           
           let maxMemoryUsed = initialMemory;
-          let memoryMeasurements: number[] = [];
+          const memoryMeasurements: number[] = [];
           
           // Mock memory monitoring
           const originalMemory = mockPerformance.memory;
@@ -198,7 +198,7 @@ describe('Memory Management Efficiency Property Tests', () => {
         fc.integer({ min: 1, max: 5 }), // Reduced viewport pages
         async (pdfData, viewportPages) => {
           // Arrange: Track page loading
-          let loadedPages = new Set<number>();
+          const loadedPages = new Set<number>();
           let renderCalls = 0;
           
           // Mock PDFViewerWithPDFJS to track lazy loading
@@ -355,8 +355,8 @@ describe('Memory Management Efficiency Property Tests', () => {
         largePDFArbitrary,
         async (pdfData) => {
           // Arrange: Track resource allocation
-          let allocatedResources = new Set<string>();
-          let cleanedResources = new Set<string>();
+          const allocatedResources = new Set<string>();
+          const cleanedResources = new Set<string>();
           
           // Mock resource tracking
           const originalAddEventListener = document.addEventListener;

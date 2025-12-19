@@ -207,7 +207,7 @@ describe('PDFViewerWithPDFJS Performance Validation', () => {
         
         let currentMemoryUsage = 0;
         let peakMemoryUsage = 0;
-        let renderStartTime = Date.now();
+        const renderStartTime = Date.now();
         
         // Mock memory growth simulation
         mockPerformance.memory = {

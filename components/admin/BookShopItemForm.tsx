@@ -113,7 +113,7 @@ export default function BookShopItemForm({
 
     fetchDocuments()
     // Empty dependency array is correct here - we only want to fetch once on mount
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {

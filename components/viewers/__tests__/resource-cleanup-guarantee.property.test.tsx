@@ -25,7 +25,7 @@ interface TrackedResource {
   timestamp: number;
 }
 
-let resourceTracker: Map<string, TrackedResource> = new Map();
+const resourceTracker: Map<string, TrackedResource> = new Map();
 
 // Mock PDF.js with resource tracking
 const mockPDFJS = {
@@ -302,7 +302,7 @@ describe('Resource Cleanup Guarantee Property Tests', () => {
           resourceTracker.clear();
           
           let pdfUrl = docData.pdfUrl;
-          let shouldThrowError = false;
+          const shouldThrowError = false;
           
           switch (scenario) {
             case 'error-during-load':

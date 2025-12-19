@@ -30,7 +30,7 @@ export function InboxNavLink() {
     const interval = setInterval(fetchInboxCount, 30000)
     return () => clearInterval(interval)
     // Empty dependency array is correct here - we want to set up the interval once on mount
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [])
 
   const isActive = pathname === '/inbox'

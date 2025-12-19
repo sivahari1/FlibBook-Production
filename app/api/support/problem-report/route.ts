@@ -11,7 +11,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { db } from '@/lib/db';
+import { prisma } from '@/lib/db';
 import { logger } from '@/lib/logger';
 
 interface ProblemReportData {
@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create problem report record
-    const problemReport = await db.problemReport.create({
+    const problemReport = await prisma.problemReport.create({
       data: {
         userId: session.user.id,
         documentId: reportData.documentId,

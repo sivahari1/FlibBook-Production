@@ -66,7 +66,7 @@ vi.mock('@/lib/pdfjs-render-pipeline', () => ({
 // Mock ReliablePDFRenderer with progress simulation
 let mockProgressCallback: ((progress: any) => void) | null = null;
 let mockRenderingId = 'test-rendering-id';
-let mockRenderPDF = vi.fn();
+const mockRenderPDF = vi.fn();
 
 vi.mock('@/lib/pdf-reliability/reliable-pdf-renderer', () => ({
   ReliablePDFRenderer: class MockReliablePDFRenderer {

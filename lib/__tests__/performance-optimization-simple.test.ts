@@ -105,7 +105,7 @@ class SimplePerformanceOptimizer {
   tuneRetryTiming(documentSize: number, networkConditions: string) {
     let baseDelay = this.config.retries?.baseDelay || 1000;
     let maxDelay = this.config.retries?.exponentialBackoff?.maxDelay || 30000;
-    let multiplier = this.config.retries?.exponentialBackoff?.multiplier || 2;
+    const multiplier = this.config.retries?.exponentialBackoff?.multiplier || 2;
 
     // Adjust based on document size
     if (documentSize > 10 * 1024 * 1024) {
@@ -136,7 +136,7 @@ class SimplePerformanceOptimizer {
   }
 
   optimizeProgressUpdateFrequency(complexity: string) {
-    let baseInterval = this.config.performance?.progress?.updateInterval || 500;
+    const baseInterval = this.config.performance?.progress?.updateInterval || 500;
 
     switch (complexity) {
       case 'low':

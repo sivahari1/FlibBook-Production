@@ -148,7 +148,7 @@ export function sanitizeFilename(filename: string): string {
   }
 
   // First, remove all path separators and dots to prevent path traversal
-  let sanitized = filename
+  const sanitized = filename
     .replace(/[\/\\]/g, '_')  // Replace path separators
     .replace(/\.\./g, '_')     // Replace .. sequences
     .replace(/\0/g, '')        // Remove null bytes
