@@ -1,65 +1,89 @@
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient } from '@prisma/client';
 
-const prisma = new PrismaClient()
+const prisma = new PrismaClient();
 
 async function listAvailableDocuments() {
   try {
-    console.log('📋 Listing all available documents...')
+    console.log('📋 Listing available documents and MyJstudyroomItems...\n');
     
+    // List all documents
     const documents = await prisma.document.findMany({
-      include: {
-        user: true,
-        bookShopItems: true,
-        pages: true
+      select: { 
+        id: true, 
+        title: true, 
+        filename: true,
+        contentType: true,
+        createdAt: true 
       },
-      orderBy: {
-        createdAt: 'desc'
-      },
+      orderBy: { createdAt: 'desc' },
       take: 10
-    })
+    });
     
-    console.log(`Found ${documents.length} documents:`)
+    console.log('📄 Recent Documents:');
+    documents.forEach((doc, index) => {
+      console.log(`${index + 1}. ID: ${doc.id}`);
+      console.log(`   Title: ${doc.title}`);
+      console.log(`   Filename: ${doc.filename}`);
+      console.log(`   Type: ${doc.contentType}`);
+      console.log(`   Created: ${doc.createdAt}`);
+      console.log('');
+    });
     
-    for (const doc of documents) {
-      console.log(`\n📄 Document: ${doc.title}`)
-      console.log(`   ID: ${doc.id}`)
-      console.log(`   Content Type: ${doc.contentType}`)
-      console.log(`   Owner: ${doc.user.email}`)
-      console.log(`   In Bookshop: ${doc.bookShopItems.length > 0 ? 'Yes' : 'No'}`)
-      console.log(`   Pages: ${doc.pages.length}`)
-      console.log(`   Created: ${doc.createdAt.toISOString()}`)
-      
-      if (doc.bookShopItems.length > 0) {
-        const item = doc.bookShopItems[0]
-        console.log(`   Bookshop: ${item.title} (${item.category}) - ${item.isFree ? 'Free' : `₹${item.price}`}`)
-        console.log(`   Published: ${item.isPublished ? 'Yes' : 'No'}`)
-      }
-    }
-    
-    // Also check for any documents that might match the ID pattern
-    console.log('\n🔍 Checking for documents with similar IDs...')
-    const similarDocs = await prisma.document.findMany({
-      where: {
-        id: {
-          contains: 'cmskl'
+    // List MyJstudyroomItems
+    const items = await prisma.myJstudyroomItem.findMany({
+      include: {
+        bookShopItem: {
+          include: {
+            document: {
+              select: { id: true, title: true, filename: true }
+            }
+          }
         }
-      }
-    })
+      },
+      orderBy: { addedAt: 'desc' },
+      take: 10
+    });
     
-    if (similarDocs.length > 0) {
-      console.log('Found documents with similar IDs:')
-      for (const doc of similarDocs) {
-        console.log(`   ${doc.id} - ${doc.title}`)
-      }
-    } else {
-      console.log('No documents found with similar IDs')
-    }
+    console.log('🎒 Recent MyJstudyroomItems:');
+    items.forEach((item, index) => {
+      console.log(`${index + 1}. Item ID: ${item.id}`);
+      console.log(`   BookShop Title: ${item.bookShopItem.title}`);
+      console.log(`   Document ID: ${item.bookShopItem.document?.id || 'N/A'}`);
+      console.log(`   Document Title: ${item.bookShopItem.document?.title || 'N/A'}`);
+      console.log(`   Added: ${item.addedAt}`);
+      console.log('');
+    });
+    
+    // Check for documents with pages
+    const documentsWithPages = await prisma.document.findMany({
+      where: {
+        pages: {
+          some: {}
+        }
+      },
+      select: { 
+        id: true, 
+        title: true,
+        _count: {
+          select: { pages: true }
+        }
+      },
+      take: 5
+    });
+    
+    console.log('📄 Documents with pages:');
+    documentsWithPages.forEach((doc, index) => {
+      console.log(`${index + 1}. ID: ${doc.id}`);
+      console.log(`   Title: ${doc.title}`);
+      console.log(`   Pages: ${doc._count.pages}`);
+      console.log('');
+    });
     
   } catch (error) {
-    console.error('❌ Error listing documents:', error)
+    console.error('❌ Error:', error.message);
   } finally {
-    await prisma.$disconnect()
+    await prisma.$disconnect();
   }
 }
 
-listAvailableDocuments()
+listAvailableDocuments();

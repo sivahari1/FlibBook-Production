@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { prisma } from '@/lib/db';
+import prisma from '@/lib/prisma';
+import { getSignedUrl } from '@/lib/storage';
 
 export async function GET(
   request: NextRequest,
@@ -62,55 +63,40 @@ export async function GET(
     const page = document.pages[0];
 
     if (!page) {
+      // Return error if page doesn't exist - no more placeholder generation
       return NextResponse.json(
-        { error: 'Page not found' },
+        { error: `Page ${pageNumber} not found. Document may need to be converted.` },
         { status: 404 }
       );
     }
 
-    // Generate a better placeholder SVG for member access
-    const placeholderSvg = `
-      <svg width="595" height="842" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <pattern id="watermark" x="0" y="0" width="200" height="200" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-            <text x="100" y="100" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#e9ecef" opacity="0.3">
-              jStudyRoom
-            </text>
-          </pattern>
-        </defs>
-        <rect width="100%" height="100%" fill="#f8f9fa"/>
-        <rect x="50" y="50" width="495" height="742" fill="white" stroke="#dee2e6" stroke-width="2"/>
-        <rect x="50" y="50" width="495" height="742" fill="url(#watermark)"/>
-        <text x="297.5" y="350" text-anchor="middle" font-family="Arial, sans-serif" font-size="28" fill="#495057" font-weight="bold">
-          ${myJstudyroomItem.bookShopItem.title}
-        </text>
-        <text x="297.5" y="400" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" fill="#6c757d">
-          Page ${pageNumber}
-        </text>
-        <text x="297.5" y="450" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" fill="#adb5bd">
-          ${document.title}
-        </text>
-        <text x="297.5" y="500" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" fill="#ced4da">
-          Member Access - jStudyRoom
-        </text>
-        <text x="297.5" y="530" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#dee2e6">
-          ${session.user.email}
-        </text>
-      </svg>
-    `;
+    // Check if pageUrl is a storage path or already a full URL
+    let imageUrl = page.pageUrl;
+    
+    // If it's a storage path (not starting with http), generate signed URL
+    if (!imageUrl.startsWith('http')) {
+      const signedUrlResult = await getSignedUrl(
+        imageUrl,
+        3600, // 1 hour expiry
+        'document-pages'
+      );
+      
+      if (signedUrlResult.error || !signedUrlResult.url) {
+        return NextResponse.json(
+          { error: 'Failed to generate page access URL' },
+          { status: 500 }
+        );
+      }
+      
+      imageUrl = signedUrlResult.url;
+    }
 
-    return new NextResponse(placeholderSvg, {
-      headers: {
-        'Content-Type': 'image/svg+xml',
-        'Cache-Control': 'public, max-age=3600',
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-      },
-    });
+    // Redirect to the actual page image
+    return NextResponse.redirect(imageUrl);
 
   } catch (error) {
     console.error('Error serving member document page:', error);
+    
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

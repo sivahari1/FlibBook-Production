@@ -16,6 +16,7 @@ import { useTouchGestures } from '@/hooks/useTouchGestures';
 import { loadPreferences, updatePreferences, isLocalStorageAvailable } from '@/lib/viewer-preferences';
 import { useLoadingStateManager, createLoadingContextId } from '@/lib/loading-state-manager';
 import { useLoadingStatePersistence } from '@/lib/loading-state-persistence';
+import ViewerDebugPanel from './ViewerDebugPanel';
 
 export interface PageData {
   pageNumber: number;
@@ -479,7 +480,7 @@ const SimpleDocumentViewer = React.memo(function SimpleDocumentViewer({
     }
   }, [viewMode, zoomLevel]);
 
-  // Load PDF document if pdfUrl is provided
+  // Load document pages using canonical API
   useEffect(() => {
     if (usePdfRendering && pdfUrl) {
       setIsLoading(true);
@@ -513,29 +514,122 @@ const SimpleDocumentViewer = React.memo(function SimpleDocumentViewer({
       // The actual loading will be handled by PDFViewerWithPDFJS
       setIsLoading(false);
     } else if (!usePdfRendering) {
-      // Validate pages data for legacy rendering
-      if (!pages || pages.length === 0) {
+      // Load pages using canonical viewer API
+      loadDocumentPages();
+    }
+  }, [usePdfRendering, pdfUrl, documentId]);
+
+  // Load document pages from canonical API
+  const loadDocumentPages = useCallback(async () => {
+    if (usePdfRendering) return; // Skip if using PDF rendering
+    
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      console.log(`[SimpleDocumentViewer] Loading pages for document ${documentId}`);
+      
+      // Call canonical pages API
+      const response = await fetch(`/api/viewer/documents/${documentId}/pages`, {
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      const data = await response.json();
+      
+      if (!response.ok) {
+        if (response.status === 401) {
+          setError('Authentication required to view this document');
+        } else if (response.status === 403) {
+          setError('Access denied - you do not have permission to view this document');
+        } else if (response.status === 404) {
+          setError('Document not found');
+        } else if (response.status === 409) {
+          setError(data.message || 'Document pages are being generated. Please try again in a moment.');
+        } else {
+          setError(data.message || 'Failed to load document pages');
+        }
+        return;
+      }
+      
+      if (!data.success) {
+        setError(data.message || 'Failed to load document pages');
+        return;
+      }
+      
+      // Convert API response to PageData format with blob URLs for authentication
+      console.log(`[SimpleDocumentViewer] Creating blob URLs for ${data.pages.length} pages...`);
+      
+      const apiPages: PageData[] = await Promise.all(
+        data.pages.map(async (page: any) => {
+          try {
+            // Fetch the page image with authentication
+            const pageUrl = `/api/viewer/documents/${documentId}/pages/${page.pageNumber}`;
+            const imageResponse = await fetch(pageUrl, {
+              credentials: 'include',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+            });
+            
+            if (imageResponse.ok) {
+              const blob = await imageResponse.blob();
+              const blobUrl = URL.createObjectURL(blob);
+              console.log(`[SimpleDocumentViewer] Created blob URL for page ${page.pageNumber} (${blob.size} bytes)`);
+              
+              return {
+                pageNumber: page.pageNumber,
+                pageUrl: blobUrl, // Use blob URL for direct image loading
+                dimensions: { width: 1200, height: 1600 } // Default dimensions
+              };
+            } else {
+              console.error(`[SimpleDocumentViewer] Failed to load page ${page.pageNumber}:`, imageResponse.status);
+              const errorText = await imageResponse.text();
+              console.error(`[SimpleDocumentViewer] Error details:`, errorText);
+              
+              // Return a placeholder for failed pages
+              return {
+                pageNumber: page.pageNumber,
+                pageUrl: '', // Empty URL will show error state
+                dimensions: { width: 1200, height: 1600 }
+              };
+            }
+          } catch (error) {
+            console.error(`[SimpleDocumentViewer] Error loading page ${page.pageNumber}:`, error);
+            return {
+              pageNumber: page.pageNumber,
+              pageUrl: '', // Empty URL will show error state
+              dimensions: { width: 1200, height: 1600 }
+            };
+          }
+        })
+      );
+      
+      console.log(`[SimpleDocumentViewer] Loaded ${apiPages.length} pages for document ${documentId}`);
+      
+      // Update pages state (this will trigger re-render with pages)
+      // Note: We can't directly set pages prop, but we can validate the structure
+      if (apiPages.length === 0) {
         setError('No pages available to display');
         return;
       }
-
-      // Validate page data structure
-      const invalidPages = pages.filter(page => 
-        !page.pageUrl || 
-        !page.pageNumber || 
-        !page.dimensions ||
-        typeof page.dimensions.width !== 'number' ||
-        typeof page.dimensions.height !== 'number'
-      );
-
-      if (invalidPages.length > 0) {
-        setError(`Invalid page data found for ${invalidPages.length} page(s)`);
+      
+      // If pages prop is empty, show error asking parent to provide pages
+      if (!pages || pages.length === 0) {
+        setError('Document pages loaded but not provided to viewer component');
         return;
       }
-
+      
       setError(null);
+      
+    } catch (error) {
+      console.error('[SimpleDocumentViewer] Error loading pages:', error);
+      setError('Failed to load document pages');
+    } finally {
+      setIsLoading(false);
     }
-  }, [usePdfRendering, pdfUrl, documentId]); // FIXED: Removed problematic dependencies that cause infinite loops
+  }, [documentId, usePdfRendering, pages]);
 
   // Cleanup effect for memory management
   useEffect(() => {
@@ -1165,6 +1259,9 @@ const SimpleDocumentViewer = React.memo(function SimpleDocumentViewer({
             fontSize={watermark.fontSize}
           />
         )}
+
+        {/* Debug Panel (development only) */}
+        <ViewerDebugPanel documentId={documentId} />
       </div>
     </div>
   );

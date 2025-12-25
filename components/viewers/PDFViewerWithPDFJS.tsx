@@ -126,6 +126,7 @@ interface ContinuousPageState {
   pageNumber: number;
   status: 'pending' | 'loading' | 'loaded' | 'error';
   canvas?: HTMLCanvasElement;
+  width?: number;
   height: number;
   error?: Error;
 }
@@ -205,6 +206,7 @@ const PDFViewerWithPDFJS = forwardRef<any, PDFViewerWithPDFJSProps>(({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const pageRefsMap = useRef<Map<number, HTMLDivElement>>(new Map());
+  const canvasRefsMap = useRef<Map<number, HTMLCanvasElement>>(new Map()); // Array of canvas refs indexed by 1-based pageNumber
   const renderQueueRef = useRef<Set<number>>(new Set());
   const isRenderingRef = useRef(false);
   const isMountedRef = useRef(true);
@@ -307,9 +309,7 @@ const PDFViewerWithPDFJS = forwardRef<any, PDFViewerWithPDFJSProps>(({
         
         // Also allow same-state transitions with different progress/data
         const isSameStateUpdate = prev.status === nextState.status && (
-          prev.progress !== nextState.progress ||
-          prev.currentPage !== nextState.currentPage ||
-          prev.totalPages !== nextState.totalPages
+          prev.progress !== nextState.progress
         );
         
         // Allow all same-state transitions (including identical states for loading)
@@ -707,8 +707,8 @@ const PDFViewerWithPDFJS = forwardRef<any, PDFViewerWithPDFJSProps>(({
       // Initialize memory manager with optimized settings for performance
       if (!memoryManagerRef.current) {
         memoryManagerRef.current = createMemoryManager({
-          maxRenderedPages: 1, // Aggressive: Only keep current page rendered
-          maxPageObjects: 1, // Aggressive: Only keep current page object
+          maxRenderedPages: 5, // Allow more pages for continuous mode
+          maxPageObjects: 5, // Allow more page objects for continuous mode
           enableMonitoring: true, // Enable monitoring for optimization
           warningThreshold: 20, // Lower threshold for earlier cleanup
         });
@@ -988,8 +988,9 @@ const PDFViewerWithPDFJS = forwardRef<any, PDFViewerWithPDFJSProps>(({
       isLoadingRef.current = false;
       isPageRenderingRef.current = false;
       
-      // 7. Clear page references map
+      // 7. Clear page references map and canvas refs map
       pageRefsMap.current.clear();
+      canvasRefsMap.current.clear();
       
       // 8. Reset rendering ID
       renderingIdRef.current = null;
@@ -2054,168 +2055,156 @@ const PDFViewerWithPDFJS = forwardRef<any, PDFViewerWithPDFJSProps>(({
   }, [loadingState.status, viewMode, currentPage, zoomLevel, createTrackedTimeout, clearTrackedTimeout]); // Include timer functions
   
   /**
-   * Render a specific page for continuous scroll mode with optimized pipeline
+   * Render all pages for continuous scroll mode with optimized pipeline
+   * FIXED: Simplified multi-page rendering - renders all pages after document loads
    * 
    * Requirements: 5.2, 6.3, 6.4
    */
-  const renderContinuousPage = useCallback(async (pageNumber: number) => {
+  const renderAllPagesForContinuous = useCallback(async () => {
     const pdfDocument = pdfDocumentRef.current;
-    if (!pdfDocument) return;
-    
-    // Check if already rendering or rendered
-    const existingState = continuousPagesRef.current.get(pageNumber);
-    if (existingState && (existingState.status === 'loading' || existingState.status === 'loaded')) {
+    if (!pdfDocument) {
+      console.log('[renderAllPagesForContinuous] No PDF document available');
       return;
     }
+
+    if (isRenderingRef.current) {
+      console.log('[renderAllPagesForContinuous] Already rendering, skipping');
+      return;
+    }
+
+    isRenderingRef.current = true;
+    console.log('[renderAllPagesForContinuous] Starting to render all pages');
+
+    const totalPages = pdfDocument.numPages;
     
     try {
-      // Update state to loading
-      setContinuousPages(prev => new Map(prev).set(pageNumber, {
-        pageNumber,
-        status: 'loading',
-        height: 0,
-      }));
-      
-      // Get page
-      const page = await pdfDocument.getPage(pageNumber);
-      
-      // Get page container
-      const pageContainer = pageRefsMap.current.get(pageNumber);
-      if (!pageContainer) return;
-      
-      // Create canvas
-      const canvas = document.createElement('canvas');
-      
-      // Use optimized render pipeline with aggressive memory management for continuous mode
-      // Requirements: 6.2, 6.3, 6.4, 1.4, 3.5
-      // Task 8: Optimize render pipeline usage
-      const pipeline = getGlobalRenderPipeline({
-        maxCacheSize: 1, // Aggressive: Only cache one page at a time
-        cacheTTL: 30 * 1000, // Very short TTL: 30 seconds for continuous mode
-        maxConcurrentRenders: 1, // Single render to minimize memory usage
-        throttleDelay: 100, // Balanced throttling for continuous scroll
-      });
-      
-      // Calculate proper scale for continuous scroll
-      const container = containerRef.current;
-      let scale = zoomLevel;
-      
-      if (container) {
-        const containerWidth = container.clientWidth;
+      // Run a for loop calling pdfDoc.getPage(pageNumber) and rendering into the corresponding canvas
+      for (let pageNumber = 1; pageNumber <= totalPages; pageNumber++) {
+        if (!isMountedRef.current) {
+          console.log('[renderAllPagesForContinuous] Component unmounted, stopping render');
+          break;
+        }
+
+        console.log(`[renderAllPagesForContinuous] Rendering page ${pageNumber} of ${totalPages}`);
         
-        // Get page viewport at scale 1.0 first
-        const viewport = page.getViewport({ scale: 1.0 });
-        
-        // Calculate scale to fit container width with some padding
-        const maxWidth = containerWidth - 40;
-        const baseScale = maxWidth / viewport.width;
-        
-        // Apply zoom level on top of base scale
-        scale = baseScale * zoomLevel;
-      }
-      
-      // Calculate priority: visible pages get higher priority
-      // Use current visible pages to avoid dependency
-      const currentVisiblePages = visiblePages;
-      const isVisible = currentVisiblePages.has(pageNumber);
-      const priority = isVisible ? 50 : 10;
-      
-      // Queue render with appropriate priority
-      pipeline.queueRender(
-        page,
-        pageNumber,
-        canvas,
-        scale, // Use calculated scale instead of just zoomLevel
-        priority,
-        (error) => {
-          if (error) {
-            // Handle rendering error
-            console.error(`[PDFViewer] Error rendering page ${pageNumber}:`, error);
+        try {
+          // Update state to loading for this page
+          setContinuousPages(prev => new Map(prev).set(pageNumber, {
+            pageNumber,
+            status: 'loading',
+            height: 0,
+          }));
+
+          // Get page
+          const page = await pdfDocument.getPage(pageNumber);
+          
+          // Get canvas for this page from the refs map
+          const canvas = canvasRefsMap.current.get(pageNumber);
+          if (!canvas) {
+            console.error(`[renderAllPagesForContinuous] No canvas found for page ${pageNumber}`);
+            continue;
+          }
+
+          const context = canvas.getContext('2d');
+          if (!context) {
+            console.error(`[renderAllPagesForContinuous] Failed to get canvas context for page ${pageNumber}`);
+            continue;
+          }
+
+          // Calculate proper scale for continuous scroll
+          const container = containerRef.current;
+          let scale = zoomLevel;
+          
+          if (container) {
+            const containerWidth = container.clientWidth;
             
-            let errorMessage = 'Failed to render page';
+            // Get page viewport at scale 1.0 first
+            const viewport = page.getViewport({ scale: 1.0 });
             
-            try {
-              if (error instanceof PDFPageRendererError) {
-                errorMessage = error.message;
-              } else if (error instanceof Error) {
-                errorMessage = error.message;
-              }
-              
-              const err = new Error(errorMessage);
-              
-              setContinuousPages(prev => new Map(prev).set(pageNumber, {
-                pageNumber,
-                status: 'error',
-                height: 0,
-                error: err,
-              }));
-              
-              onError?.(err);
-            } catch (handlingError) {
-              console.error(`[PDFViewer] Error handling render error for page ${pageNumber}:`, handlingError);
-            }
-          } else {
-            // Render successful
-            // Add rendered page to memory manager cache
-            // Requirements: 6.3
-            if (memoryManagerRef.current) {
-              memoryManagerRef.current.addRenderedPage(pageNumber, canvas);
-              memoryManagerRef.current.addPageObject(pageNumber, page);
-            }
+            // Calculate scale to fit container width with some padding
+            const maxWidth = containerWidth - 40;
+            const baseScale = maxWidth / viewport.width;
             
-            // Append canvas to page container (React-safe DOM manipulation)
-            if (pageContainer && !pageContainer.querySelector('canvas')) {
-              pageContainer.appendChild(canvas);
-            }
-            
-            // Update state to loaded
-            setContinuousPages(prev => new Map(prev).set(pageNumber, {
-              pageNumber,
-              status: 'loaded',
-              canvas,
-              height: canvas.height,
-            }));
-            
-            // Notify parent of render completion
-            if (onRenderCompleteRef.current) {
-              onRenderCompleteRef.current(pageNumber);
-            }
+            // Apply zoom level on top of base scale
+            scale = baseScale * zoomLevel;
+          }
+
+          // Get final viewport with calculated scale
+          const scaledViewport = page.getViewport({ scale });
+          
+          // Set canvas dimensions
+          canvas.width = scaledViewport.width;
+          canvas.height = scaledViewport.height;
+          canvas.style.width = `${scaledViewport.width}px`;
+          canvas.style.height = `${scaledViewport.height}px`;
+
+          // Render the page directly into the corresponding canvas
+          const renderContext = {
+            canvasContext: context,
+            viewport: scaledViewport,
+          };
+
+          const renderTask = page.render(renderContext);
+          await renderTask.promise;
+
+          console.log(`Rendered page ${pageNumber}`); // Add console.log per page for verification
+
+          // Add rendered page to memory manager cache
+          if (memoryManagerRef.current) {
+            memoryManagerRef.current.addRenderedPage(pageNumber, canvas);
+          }
+
+          // Update state to loaded
+          setContinuousPages(prev => new Map(prev).set(pageNumber, {
+            pageNumber,
+            status: 'loaded',
+            canvas,
+            width: canvas.width,
+            height: canvas.height,
+          }));
+
+          // Notify parent of render completion
+          if (onRenderCompleteRef.current) {
+            onRenderCompleteRef.current(pageNumber);
+          }
+
+        } catch (renderError) {
+          console.error(`[renderAllPagesForContinuous] Render error for page ${pageNumber}:`, renderError);
+          
+          const err = new Error(`Failed to render page ${pageNumber}: ${renderError instanceof Error ? renderError.message : 'Unknown error'}`);
+          
+          setContinuousPages(prev => new Map(prev).set(pageNumber, {
+            pageNumber,
+            status: 'error',
+            height: 0,
+            error: err,
+          }));
+
+          if (onErrorRef.current) {
+            onErrorRef.current(err);
           }
         }
-      );
+      }
+
+      console.log('[renderAllPagesForContinuous] Finished rendering all pages');
       
     } catch (error) {
-      // Ignore "Transport destroyed" errors - these occur when the PDF is being unloaded
-      if (error instanceof Error && error.message.includes('Transport destroyed')) {
-        console.log(`[PDFViewer] PDF transport destroyed while rendering page ${pageNumber}, ignoring`);
-        return;
-      }
-      
-      let errorMessage = 'Failed to load page';
-      
-      if (error instanceof Error) {
-        errorMessage = error.message;
-      }
-      
-      console.error(`[PDFViewer] Error in renderContinuousPage for page ${pageNumber}:`, error);
-      
-      const err = new Error(errorMessage);
-      
-      setContinuousPages(prev => new Map(prev).set(pageNumber, {
-        pageNumber,
-        status: 'error',
-        height: 0,
-        error: err,
-      }));
+      console.error('[renderAllPagesForContinuous] Error during batch rendering:', error);
       
       if (onErrorRef.current) {
-        onErrorRef.current(err);
+        onErrorRef.current(error instanceof Error ? error : new Error('Failed to render pages'));
       }
+    } finally {
+      isRenderingRef.current = false;
     }
   }, []); // Remove all dependencies - use refs and direct checks instead
   
+  // Use ref to store renderAllPagesForContinuous to avoid dependency issues
+  const renderAllPagesForContinuousRef = useRef(renderAllPagesForContinuous);
+  renderAllPagesForContinuousRef.current = renderAllPagesForContinuous;
+  
   /**
-   * Process render queue for continuous scroll mode
+   * Process render queue for continuous scroll mode - simplified to trigger full render
    * 
    * Requirements: 6.3, 6.4
    */
@@ -2224,33 +2213,14 @@ const PDFViewerWithPDFJS = forwardRef<any, PDFViewerWithPDFJSProps>(({
       return;
     }
     
-    isRenderingRef.current = true;
+    // Clear the queue and render all pages
+    renderQueueRef.current.clear();
     
-    // Get current visible pages from ref to avoid dependency
-    const currentVisiblePages = visiblePages;
-    
-    // Get pages to render, prioritizing visible pages
-    const pagesToRender = Array.from(renderQueueRef.current).sort((a, b) => {
-      const aVisible = currentVisiblePages.has(a);
-      const bVisible = currentVisiblePages.has(b);
-      
-      if (aVisible && !bVisible) return -1;
-      if (!aVisible && bVisible) return 1;
-      
-      // Both visible or both not visible, sort by page number
-      return a - b;
-    });
-    
-    // Render pages one at a time
-    for (const pageNumber of pagesToRender) {
-      if (renderQueueRef.current.has(pageNumber)) {
-        await renderContinuousPage(pageNumber);
-        renderQueueRef.current.delete(pageNumber);
-      }
+    // Trigger full page rendering
+    if (renderAllPagesForContinuousRef.current) {
+      await renderAllPagesForContinuousRef.current();
     }
-    
-    isRenderingRef.current = false;
-  }, []); // Remove visiblePages dependency - use current value directly
+  }, []); // Remove dependencies - use current value directly
   
   /**
    * Update visible pages based on scroll position
@@ -2317,25 +2287,23 @@ const PDFViewerWithPDFJS = forwardRef<any, PDFViewerWithPDFJSProps>(({
       memoryManagerRef.current.removeNonPriorityPages(priorityPages);
     }
     
-    // Queue visible pages and adjacent pages for rendering
-    newVisiblePages.forEach(pageNumber => {
-      // Add visible page
-      if (!continuousPagesRef.current.get(pageNumber)?.canvas) {
-        renderQueueRef.current.add(pageNumber);
+    // Queue all pages for rendering if not already rendered - simplified approach
+    let needsRender = false;
+    for (let pageNumber = 1; pageNumber <= numPages; pageNumber++) {
+      const pageState = continuousPagesRef.current.get(pageNumber);
+      if (!pageState?.canvas) {
+        needsRender = true;
+        break;
       }
-      
-      // Add adjacent pages
-      if (pageNumber > 1 && !continuousPagesRef.current.get(pageNumber - 1)?.canvas) {
-        renderQueueRef.current.add(pageNumber - 1);
-      }
-      if (pageNumber < numPages && !continuousPagesRef.current.get(pageNumber + 1)?.canvas) {
-        renderQueueRef.current.add(pageNumber + 1);
-      }
-    });
+    }
     
-    // Process render queue - use ref to avoid dependency
-    if (processRenderQueueRef.current) {
-      processRenderQueueRef.current();
+    if (needsRender) {
+      renderQueueRef.current.add(1); // Just add one item to trigger render
+      
+      // Process render queue - use ref to avoid dependency
+      if (processRenderQueueRef.current) {
+        processRenderQueueRef.current();
+      }
     }
     
     // Implement aggressive cleanup for off-screen pages with memory pressure awareness
@@ -2416,7 +2384,7 @@ const PDFViewerWithPDFJS = forwardRef<any, PDFViewerWithPDFJSProps>(({
   }, [viewMode]); // Remove currentPage and loadingState dependencies - use refs instead
   
   /**
-   * Initialize continuous scroll mode
+   * Initialize continuous scroll mode and render all pages
    * 
    * Requirements: 5.2
    */
@@ -2435,10 +2403,11 @@ const PDFViewerWithPDFJS = forwardRef<any, PDFViewerWithPDFJSProps>(({
       }
       setContinuousPages(initialPages);
       
-      // Trigger initial visible page update with a slight delay to ensure DOM is ready
+      // Trigger rendering of all pages after a slight delay to ensure DOM is ready
       const timeoutId = createTrackedTimeout(() => {
-        if (updateVisiblePagesRef.current && isMountedRef.current) {
-          updateVisiblePagesRef.current();
+        if (renderAllPagesForContinuousRef.current && isMountedRef.current) {
+          console.log('[PDFViewerWithPDFJS] Triggering render of all pages for continuous mode');
+          renderAllPagesForContinuousRef.current();
         }
       }, 100);
       
@@ -2585,6 +2554,7 @@ const PDFViewerWithPDFJS = forwardRef<any, PDFViewerWithPDFJSProps>(({
     // Clear render queue and page references
     renderQueueRef.current.clear();
     pageRefsMap.current.clear();
+    canvasRefsMap.current.clear();
     
     // Reset rendering ID
     renderingIdRef.current = null;
@@ -2840,10 +2810,11 @@ const PDFViewerWithPDFJS = forwardRef<any, PDFViewerWithPDFJSProps>(({
         return next;
       });
       
-      // Re-render visible pages
+      // Re-render all pages at new zoom level
       const timeoutId = createTrackedTimeout(() => {
-        if (updateVisiblePagesRef.current && isMountedRef.current) {
-          updateVisiblePagesRef.current();
+        if (renderAllPagesForContinuousRef.current && isMountedRef.current) {
+          console.log('[PDFViewerWithPDFJS] Re-rendering all pages due to zoom change');
+          renderAllPagesForContinuousRef.current();
         }
       }, 100);
       
@@ -3570,7 +3541,7 @@ const PDFViewerWithPDFJS = forwardRef<any, PDFViewerWithPDFJSProps>(({
             {Array.from({ length: pdfDocumentRef.current?.numPages || 0 }, (_, i) => i + 1).map(pageNumber => {
               const pageState = continuousPages.get(pageNumber);
               const pageHeight = pageState?.height || 800;
-              const pageWidth = pageState?.width || 600;
+              const pageWidth = pageState?.width || 600; // Use width from state
               
               return (
                 <div
@@ -3584,9 +3555,9 @@ const PDFViewerWithPDFJS = forwardRef<any, PDFViewerWithPDFJSProps>(({
                   }}
                   className="relative bg-white shadow-lg"
                   style={{
-                    width: `${pageWidth * zoomLevel}px`,
-                    height: `${pageHeight * zoomLevel}px`,
-                    minHeight: `${pageHeight * zoomLevel}px`,
+                    width: pageWidth, // Remove zoom multiplication
+                    height: pageHeight, // Remove zoom multiplication
+                    minHeight: pageHeight, // Remove zoom multiplication
                     marginBottom: '16px', // Fixed margin instead of dynamic
                     // DRM: Apply DRM styles to each page
                     // Requirements: 4.1, 4.2, 4.3, 4.4
@@ -3601,9 +3572,27 @@ const PDFViewerWithPDFJS = forwardRef<any, PDFViewerWithPDFJSProps>(({
                   data-testid={`pdfjs-page-${pageNumber}`}
                   data-page-number={pageNumber}
                 >
+                  {/* Canvas for this page - one canvas per page indexed by 1-based pageNumber */}
+                  <canvas
+                    ref={(canvas) => {
+                      if (canvas) {
+                        canvasRefsMap.current.set(pageNumber, canvas);
+                      } else {
+                        canvasRefsMap.current.delete(pageNumber);
+                      }
+                    }}
+                    className="block"
+                    data-testid={`pdfjs-canvas-page-${pageNumber}`}
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      background: "white"
+                    }}
+                  />
+                  
                   {/* Page loading indicator */}
                   {pageState?.status === 'loading' && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
+                    <div className="absolute inset-0 flex items-center justify-center bg-gray-100 bg-opacity-75">
                       <LoadingSpinner message={`Loading page ${pageNumber}...`} />
                     </div>
                   )}
@@ -3614,7 +3603,11 @@ const PDFViewerWithPDFJS = forwardRef<any, PDFViewerWithPDFJSProps>(({
                       <div className="text-center p-4">
                         <p className="text-red-600 mb-2">Failed to load page {pageNumber}</p>
                         <button
-                          onClick={() => renderContinuousPage(pageNumber)}
+                          onClick={() => {
+                            // Add page to render queue and process
+                            renderQueueRef.current.add(pageNumber);
+                            processRenderQueueRef.current?.();
+                          }}
                           className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
                         >
                           Retry

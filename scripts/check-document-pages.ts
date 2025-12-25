@@ -3,49 +3,49 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function checkDocumentPages() {
-  console.log('🔍 Checking document pages...\n');
-
   try {
-    // Get all documents
     const documents = await prisma.document.findMany({
       select: {
         id: true,
+        title: true,
         filename: true,
-        contentType: true,
+        mimeType: true,
+        _count: {
+          select: {
+            pages: true
+          }
+        }
       },
-      orderBy: {
-        createdAt: 'desc'
-      },
-      take: 10
+      take: 5
     });
-
-    console.log(`Found ${documents.length} documents\n`);
-
-    for (const doc of documents) {
-      console.log(`📄 Document: ${doc.filename} (${doc.id})`);
-      console.log(`   Type: ${doc.contentType}`);
-
-      // Check if document_pages exist
-      const pages = await prisma.documentPage.findMany({
-        where: {
-          documentId: doc.id
-        },
-        orderBy: {
-          pageNumber: 'asc'
+    
+    console.log('Documents and their page counts:');
+    documents.forEach(doc => {
+      console.log(`- ${doc.title || doc.filename}: ${doc._count.pages} pages (${doc.mimeType})`);
+    });
+    
+    const totalPages = await prisma.documentPage.count();
+    console.log(`\nTotal document pages in database: ${totalPages}`);
+    
+    if (totalPages > 0) {
+      const samplePages = await prisma.documentPage.findMany({
+        take: 3,
+        select: {
+          id: true,
+          documentId: true,
+          pageNumber: true,
+          pageUrl: true
         }
       });
-
-      if (pages.length > 0) {
-        console.log(`   ✅ Has ${pages.length} pages converted`);
-        console.log(`   First page URL: ${pages[0].imageUrl?.substring(0, 50)}...`);
-      } else {
-        console.log(`   ❌ NO PAGES - Document not converted!`);
-      }
-      console.log('');
+      
+      console.log('\nSample pages:');
+      samplePages.forEach(page => {
+        console.log(`- Document ${page.documentId}, Page ${page.pageNumber}: ${page.pageUrl ? 'Has page URL' : 'No page URL'}`);
+      });
     }
-
+    
   } catch (error) {
-    console.error('❌ Error:', error);
+    console.error('Error:', error);
   } finally {
     await prisma.$disconnect();
   }

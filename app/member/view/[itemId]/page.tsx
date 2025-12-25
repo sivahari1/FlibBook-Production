@@ -65,6 +65,7 @@ export default async function MyJstudyroomViewerPage({
       document={item.bookShopItem.document}
       bookShopTitle={item.bookShopItem.title}
       memberName={session.user.name || session.user.email}
+      itemId={itemId}
     />
   );
 }

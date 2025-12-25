@@ -9,37 +9,33 @@ datasource db {
 }
 
 model User {
-  id                  String                @id @default(cuid())
-  email               String                @unique
+  id                  String               @id @default(cuid())
+  email               String               @unique
   passwordHash        String
   name                String?
-  role                Role                  @default(USER)
-  subscription        String                @default("free")
-  storageUsed         BigInt                @default(0)
-  emailVerified       Boolean               @default(false)
-  createdAt           DateTime              @default(now())
-  updatedAt           DateTime              @updatedAt
+  role                Role                 @default(USER)
+  subscription        String               @default("free")
+  storageUsed         BigInt               @default(0)
+  emailVerified       Boolean              @default(false)
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
   emailVerifiedAt     DateTime?
-  isActive            Boolean               @default(true)
+  isActive            Boolean              @default(true)
   notes               String?
   pricePlan           String?
-  userRole            UserRole              @default(MEMBER)
+  userRole            UserRole             @default(MEMBER)
+  freeDocumentCount   Int                  @default(0)
+  paidDocumentCount   Int                  @default(0)
   additionalRoles     UserRole[]
-  freeDocumentCount   Int                   @default(0)
-  paidDocumentCount   Int                   @default(0)
-  emailSharesCreated  DocumentShare[]       @relation("SharedByUser")
-  emailSharesReceived DocumentShare[]       @relation("SharedWithUser")
+  annotations         DocumentAnnotation[]
+  emailSharesCreated  DocumentShare[]      @relation("SharedByUser")
+  emailSharesReceived DocumentShare[]      @relation("SharedWithUser")
   documents           Document[]
   myJstudyroomItems   MyJstudyroomItem[]
   payments            Payment[]
   shareLinks          ShareLink[]
   subscriptions       Subscription[]
   verificationTokens  VerificationToken[]
-  annotations         DocumentAnnotation[]
-  problemReports      ProblemReport[]
-  conversionAnalytics ConversionAnalytics[]
-  loadAnalytics       DocumentLoadAnalytics[]
-  userExperienceAnalytics UserExperienceAnalytics[]
 
   @@index([email])
   @@index([userRole])
@@ -53,25 +49,20 @@ model Document {
   fileSize      BigInt
   storagePath   String
   mimeType      String               @default("application/pdf")
+  userId        String
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
   contentType   String               @default("PDF")
   metadata      Json                 @default("{}")
   thumbnailUrl  String?
   linkUrl       String?
-  userId        String
-  createdAt     DateTime             @default(now())
-  updatedAt     DateTime             @updatedAt
   bookShopItems BookShopItem[]
+  annotations   DocumentAnnotation[]
+  pages         DocumentPage[]
   emailShares   DocumentShare[]
   user          User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
   shareLinks    ShareLink[]
   analytics     ViewAnalytics[]
-  annotations   DocumentAnnotation[]
-  pages         DocumentPage[]
-  conversionJobs ConversionJob[]
-  problemReports ProblemReport[]
-  conversionAnalytics ConversionAnalytics[]
-  loadAnalytics DocumentLoadAnalytics[]
-  userExperienceAnalytics UserExperienceAnalytics[]
 
   @@index([userId])
   @@index([createdAt])
@@ -79,7 +70,7 @@ model Document {
   @@map("documents")
 }
 
-model ShareLink{
+model ShareLink {
   id              String    @id @default(cuid())
   shareKey        String    @unique
   documentId      String
@@ -207,15 +198,15 @@ model BookShopItem {
   title             String
   description       String?
   category          String
-  contentType       String             @default("PDF")
-  metadata          Json               @default("{}")
-  previewUrl        String?
-  linkUrl           String?
   isFree            Boolean            @default(true)
   price             Int?
   isPublished       Boolean            @default(true)
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
+  contentType       String             @default("PDF")
+  metadata          Json               @default("{}")
+  previewUrl        String?
+  linkUrl           String?
   document          Document           @relation(fields: [documentId], references: [id], onDelete: Cascade)
   myJstudyroomItems MyJstudyroomItem[]
   payments          Payment[]
@@ -254,7 +245,7 @@ model Payment {
   razorpaySignature String?
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
-  bookShopItem      BookShopItem @relation(fields: [bookShopItemId], references: [id], onDelete: Cascade)
+  bookShopItem      BookShopItem @relation(fields: [bookShopItemId], references: [id])
   user              User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
@@ -265,19 +256,19 @@ model Payment {
 }
 
 model DocumentAnnotation {
-  id            String    @id @default(cuid())
-  documentId    String
-  userId        String
-  pageNumber    Int
-  selectedText  String?
-  mediaType     MediaType
-  mediaUrl      String?
-  externalUrl   String?
-  visibility    String    @default("public")
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  document      Document  @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id           String    @id @default(cuid())
+  documentId   String
+  userId       String
+  pageNumber   Int
+  selectedText String?
+  mediaType    MediaType
+  mediaUrl     String?
+  externalUrl  String?
+  visibility   String    @default("public")
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  document     Document  @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([documentId, pageNumber])
   @@index([userId])
@@ -288,43 +279,30 @@ model DocumentAnnotation {
 }
 
 model DocumentPage {
-  id                  String    @id @default(cuid())
+  id                  String    @id @default(dbgenerated("(gen_random_uuid())::text"))
   documentId          String
   pageNumber          Int
   pageUrl             String
+  storagePath         String?   @map("storage_path")
   fileSize            Int       @default(0)
   createdAt           DateTime  @default(now())
   expiresAt           DateTime
-  
-  // Cache metadata columns
   cacheKey            String?
   cacheExpiresAt      DateTime?
   cacheHitCount       Int       @default(0)
   lastAccessedAt      DateTime?
-  
-  // Versioning for page regeneration
   version             Int       @default(1)
   generationMethod    String    @default("standard")
   qualityLevel        String    @default("standard")
-  
-  // Performance metadata
   processingTimeMs    Int?
   optimizationApplied Boolean   @default(false)
   format              String    @default("jpeg")
-  
   document            Document  @relation(fields: [documentId], references: [id], onDelete: Cascade)
 
   @@unique([documentId, pageNumber])
   @@index([documentId])
   @@index([expiresAt])
   @@index([cacheKey])
-  @@index([cacheExpiresAt])
-  @@index([lastAccessedAt])
-  @@index([version])
-  @@index([qualityLevel])
-  @@index([documentId, version])
-  @@index([cacheExpiresAt, cacheHitCount])
-  @@index([lastAccessedAt, cacheHitCount])
   @@map("document_pages")
 }
 
@@ -341,17 +319,35 @@ model ConversionJob {
   priority            String    @default("normal")
   estimatedCompletion DateTime?
   totalPages          Int?
-  processedPages      Int       @default(0)
+  processedPages      Int?      @default(0)
   createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
-  document            Document  @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  analytics           ConversionAnalytics[]
+  updatedAt           DateTime  @default(now()) @updatedAt
 
-  @@unique([documentId, status], name: "unique_active_job")
-  @@index([documentId])
   @@index([status])
-  @@index([createdAt])
+  @@index([createdAt], map: "conversion_jobs_created_at_idx")
+  @@index([documentId], map: "conversion_jobs_document_id_idx")
   @@map("conversion_jobs")
+}
+
+model ErrorLog {
+  id        String   @id @default(cuid())
+  errorId   String   @unique
+  name      String
+  message   String
+  severity  String
+  context   Json?
+  userId    String?
+  sessionId String?
+  userAgent String?
+  url       String?
+  stack     String?
+  timestamp DateTime
+  createdAt DateTime @default(now())
+
+  @@index([severity])
+  @@index([timestamp])
+  @@index([userId])
+  @@map("error_logs")
 }
 
 enum MediaType {
@@ -373,173 +369,4 @@ enum Role {
 enum TokenType {
   EMAIL_VERIFICATION
   PASSWORD_RESET
-}
-
-
-model ErrorLog {
-  id          String   @id @default(cuid())
-  errorId     String   @unique
-  name        String
-  message     String
-  severity    String
-  context     Json?
-  userId      String?
-  sessionId   String?
-  userAgent   String?
-  url         String?
-  stack       String?  @db.Text
-  timestamp   DateTime
-  createdAt   DateTime @default(now())
-
-  @@index([severity])
-  @@index([timestamp])
-  @@index([userId])
-  @@map("error_logs")
-}
-
-model ProblemReport {
-  id                String    @id @default(cuid())
-  userId            String
-  documentId        String
-  category          String
-  description       String    @db.Text
-  stepsToReproduce  String?   @db.Text
-  urgency           String    @default("medium")
-  contactMethod     String    @default("email")
-  contactInfo       String?
-  errorType         String?
-  errorMessage      String?   @db.Text
-  errorContext      Json?
-  userAgent         String?   @db.Text
-  url               String?   @db.Text
-  status            String    @default("open")
-  reportedAt        DateTime  @default(now())
-  resolvedAt        DateTime?
-  resolutionNotes   String?   @db.Text
-  assignedTo        String?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-
-  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  document          Document  @relation(fields: [documentId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([documentId])
-  @@index([category])
-  @@index([status])
-  @@index([urgency])
-  @@index([reportedAt])
-  @@map("problem_reports")
-}
-model ConversionAnalytics {
-  id                  String    @id @default(cuid())
-  documentId          String
-  conversionJobId     String?
-  startedAt           DateTime
-  completedAt         DateTime?
-  durationMs          Int?
-  status              String    @default("started")
-  errorType           String?
-  errorMessage        String?
-  pagesProcessed      Int       @default(0)
-  totalPages          Int       @default(0)
-  fileSizeBytes       BigInt?
-  processingMethod    String    @default("standard")
-  qualityLevel        String    @default("standard")
-  retryCount          Int       @default(0)
-  userId              String?
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
-
-  document            Document      @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  user                User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
-  conversionJob       ConversionJob? @relation(fields: [conversionJobId], references: [id], onDelete: SetNull)
-
-  @@index([documentId])
-  @@index([status])
-  @@index([startedAt])
-  @@index([userId])
-  @@index([errorType])
-  @@index([durationMs])
-  @@map("conversion_analytics")
-}
-
-model DocumentLoadAnalytics {
-  id                    String    @id @default(cuid())
-  documentId            String
-  userId                String
-  sessionId             String?
-  startedAt             DateTime
-  firstPageLoadedAt     DateTime?
-  fullyLoadedAt         DateTime?
-  loadDurationMs        Int?
-  firstPageDurationMs   Int?
-  status                String    @default("started")
-  errorType             String?
-  errorMessage          String?
-  pagesLoaded           Int       @default(0)
-  totalPages            Int       @default(0)
-  cacheHitRate          Decimal?  @db.Decimal(5,2)
-  networkType           String?
-  deviceType            String?
-  browserInfo           String?
-  retryCount            Int       @default(0)
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
-
-  document              Document  @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([documentId])
-  @@index([userId])
-  @@index([status])
-  @@index([startedAt])
-  @@index([sessionId])
-  @@index([loadDurationMs])
-  @@map("document_load_analytics")
-}
-
-model UserExperienceAnalytics {
-  id                String    @id @default(cuid())
-  userId            String
-  documentId        String
-  sessionId         String?
-  actionType        String    // 'view_start', 'page_change', 'error_encountered', 'retry_attempt', 'session_end'
-  actionTimestamp   DateTime
-  pageNumber        Int?
-  timeSpentMs       Int?
-  errorType         String?
-  userAgent         String?
-  viewportWidth     Int?
-  viewportHeight    Int?
-  connectionSpeed   String?
-  satisfactionScore Int?      // 1-5 rating if provided
-  feedbackText      String?
-  createdAt         DateTime  @default(now())
-
-  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  document          Document  @relation(fields: [documentId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([documentId])
-  @@index([actionType])
-  @@index([actionTimestamp])
-  @@index([sessionId])
-  @@map("user_experience_analytics")
-}
-
-model SystemPerformanceMetrics {
-  id            String    @id @default(cuid())
-  metricType    String    // 'conversion_queue_depth', 'storage_usage', 'cache_hit_rate', 'error_rate'
-  metricValue   Decimal   @db.Decimal(10,2)
-  metricUnit    String    // 'count', 'percentage', 'bytes', 'milliseconds'
-  timePeriod    String    // 'hourly', 'daily', 'weekly'
-  recordedAt    DateTime
-  metadata      Json?
-  createdAt     DateTime  @default(now())
-
-  @@index([metricType])
-  @@index([recordedAt])
-  @@index([timePeriod])
-  @@map("system_performance_metrics")
 }

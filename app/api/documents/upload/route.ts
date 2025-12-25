@@ -16,6 +16,7 @@ import { sanitizeString } from '@/lib/sanitization';
 import { logger } from '@/lib/logger';
 import { requirePlatformUser } from '@/lib/role-check';
 import { getAllCategories } from '@/lib/bookshop-categories';
+import { convertPdfToImages } from '@/lib/services/pdf-converter';
 import type { DocumentMetadata } from '@/lib/types/api';
 
 // Force dynamic rendering
@@ -257,6 +258,61 @@ export async function POST(request: NextRequest) {
       contentType,
       fileSize
     });
+
+    // Trigger PDF conversion for PDF documents
+    if (contentType === ContentType.PDF && storagePath && file) {
+      try {
+        logger.info('Starting PDF conversion for uploaded document', {
+          documentId,
+          userId: session.user.id,
+          storagePath
+        });
+
+        // Convert PDF to page images
+        const conversionResult = await convertPdfToImages({
+          documentId,
+          userId: session.user.id,
+          pdfPath: storagePath,
+          quality: 85,
+          dpi: 150,
+          format: 'jpg'
+        });
+
+        if (conversionResult.success) {
+          // Store page information in database
+          const pageData = conversionResult.pageUrls.map((url, index) => ({
+            documentId,
+            pageNumber: index + 1,
+            pageUrl: url,
+            fileSize: 0, // Will be updated later if needed
+            expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+          }));
+
+          await prisma.documentPage.createMany({
+            data: pageData,
+            skipDuplicates: true
+          });
+
+          logger.info('PDF conversion completed successfully', {
+            documentId,
+            pageCount: conversionResult.pageCount,
+            processingTime: conversionResult.processingTime
+          });
+        } else {
+          logger.error('PDF conversion failed', {
+            documentId,
+            error: conversionResult.error
+          });
+          // Don't fail the upload if conversion fails - document is still uploaded
+        }
+      } catch (conversionError) {
+        logger.error('PDF conversion error', {
+          documentId,
+          error: conversionError instanceof Error ? conversionError.message : 'Unknown error'
+        });
+        // Don't fail the upload if conversion fails - document is still uploaded
+      }
+    }
 
     // Create bookshop item if requested
     let bookshopItem = null;

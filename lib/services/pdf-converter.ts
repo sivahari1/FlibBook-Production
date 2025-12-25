@@ -93,8 +93,27 @@ export async function convertPdfToImages(
 
     // Create temporary directory for conversion
     const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'pdf-convert-'));
+    const tempPdfPath = path.join(tempDir, 'document.pdf');
 
     try {
+      // Download PDF from Supabase storage
+      logger.info('Downloading PDF from storage', { pdfPath });
+      const { downloadFile } = await import('../storage');
+      const downloadResult = await downloadFile(pdfPath, 'documents');
+      
+      if (downloadResult.error || !downloadResult.data) {
+        throw new Error(`Failed to download PDF: ${downloadResult.error}`);
+      }
+
+      // Save PDF to temporary file
+      const pdfBuffer = Buffer.from(await downloadResult.data.arrayBuffer());
+      await fs.writeFile(tempPdfPath, pdfBuffer);
+      
+      logger.info('PDF downloaded and saved to temp file', { 
+        tempPath: tempPdfPath,
+        sizeKB: (pdfBuffer.length / 1024).toFixed(2)
+      });
+
       // Create Node.js canvas factory for pdfjs-dist
       const NodeCanvasFactory = {
         create(width: number, height: number) {
@@ -120,9 +139,7 @@ export async function convertPdfToImages(
       };
 
       // Load PDF document
-      const pdfData = await fs.readFile(pdfPath);
-      // Convert Buffer to Uint8Array for pdf-lib compatibility
-      const pdfUint8Array = new Uint8Array(pdfData);
+      const pdfUint8Array = new Uint8Array(pdfBuffer);
       const loadingTask = pdfjsLib.getDocument({
         data: pdfUint8Array,
         useSystemFonts: true,

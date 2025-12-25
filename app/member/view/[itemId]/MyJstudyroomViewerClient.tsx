@@ -32,12 +32,14 @@ interface MyJstudyroomViewerClientProps {
   document: DocumentData;
   bookShopTitle: string;
   memberName: string;
+  itemId: string;
 }
 
 export function MyJstudyroomViewerClient({
   document: documentData,
   bookShopTitle,
   memberName,
+  itemId,
 }: MyJstudyroomViewerClientProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -45,35 +47,17 @@ export function MyJstudyroomViewerClient({
 
   useEffect(() => {
     loadDocumentPages();
-    
-    // Cleanup blob URLs when component unmounts
-    return () => {
-      pages.forEach(page => {
-        if (page.imageUrl && page.imageUrl.startsWith('blob:')) {
-          URL.revokeObjectURL(page.imageUrl);
-        }
-      });
-    };
   }, [documentData.id]);
-  
-  // Cleanup blob URLs when pages change
-  useEffect(() => {
-    return () => {
-      pages.forEach(page => {
-        if (page.imageUrl && page.imageUrl.startsWith('blob:')) {
-          URL.revokeObjectURL(page.imageUrl);
-        }
-      });
-    };
-  }, [pages]);
 
   const loadDocumentPages = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // Use member-specific API endpoint
-      const response = await fetch(`/api/member/my-jstudyroom/${documentData.id}/pages`, {
+      console.log(`🔍 Loading pages for document ${documentData.id} using member-safe API`);
+
+      // Use the member-safe API endpoint
+      const response = await fetch(`/api/viewer/documents/${documentData.id}/pages`, {
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
@@ -90,47 +74,37 @@ export function MyJstudyroomViewerClient({
           return;
         }
         
-        // Load each page image and create blob URLs
-        const pagesWithBlobUrls = await Promise.all(
-          (data.pages || []).map(async (page: PageData) => {
-            try {
-              const imageResponse = await fetch(page.pageUrl, {
-                credentials: 'include',
-              });
-              
-              if (imageResponse.ok) {
-                const blob = await imageResponse.blob();
-                const blobUrl = URL.createObjectURL(blob);
-                return {
-                  ...page,
-                  imageUrl: blobUrl,
-                  pageUrl: blobUrl, // Use blob URL for direct image loading
-                };
-              } else {
-                console.error(`Failed to load page ${page.pageNumber}:`, imageResponse.status);
-                return page; // Return original page data as fallback
-              }
-            } catch (pageError) {
-              console.error(`Error loading page ${page.pageNumber}:`, pageError);
-              return page; // Return original page data as fallback
-            }
-          })
-        );
+        console.log(`✅ Member-safe API returned ${data.totalPages} pages`);
         
-        setPages(pagesWithBlobUrls);
-        console.log('✅ Loaded pages with blob URLs:', pagesWithBlobUrls.length);
+        // Create page objects with proxy URLs (no blob conversion needed)
+        const pagesWithProxyUrls = (data.pages || []).map((page: any) => ({
+          id: `page-${page.pageNumber}`,
+          pageNumber: page.pageNumber,
+          imageUrl: `/api/member/my-jstudyroom/viewer/items/${itemId}/pages/${page.pageNumber}/image`,
+          pageUrl: `/api/member/my-jstudyroom/viewer/items/${itemId}/pages/${page.pageNumber}/image`,
+        }));
+        
+        setPages(pagesWithProxyUrls);
+        console.log(`✅ Loaded ${pagesWithProxyUrls.length} pages with proxy URLs`);
       } else {
-        console.error('Failed to load pages:', response.status);
+        console.error('❌ Member-safe API failed:', response.status);
+        const errorData = await response.json();
+        console.error('   Error details:', errorData);
+        
         if (response.status === 401) {
           setError('You do not have access to view this document');
+        } else if (response.status === 403) {
+          setError('Access denied - you do not have permission to view this document');
         } else if (response.status === 404) {
-          setError('Document not found or not available in your study room');
+          setError('Document not found');
+        } else if (response.status === 409) {
+          setError(errorData.message || 'Document pages are being generated. Please try again in a moment.');
         } else {
-          setError('Failed to load document pages');
+          setError(errorData.message || 'Failed to load document pages');
         }
       }
     } catch (err) {
-      console.error('Error loading pages:', err);
+      console.error('❌ Error loading pages:', err);
       setError('Failed to load document');
     } finally {
       setLoading(false);
@@ -232,43 +206,60 @@ export function MyJstudyroomViewerClient({
           {pages.map((page, index) => (
             <div key={page.id || index} className="relative bg-white rounded-lg shadow-lg overflow-hidden">
               <div className="relative">
-                <img
-                  src={page.pageUrl || page.imageUrl}
-                  alt={`Page ${page.pageNumber || index + 1}`}
-                  className="w-full h-auto"
-                  style={{ maxWidth: '100%', height: 'auto' }}
-                  onError={(e) => {
-                    console.error('Image load error for page:', page.pageNumber);
-                    e.currentTarget.style.display = 'none';
-                  }}
-                />
+                {page.pageUrl && page.imageUrl ? (
+                  <img
+                    src={page.pageUrl || page.imageUrl}
+                    alt={`Page ${page.pageNumber || index + 1}`}
+                    className="w-full h-auto"
+                    style={{ maxWidth: '100%', height: 'auto' }}
+                    onError={(e) => {
+                      console.error('Image load error for page:', page.pageNumber);
+                      e.currentTarget.style.display = 'none';
+                    }}
+                  />
+                ) : (
+                  <div className="w-full h-96 bg-gray-200 flex items-center justify-center">
+                    <div className="text-center text-gray-500">
+                      <div className="text-4xl mb-2">⚠️</div>
+                      <p>Page {page.pageNumber || index + 1} failed to load</p>
+                      <button 
+                        onClick={() => loadDocumentPages()}
+                        className="mt-2 px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600"
+                      >
+                        Retry
+                      </button>
+                    </div>
+                  </div>
+                )}
                 
-                {/* Watermark overlay */}
-                <div
-                  className="absolute inset-0 pointer-events-none flex items-center justify-center"
-                  style={{
-                    background: `repeating-linear-gradient(
-                      45deg,
-                      transparent,
-                      transparent 150px,
-                      rgba(0, 0, 0, 0.02) 150px,
-                      rgba(0, 0, 0, 0.02) 300px
-                    )`,
-                  }}
-                >
+                {/* Watermark overlay - only show if page loaded successfully */}
+                {page.pageUrl && page.imageUrl && (
                   <div
-                    className="text-gray-400 font-bold transform rotate-45 select-none"
+                    className="absolute inset-0 pointer-events-none flex items-center justify-center"
                     style={{
-                      fontSize: '32px',
-                      opacity: 0.3,
-                      textShadow: '1px 1px 2px rgba(0,0,0,0.1)',
-                      userSelect: 'none',
-                      pointerEvents: 'none',
+                      background: `repeating-linear-gradient(
+                        45deg,
+                        transparent,
+                        transparent 150px,
+                        rgba(0, 0, 0, 0.02) 150px,
+                        rgba(0, 0, 0, 0.02) 300px
+                      )`,
                     }}
                   >
-                    jStudyRoom - {memberName}
+                    <div
+                      className="text-gray-400 font-bold transform rotate-45 select-none"
+                      style={{
+                        fontSize: '32px',
+                        opacity: 0.3,
+                        textShadow: '1px 1px 2px rgba(0,0,0,0.1)',
+                        userSelect: 'none',
+                        pointerEvents: 'none',
+                      }}
+                    >
+                      jStudyRoom - {memberName}
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
               
               <div className="p-2 bg-gray-100 text-center text-sm text-gray-600">

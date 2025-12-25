@@ -1,35 +1,71 @@
-#!/usr/bin/env tsx
+import { PrismaClient } from '@prisma/client';
 
-/**
- * Test Valid Document Navigation
- */
+const prisma = new PrismaClient();
 
-console.log('🔍 Testing Valid Document Navigation...\n');
+async function testValidDocument() {
+  try {
+    // Use a valid MyJstudyroomItem ID from the list
+    const validItemId = 'cmjaxkl3u00049uxg83tuvg0b'; // TPIPR document
+    
+    console.log('🔍 Testing with valid MyJstudyroomItem ID:', validItemId);
+    
+    // Test the same logic as the API
+    const item = await prisma.myJstudyroomItem.findUnique({
+      where: { id: validItemId },
+      include: {
+        bookShopItem: {
+          include: {
+            document: {
+              select: { id: true, title: true, filename: true }
+            }
+          }
+        }
+      }
+    });
+    
+    if (!item) {
+      console.log('❌ Item not found');
+      return;
+    }
+    
+    console.log('✅ Found item:', {
+      itemId: item.id,
+      bookShopTitle: item.bookShopItem.title,
+      documentId: item.bookShopItem.document?.id,
+      documentTitle: item.bookShopItem.document?.title
+    });
+    
+    const documentId = item.bookShopItem.document?.id;
+    if (!documentId) {
+      console.log('❌ No document associated with this item');
+      return;
+    }
+    
+    // Check document pages
+    const pages = await prisma.documentPage.findMany({
+      where: { documentId },
+      orderBy: { pageNumber: 'asc' },
+      select: { pageNumber: true, pageUrl: true }
+    });
+    
+    console.log('📄 Document pages found:', pages.length);
+    if (pages.length > 0) {
+      console.log('✅ Pages available:');
+      pages.forEach(page => {
+        console.log(`   Page ${page.pageNumber}: ${page.pageUrl}`);
+      });
+      
+      console.log('\n🌐 Test URL:');
+      console.log(`http://localhost:3001/member/view/${validItemId}`);
+    } else {
+      console.log('⚠️ No pages found for this document');
+    }
+    
+  } catch (error) {
+    console.error('❌ Error:', error.message);
+  } finally {
+    await prisma.$disconnect();
+  }
+}
 
-console.log('Valid Document URLs:');
-console.log('1. TPIPR Document:');
-console.log('   URL: http://localhost:3000/member/view/27b35557-868f-4faa-b66d-4a28d65e6ab7');
-console.log('   Member: Krishna (jsrkrishna3@gmail.com)');
-console.log('');
-
-console.log('2. Full Stack AI Development Document:');
-console.log('   URL: http://localhost:3000/member/view/10f49dd4-a7f1-4900-9c06-05fe8d8bcf5c');
-console.log('   Member: Siva Hari (sivaramj83@gmail.com)');
-console.log('');
-
-console.log('🚨 Issue Identified:');
-console.log('The URL you were using has an invalid document ID:');
-console.log('❌ Invalid: /member/view/cqjaxkl000049uqgl3luxqg0');
-console.log('✅ Valid:   /member/view/27b35557-868f-4faa-b66d-4a28d65e6ab7');
-console.log('');
-
-console.log('🔧 Solution:');
-console.log('1. Use one of the valid URLs above');
-console.log('2. Make sure you are logged in as the correct member');
-console.log('3. The navigation should work properly with valid documents');
-console.log('');
-
-console.log('📝 Next Steps:');
-console.log('1. Try accessing: http://localhost:3000/member/view/27b35557-868f-4faa-b66d-4a28d65e6ab7');
-console.log('2. Login as Krishna (jsrkrishna3@gmail.com)');
-console.log('3. Test scrolling and page navigation');
+testValidDocument();

@@ -222,3 +222,35 @@ export async function listFiles(
     return { error: 'Failed to list files' }
   }
 }
+/**
+ * Infer content type from file path extension
+ * @param path - File path or URL
+ * @returns MIME type string
+ */
+export function inferContentTypeFromPath(path: string): string {
+  const extension = path.toLowerCase().split('.').pop();
+  
+  switch (extension) {
+    case 'jpg':
+    case 'jpeg':
+      return 'image/jpeg';
+    case 'png':
+      return 'image/png';
+    case 'gif':
+      return 'image/gif';
+    case 'webp':
+      return 'image/webp';
+    case 'pdf':
+      return 'application/pdf';
+    case 'mp4':
+      return 'video/mp4';
+    case 'webm':
+      return 'video/webm';
+    case 'mp3':
+      return 'audio/mpeg';
+    case 'wav':
+      return 'audio/wav';
+    default:
+      return 'application/octet-stream';
+  }
+}

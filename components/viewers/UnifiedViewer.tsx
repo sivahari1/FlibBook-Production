@@ -178,7 +178,7 @@ function UnifiedViewer({
         <SimpleDocumentViewer
           documentId={content.id}
           documentTitle={documentTitle || content.title}
-          pdfUrl={content.fileUrl!}
+          // Don't pass pdfUrl - let SimpleDocumentViewer use canonical API
           watermark={watermark ? {
             text: watermark.text,
             opacity: watermark.opacity || 0.3,
