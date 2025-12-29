@@ -2,31 +2,20 @@
  * PDF to Image Conversion Service
  * 
  * Converts PDF documents to optimized JPG images for flipbook display.
- * Implements performance optimizations to meet < 5 seconds conversion requirement.
+ * Uses Poppler pdftoppm for reliable PDF→image conversion.
  * 
- * CRITICAL FIX: Disables pdfjs-dist workers for Node.js environment to prevent blank pages
+ * CRITICAL FIX: Replaced pdfjs-dist with Poppler pdftoppm to prevent blank pages
  * 
  * Requirements: 2.1, 2.2, 2.3, 17.1
  */
 
 import sharp from 'sharp';
-import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
-import { createCanvas } from 'canvas';
 import { createClient } from '@supabase/supabase-js';
 import { logger } from '@/lib/logger';
 import path from 'path';
 import fs from 'fs/promises';
 import os from 'os';
-
-// CRITICAL: Configure pdfjs-dist for Node.js environment
-// Set worker source to the local worker file
-if (typeof pdfjsLib.GlobalWorkerOptions !== 'undefined') {
-  const workerPath = path.resolve(process.cwd(), 'node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs');
-  // Convert to file:// URL for Windows compatibility
-  const workerUrl = new URL(`file:///${workerPath.replace(/\\/g, '/')}`).href;
-  pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
-  logger.info('[PDF Converter] pdfjs-dist configured with worker:', workerUrl);
-}
+import { convertPdfToImages as convertWithPoppler } from '@/lib/pdf/convertPdfToImages';
 
 // Initialize Supabase client
 const supabase = createClient(
@@ -58,9 +47,10 @@ export interface PageConversionResult {
 }
 
 /**
- * Main PDF conversion function with performance optimizations
+ * Main PDF conversion function using Poppler pdftoppm
  * 
  * Optimizations:
+ * - Uses Poppler pdftoppm for reliable PDF rendering
  * - Parallel page processing (up to CPU cores)
  * - Optimized Sharp settings for speed
  * - Efficient memory management
@@ -83,7 +73,7 @@ export async function convertPdfToImages(
   } = options;
 
   try {
-    logger.info('Starting PDF conversion', {
+    logger.info('Starting PDF conversion with Poppler', {
       documentId,
       userId,
       quality,
@@ -94,6 +84,7 @@ export async function convertPdfToImages(
     // Create temporary directory for conversion
     const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'pdf-convert-'));
     const tempPdfPath = path.join(tempDir, 'document.pdf');
+    const tempOutputDir = path.join(tempDir, 'pages');
 
     try {
       // Download PDF from Supabase storage
@@ -114,62 +105,73 @@ export async function convertPdfToImages(
         sizeKB: (pdfBuffer.length / 1024).toFixed(2)
       });
 
-      // Create Node.js canvas factory for pdfjs-dist
-      const NodeCanvasFactory = {
-        create(width: number, height: number) {
-          const canvas = createCanvas(width, height);
-          const context = canvas.getContext('2d');
-          return {
-            canvas,
-            context,
-          };
-        },
-        reset(canvasAndContext: { canvas: HTMLCanvasElement; context: CanvasRenderingContext2D }, width: number, height: number) {
-          canvasAndContext.canvas.width = width;
-          canvasAndContext.canvas.height = height;
-        },
-        destroy(canvasAndContext: { canvas: HTMLCanvasElement | null; context: CanvasRenderingContext2D | null }) {
-          if (canvasAndContext.canvas) {
-            canvasAndContext.canvas.width = 0;
-            canvasAndContext.canvas.height = 0;
-          }
-          canvasAndContext.canvas = null;
-          canvasAndContext.context = null;
-        },
-      };
-
-      // Load PDF document
-      const pdfUint8Array = new Uint8Array(pdfBuffer);
-      const loadingTask = pdfjsLib.getDocument({
-        data: pdfUint8Array,
-        useSystemFonts: true,
-        isEvalSupported: false,
-        useWorkerFetch: false,
-        canvasFactory: NodeCanvasFactory as unknown as pdfjsLib.CanvasFactory,
+      // Convert PDF to images using Poppler pdftoppm
+      logger.info('Converting PDF to images with Poppler pdftoppm');
+      await convertWithPoppler({
+        pdfPath: tempPdfPath,
+        outputDir: tempOutputDir,
+        dpi: dpi,
       });
-      const pdfDocument = await loadingTask.promise;
-      const pageCount = pdfDocument.numPages;
-      
-      logger.info(`PDF has ${pageCount} pages`);
 
-      // Convert pages in parallel batches
-      const batchSize = Math.min(os.cpus().length, 4); // Limit to 4 concurrent conversions
+      // Get list of generated page files
+      const pageFiles = await fs.readdir(tempOutputDir);
+      const sortedPageFiles = pageFiles
+        .filter(file => file.startsWith('page-') && file.endsWith('.jpg'))
+        .sort((a, b) => {
+          const aNum = parseInt(a.match(/page-(\d+)/)?.[1] || '0');
+          const bNum = parseInt(b.match(/page-(\d+)/)?.[1] || '0');
+          return aNum - bNum;
+        });
+
+      const pageCount = sortedPageFiles.length;
+      logger.info(`Poppler generated ${pageCount} page images`);
+
+      // Verify page sizes and log them
+      for (const pageFile of sortedPageFiles) {
+        const pageFilePath = path.join(tempOutputDir, pageFile);
+        const stats = await fs.stat(pageFilePath);
+        const pageNumber = parseInt(pageFile.match(/page-(\d+)/)?.[1] || '0');
+        
+        console.log(
+          `Generated ${pageFile} size:`,
+          stats.size,
+          'bytes',
+          `(${(stats.size / 1024).toFixed(2)} KB)`
+        );
+        
+        logger.info(`Generated ${pageFile} size:`, {
+          pageNumber,
+          sizeBytes: stats.size,
+          sizeKB: (stats.size / 1024).toFixed(2)
+        });
+
+        // Verify non-blank page (typically > 20KB)
+        if (stats.size < 20000) {
+          logger.warn(`⚠️ Page ${pageNumber} is suspiciously small (${stats.size} bytes) - may be blank`);
+        }
+      }
+
+      // Process and upload pages in parallel batches
+      const batchSize = Math.min(os.cpus().length, 4);
       const pageUrls: string[] = [];
 
       for (let i = 0; i < pageCount; i += batchSize) {
         const batch = [];
         const endIndex = Math.min(i + batchSize, pageCount);
 
-        for (let pageNum = i + 1; pageNum <= endIndex; pageNum++) {
+        for (let j = i; j < endIndex; j++) {
+          const pageFile = sortedPageFiles[j];
+          const pageNumber = parseInt(pageFile.match(/page-(\d+)/)?.[1] || '0');
+          const pageFilePath = path.join(tempOutputDir, pageFile);
+
           batch.push(
-            convertAndUploadPage(
-              pdfDocument,
-              pageNum,
+            optimizeAndUploadPage(
+              pageFilePath,
+              pageNumber,
               userId,
               documentId,
               quality,
-              format,
-              dpi
+              format
             )
           );
         }
@@ -178,12 +180,12 @@ export async function convertPdfToImages(
         const results = await Promise.all(batch);
         pageUrls.push(...results.map((r) => r.url));
 
-        logger.info(`Converted pages ${i + 1}-${endIndex} of ${pageCount}`);
+        logger.info(`Processed and uploaded pages ${i + 1}-${endIndex} of ${pageCount}`);
       }
 
       const processingTime = Date.now() - startTime;
 
-      logger.info('PDF conversion completed', {
+      logger.info('PDF conversion completed with Poppler', {
         documentId,
         pageCount,
         processingTime,
@@ -221,91 +223,39 @@ export async function convertPdfToImages(
 }
 
 /**
- * Convert a single page and upload to storage
+ * Optimize and upload a page image generated by Poppler
  * 
- * CRITICAL FIXES:
- * - Properly await render promise before canvas export
- * - Export to PNG first (lossless) before JPEG optimization
- * - Verify buffer sizes to catch blank pages early
- * - Detailed logging at each step for debugging
- * 
- * @param pdfDocument PDF document instance
- * @param pageNumber Page number to convert (1-indexed)
+ * @param pageFilePath Path to the page image file generated by Poppler
+ * @param pageNumber Page number (1-indexed)
  * @param userId User ID for storage path
  * @param documentId Document ID for storage path
  * @param quality JPEG quality (0-100)
  * @param format Output format
- * @param dpi DPI for rendering
  * @returns Page conversion result
  */
-async function convertAndUploadPage(
-  pdfDocument: pdfjsLib.PDFDocumentProxy,
+async function optimizeAndUploadPage(
+  pageFilePath: string,
   pageNumber: number,
   userId: string,
   documentId: string,
   quality: number,
-  format: string,
-  dpi: number
+  format: string
 ): Promise<PageConversionResult> {
   try {
-    // Get the page
-    const page = await pdfDocument.getPage(pageNumber);
+    // Read the image file generated by Poppler
+    const imageBuffer = await fs.readFile(pageFilePath);
     
-    // Calculate viewport with desired DPI
-    const scale = dpi / 72; // PDF default is 72 DPI
-    const viewport = page.getViewport({ scale });
-    
-    logger.info(`[Converter] Rendering page ${pageNumber}:`, {
-      width: Math.floor(viewport.width),
-      height: Math.floor(viewport.height),
-      scale,
+    logger.info(`[Converter] Processing page ${pageNumber}:`, {
+      originalSizeKB: (imageBuffer.length / 1024).toFixed(2),
     });
     
-    // CRITICAL: Create canvas with EXACT dimensions (floor to avoid fractional pixels)
-    const canvas = createCanvas(
-      Math.floor(viewport.width),
-      Math.floor(viewport.height)
-    );
-    const context = canvas.getContext('2d');
-    
-    // CRITICAL: Some versions of pdfjs expect canvas property on context
-    if (!context.canvas) {
-      (context as any).canvas = canvas;
+    // Verify we have actual content (not blank)
+    if (imageBuffer.length < 20000) {
+      logger.warn(`[Converter] ⚠️ Page ${pageNumber} is suspiciously small (${imageBuffer.length} bytes) - may be blank`);
     }
     
-    // CRITICAL: Render PDF page to canvas and AWAIT completion
-    const renderTask = page.render({
-      canvasContext: context,
-      viewport: viewport,
-    });
-    
-    // ✅ MUST await the promise completely before exporting canvas
-    await renderTask.promise;
-    
-    logger.info(`[Converter] ✅ Page ${pageNumber} rendered to canvas successfully`);
-    
-    // CRITICAL: Export canvas to PNG first (lossless)
-    // node-canvas toBuffer() is synchronous and returns immediately
-    const pngBuffer = canvas.toBuffer('image/png');
-    
-    logger.info(`[Converter] Canvas exported to PNG:`, {
-      pageNumber,
-      bufferSize: pngBuffer.length,
-      sizeKB: (pngBuffer.length / 1024).toFixed(2),
-    });
-    
-    // CRITICAL: Verify we have actual content (not blank)
-    if (pngBuffer.length < 10000) {
-      logger.warn(`[Converter] ⚠️ Page ${pageNumber} PNG is suspiciously small (${pngBuffer.length} bytes) - may be blank`);
-      // Temporarily disabled to debug - let's see what the actual image looks like
-      // throw new Error(
-      //   `Page ${pageNumber} appears to be blank (PNG buffer only ${pngBuffer.length} bytes). ` +
-      //   `This indicates the PDF rendering did not complete properly.`
-      // );
-    }
-    
-    // Optimize image with Sharp (PNG → JPEG)
-    const optimizedBuffer = await sharp(pngBuffer)
+    // Optimize image with Sharp
+    const optimizedBuffer = await sharp(imageBuffer)
       .jpeg({
         quality,
         progressive: true,
@@ -319,24 +269,18 @@ async function convertAndUploadPage(
       })
       .toBuffer();
     
-    logger.info(`[Converter] Optimized to JPEG:`, {
-      pageNumber,
-      originalKB: (pngBuffer.length / 1024).toFixed(2),
+    logger.info(`[Converter] Optimized page ${pageNumber}:`, {
+      originalKB: (imageBuffer.length / 1024).toFixed(2),
       optimizedKB: (optimizedBuffer.length / 1024).toFixed(2),
-      compressionRatio: ((1 - optimizedBuffer.length / pngBuffer.length) * 100).toFixed(1) + '%',
+      compressionRatio: ((1 - optimizedBuffer.length / imageBuffer.length) * 100).toFixed(1) + '%',
     });
     
     // CRITICAL: Verify final image is reasonable size
     if (optimizedBuffer.length < 10000) {
       logger.warn(
         `[Converter] ⚠️ Page ${pageNumber} JPEG is too small (${optimizedBuffer.length} bytes) - likely blank. ` +
-        `Original PNG was ${pngBuffer.length} bytes.`
+        `Original was ${imageBuffer.length} bytes.`
       );
-      // Temporarily disabled to debug
-      // throw new Error(
-      //   `Page ${pageNumber} JPEG is too small (${optimizedBuffer.length} bytes) - likely blank. ` +
-      //   `Original PNG was ${pngBuffer.length} bytes.`
-      // );
     }
 
     // Upload to Supabase storage
@@ -366,7 +310,7 @@ async function convertAndUploadPage(
       size: optimizedBuffer.length,
     };
   } catch (error) {
-    logger.error(`[Converter] ❌ Failed to convert page ${pageNumber}:`, {
+    logger.error(`[Converter] ❌ Failed to process page ${pageNumber}:`, {
       error: error instanceof Error ? error.message : String(error),
       pageNumber,
     });
@@ -375,33 +319,30 @@ async function convertAndUploadPage(
 }
 
 /**
- * Get the number of pages in a PDF using pdfjs-dist
+ * Get the number of pages in a PDF using Poppler pdfinfo
  * 
  * @param pdfPath Path to PDF file
  * @returns Number of pages
  */
 async function getPageCount(pdfPath: string): Promise<number> {
   try {
-    // Read PDF file
-    const pdfBuffer = await fs.readFile(pdfPath);
+    const { execFile } = require('child_process');
+    const { promisify } = require('util');
+    const execFileAsync = promisify(execFile);
     
-    // Use pdfjs-dist to get page count
-    const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
+    // Use pdfinfo to get page count
+    const { stdout } = await execFileAsync('pdfinfo', [pdfPath]);
+    const match = stdout.match(/Pages:\s+(\d+)/);
     
-    // Load PDF document
-    const loadingTask = pdfjs.getDocument({
-      data: new Uint8Array(pdfBuffer),
-      useSystemFonts: true,
-    });
+    if (match) {
+      const pageCount = parseInt(match[1], 10);
+      logger.info('PDF page count determined with pdfinfo', { pageCount });
+      return pageCount;
+    }
     
-    const pdfDocument = await loadingTask.promise;
-    const pageCount = pdfDocument.numPages;
-    
-    logger.info('PDF page count determined', { pageCount });
-    
-    return pageCount;
+    throw new Error('Could not parse page count from pdfinfo output');
   } catch (error) {
-    logger.error('Failed to get page count', { error });
+    logger.error('Failed to get page count with pdfinfo', { error });
     // Fallback: try to estimate from file size
     // Average PDF page is ~100KB, so rough estimate
     try {

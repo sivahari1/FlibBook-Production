@@ -1,122 +1,112 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import prisma from "@/lib/prisma";
-import { createClient } from "@supabase/supabase-js";
+import { supabaseServer, inferContentTypeFromPath } from "@/lib/supabase/server";
 
-function extractStoragePathFromPageUrl(pageUrl: string): string | null {
+export const runtime = "nodejs";
+
+const PAGES_BUCKET = process.env.SUPABASE_PAGES_BUCKET || "document-pages";
+
+function getObjectPathFromPageUrl(pageUrl: string, bucket = PAGES_BUCKET) {
   if (!pageUrl) return null;
 
-  // already relative
+  // If DB already stores a plain object path, accept it
   if (!pageUrl.startsWith("http")) return pageUrl.replace(/^\/+/, "");
 
-  try {
-    const url = new URL(pageUrl);
-    const markers = [
-      "/storage/v1/object/public/document-pages/",
-      "/storage/v1/object/sign/document-pages/",
-      "/storage/v1/object/document-pages/",
-      "/storage/v1/object/authenticated/document-pages/",
-    ];
+  const url = new URL(pageUrl);
 
-    for (const marker of markers) {
-      const idx = url.pathname.indexOf(marker);
-      if (idx !== -1) {
-        return decodeURIComponent(url.pathname.slice(idx + marker.length));
-      }
+  const markers = [
+    `/storage/v1/object/public/${bucket}/`,
+    `/storage/v1/object/sign/${bucket}/`,
+    `/storage/v1/object/${bucket}/`,
+    `/storage/v1/object/authenticated/${bucket}/`,
+  ];
+
+  for (const marker of markers) {
+    const idx = url.pathname.indexOf(marker);
+    if (idx !== -1) {
+      return decodeURIComponent(url.pathname.slice(idx + marker.length));
     }
-
-    const alt = url.pathname.split("/document-pages/")[1];
-    return alt ? decodeURIComponent(alt) : null;
-  } catch {
-    return null;
   }
+
+  return null;
 }
 
-interface RouteContext {
-  params: Promise<{ itemId: string; pageNumber: string }>;
-}
-
-export async function GET(request: NextRequest, context: RouteContext) {
+export async function GET(
+  _req: NextRequest,
+  ctx: { params: Promise<{ itemId: string; pageNumber: string }> }
+) {
   try {
+    // ✅ Next.js 15: params is async
+    const { itemId, pageNumber } = await ctx.params;
+    const pageNum = Number(pageNumber);
+
+    // 1) Auth
     const session = await auth();
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { itemId, pageNumber } = await context.params;
-    const pageNum = parseInt(pageNumber, 10);
-    if (isNaN(pageNum) || pageNum < 1) {
+    // 2) Validate page number
+    if (!Number.isFinite(pageNum) || pageNum < 1) {
       return NextResponse.json({ error: "Invalid page number" }, { status: 400 });
     }
 
-    const myJstudyroomItem = await prisma.myJstudyroomItem.findFirst({
+    // 3) Verify access + resolve documentId
+    const myItem = await prisma.myJstudyroomItem.findFirst({
       where: { id: itemId, userId: session.user.id },
       include: { bookShopItem: { include: { document: true } } },
     });
 
-    if (!myJstudyroomItem) {
-      return NextResponse.json({ error: "Access denied" }, { status: 403 });
+    const documentId = myItem?.bookShopItem?.document?.id;
+    if (!documentId) {
+      return NextResponse.json({ error: "Not found or access denied" }, { status: 403 });
     }
 
-    const documentId = myJstudyroomItem.bookShopItem.document.id;
-
-    const page = await prisma.documentPage.findFirst({
+    // 4) Fetch the exact page row (NO skip/take)
+    // ✅ IMPORTANT: Prisma field is storagePath (mapped to storage_path in DB)
+    const pageRow = await prisma.documentPage.findFirst({
       where: { documentId, pageNumber: pageNum },
-      select: { pageUrl: true, storagePath: true, format: true },
+      select: {
+        storagePath: true,
+        pageUrl: true,
+      },
     });
 
-    if (!page) {
-      return NextResponse.json({ error: `Page ${pageNum} not found` }, { status: 404 });
-    }
+    // 5) Determine object path in bucket
+    const objectPath =
+      pageRow?.storagePath ||
+      (pageRow?.pageUrl ? getObjectPathFromPageUrl(pageRow.pageUrl) : null);
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-    if (!supabaseUrl || !supabaseServiceKey) {
-      return NextResponse.json({ error: "Missing Supabase config" }, { status: 500 });
-    }
-
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    const bucket = "document-pages";
-
-    // Prefer storagePath (new column). If missing, derive from pageUrl.
-    const storagePath =
-      (page.storagePath && page.storagePath.trim().length > 0 ? page.storagePath.trim() : null) ??
-      extractStoragePathFromPageUrl(page.pageUrl);
-
-    if (!storagePath) {
+    if (!objectPath) {
       return NextResponse.json(
-        { error: "No storage path found for this page (storagePath/pageUrl empty)" },
-        { status: 500 }
-      );
-    }
-
-    console.log("✅ Using storagePath:", storagePath);
-
-    const { data, error } = await supabase.storage.from(bucket).download(storagePath);
-
-    if (error || !data) {
-      console.error("Supabase download error:", error);
-      return NextResponse.json(
-        { error: "Object not found in storage", debug: { storagePath } },
+        { error: "Page image not available", message: "No storagePath/pageUrl in DB" },
         { status: 404 }
       );
     }
 
-    const buffer = await data.arrayBuffer();
-    const fmt = (page.format || "jpeg").toLowerCase();
-    const contentType = fmt === "png" ? "image/png" : fmt === "webp" ? "image/webp" : "image/jpeg";
+    // 6) Download from Supabase Storage
+    const { data, error } = await supabaseServer.storage.from(PAGES_BUCKET).download(objectPath);
 
-    return new NextResponse(buffer, {
+    if (error || !data) {
+      return NextResponse.json(
+        { error: "Page image not available", message: "Failed to download from storage", details: String(error?.message || error) },
+        { status: 404 }
+      );
+    }
+
+    const buf = await data.arrayBuffer();
+    const contentType = inferContentTypeFromPath(objectPath);
+
+    return new NextResponse(buf, {
       status: 200,
       headers: {
         "Content-Type": contentType,
-        "Cache-Control": "private, max-age=3600",
-        "Content-Length": buffer.byteLength.toString(),
+        "Cache-Control": "private, no-store, max-age=0",
       },
     });
   } catch (e) {
-    console.error("Image proxy error:", e);
+    console.error("Member viewer image route error:", e);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

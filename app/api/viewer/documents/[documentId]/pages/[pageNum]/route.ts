@@ -1,60 +1,54 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import prisma from "@/lib/prisma";
-import { supabaseServer, inferContentTypeFromPath } from "@/lib/supabase/server"; // see below
 
 export const runtime = "nodejs";
 
-const PAGES_BUCKET = process.env.SUPABASE_PAGES_BUCKET || "document-pages";
-
 export async function GET(
   _req: Request,
-  { params }: { params: { documentId: string; pageNum: string } }
+  { params }: { params: { documentId: string } }
 ) {
   const session = await auth();
-  if (!session?.user) {
+  if (!session?.user?.id) {
     return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
   }
 
   const documentId = params.documentId;
-  const pageNumber = Number(params.pageNum);
 
-  if (!Number.isFinite(pageNumber) || pageNumber < 1) {
-    return NextResponse.json({ success: false, error: "Invalid page number" }, { status: 400 });
-  }
-
-  // IMPORTANT: query by documentId + pageNumber (not skip/take)
-  const row = await prisma.documentPage.findFirst({
-    where: { documentId, pageNumber },
-    select: { imageStoragePath: true }, // rename to your field
+  // IMPORTANT:
+  // Return ONLY the rows that actually exist in document_pages for this document.
+  // Do NOT generate 1..N based on any “totalPages” from metadata/job.
+  const rows = await prisma.documentPage.findMany({
+    where: {
+      documentId,
+      // If you added storagePath column, keep only rows that have it.
+      // If not, comment this out.
+      storagePath: { not: null },
+    },
+    select: {
+      pageNumber: true,
+      // optional debug fields
+      storagePath: true,
+      pageUrl: true,
+    },
+    orderBy: { pageNumber: "asc" },
   });
 
-  if (!row?.imageStoragePath) {
-    return NextResponse.json(
-      { success: false, error: "Page image not available", message: "No DB page record" },
-      { status: 404 }
-    );
-  }
+  // If you suspect duplicates exist in DB, dedupe on the server too
+  const seen = new Set<number>();
+  const pages = rows
+    .map((r) => ({ pageNumber: r.pageNumber }))
+    .filter((p) => Number.isInteger(p.pageNumber) && p.pageNumber > 0)
+    .filter((p) => {
+      if (seen.has(p.pageNumber)) return false;
+      seen.add(p.pageNumber);
+      return true;
+    });
 
-  const { data, error } = await supabaseServer.storage
-    .from(PAGES_BUCKET)
-    .download(row.imageStoragePath);
-
-  if (error || !data) {
-    return NextResponse.json(
-      { success: false, error: "Page image not available", message: "Failed to retrieve page image from storage" },
-      { status: 404 }
-    );
-  }
-
-  const buf = await data.arrayBuffer();
-  const contentType = inferContentTypeFromPath(row.imageStoragePath);
-
-  return new NextResponse(buf, {
-    status: 200,
-    headers: {
-      "Content-Type": contentType,
-      "Cache-Control": "private, no-store, max-age=0",
-    },
+  return NextResponse.json({
+    success: true,
+    documentId,
+    totalPages: pages.length,
+    pages,
   });
 }
