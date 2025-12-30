@@ -1,109 +1,89 @@
-import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/auth";
-import prisma from "@/lib/prisma";
-import {
-  downloadFromStorage,
-  inferContentTypeFromPath,
-} from "@/lib/supabase/server";
+import { NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
+import { prisma } from "@/lib/db"; // adjust if your prisma export path differs
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
-const PAGES_BUCKET = process.env.SUPABASE_PAGES_BUCKET || "document-pages";
+type Ctx = { params: { itemId: string; pageNumber: string } };
 
-function getObjectPathFromUrlOrPath(maybeUrlOrPath: string, bucket: string): string | null {
-  if (!maybeUrlOrPath) return null;
+function supabaseServer() {
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-  // already a storage path
-  if (!maybeUrlOrPath.startsWith("http")) return maybeUrlOrPath.replace(/^\/+/, "");
-
-  try {
-    const url = new URL(maybeUrlOrPath);
-
-    const markers = [
-      `/storage/v1/object/public/${bucket}/`,
-      `/storage/v1/object/sign/${bucket}/`,
-      `/storage/v1/object/${bucket}/`,
-      `/storage/v1/object/authenticated/${bucket}/`,
-    ];
-
-    for (const marker of markers) {
-      const idx = url.pathname.indexOf(marker);
-      if (idx !== -1) {
-        return decodeURIComponent(url.pathname.slice(idx + marker.length));
-      }
-    }
-
-    return null;
-  } catch {
-    return null;
+  if (!url || !key) {
+    throw new Error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
   }
+
+  return createClient(url, key, { auth: { persistSession: false } });
 }
 
-export async function GET(
-  req: NextRequest,
-  { params }: { params: { itemId: string; pageNumber: string } }
-) {
-  try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+function contentTypeFromFormat(format?: string) {
+  const f = (format || "").toLowerCase();
+  if (f === "png") return "image/png";
+  if (f === "webp") return "image/webp";
+  return "image/jpeg"; // default aligns with your DocumentPage.format default "jpeg"
+}
 
-    const itemId = params.itemId;
-    const pageNum = Number(params.pageNumber);
+export async function GET(_req: Request, context: Ctx) {
+  try {
+    const { itemId, pageNumber } = context.params;
+    const pageNum = Number(pageNumber);
 
     if (!itemId || !Number.isInteger(pageNum) || pageNum <= 0) {
       return NextResponse.json({ error: "Invalid parameters" }, { status: 400 });
     }
 
-    // 1) Resolve item → documentId (adjust model/field names if yours differ)
+    // 1) Item -> Document (via BookShopItem)
     const item = await prisma.myJstudyroomItem.findUnique({
       where: { id: itemId },
-      select: { id: true, documentId: true, memberId: true },
+      select: {
+        userId: true,
+        bookShopItem: { select: { documentId: true } },
+      },
     });
 
-    if (!item?.documentId) {
-      return NextResponse.json({ error: "Item not found" }, { status: 404 });
+    const documentId = item?.bookShopItem?.documentId;
+    if (!documentId) {
+      return NextResponse.json({ error: "Item/document not found" }, { status: 404 });
     }
 
-    // Optional access check (keep if your membership logic requires it)
-    // If your project uses a different rule, adjust here.
-    // Example: only the same member can view:
-    // if (item.memberId !== session.user.id) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-
-    // 2) Fetch exact page row
-    const pageRow = await prisma.documentPage.findFirst({
-      where: { documentId: item.documentId, pageNumber: pageNum },
-      select: { storagePath: true, pageUrl: true }, // Prisma field name is storagePath, DB column is storage_path
+    // 2) DocumentPage -> storagePath
+    const page = await prisma.documentPage.findUnique({
+      where: { documentId_pageNumber: { documentId, pageNumber: pageNum } },
+      select: { storagePath: true, format: true },
     });
 
-    const candidate = pageRow?.storagePath || pageRow?.pageUrl || "";
-    const objectPath = getObjectPathFromUrlOrPath(candidate, PAGES_BUCKET);
-
-    if (!objectPath) {
-      return NextResponse.json({ error: "Page image not available" }, { status: 404 });
+    if (!page?.storagePath) {
+      return NextResponse.json(
+        { error: "Page not generated", documentId, pageNum },
+        { status: 404 }
+      );
     }
 
-    // 3) Download image from Supabase Storage
-    const dl = await downloadFromStorage(PAGES_BUCKET, objectPath);
-    if (!dl.ok) {
-      return NextResponse.json({ error: "Download failed", details: dl.error }, { status: 404 });
+    // 3) Download from Supabase
+    const sb = supabaseServer();
+    const { data, error } = await sb.storage.from("document-pages").download(page.storagePath);
+
+    if (error || !data) {
+      console.error("Supabase download error:", error, { storagePath: page.storagePath });
+      return NextResponse.json(
+        { error: "Storage download failed", details: error?.message, storagePath: page.storagePath },
+        { status: 404 }
+      );
     }
 
-    const contentType = inferContentTypeFromPath(objectPath);
-    return new NextResponse(Buffer.from(dl.arrayBuffer), {
+    const buf = Buffer.from(await data.arrayBuffer());
+    return new Response(buf, {
       status: 200,
       headers: {
-        "Content-Type": contentType,
-        "Cache-Control": "private, no-store, max-age=0",
+        "Content-Type": data.type || contentTypeFromFormat(page.format),
+        "Cache-Control": "private, no-store",
       },
     });
   } catch (e: any) {
     console.error("Member page image route error:", e);
-    return NextResponse.json(
-      { error: "Internal server error", details: String(e?.message || e) },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: e?.message ?? "Internal Server Error" }, { status: 500 });
   }
 }
