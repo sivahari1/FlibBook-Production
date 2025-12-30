@@ -1,114 +1,109 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import prisma from "@/lib/prisma";
-import { supabaseServer, inferContentTypeFromPath } from "@/lib/supabase/server";
+import {
+  downloadFromStorage,
+  inferContentTypeFromPath,
+} from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const PAGES_BUCKET = process.env.SUPABASE_PAGES_BUCKET || "document-pages";
 
-function getObjectPathFromPageUrl(pageUrl: string, bucket = PAGES_BUCKET) {
-  if (!pageUrl) return null;
+function getObjectPathFromUrlOrPath(maybeUrlOrPath: string, bucket: string): string | null {
+  if (!maybeUrlOrPath) return null;
 
-  // If DB already stores a plain object path, accept it
-  if (!pageUrl.startsWith("http")) return pageUrl.replace(/^\/+/, "");
+  // already a storage path
+  if (!maybeUrlOrPath.startsWith("http")) return maybeUrlOrPath.replace(/^\/+/, "");
 
-  const url = new URL(pageUrl);
+  try {
+    const url = new URL(maybeUrlOrPath);
 
-  const markers = [
-    `/storage/v1/object/public/${bucket}/`,
-    `/storage/v1/object/sign/${bucket}/`,
-    `/storage/v1/object/${bucket}/`,
-    `/storage/v1/object/authenticated/${bucket}/`,
-  ];
+    const markers = [
+      `/storage/v1/object/public/${bucket}/`,
+      `/storage/v1/object/sign/${bucket}/`,
+      `/storage/v1/object/${bucket}/`,
+      `/storage/v1/object/authenticated/${bucket}/`,
+    ];
 
-  for (const marker of markers) {
-    const idx = url.pathname.indexOf(marker);
-    if (idx !== -1) {
-      return decodeURIComponent(url.pathname.slice(idx + marker.length));
+    for (const marker of markers) {
+      const idx = url.pathname.indexOf(marker);
+      if (idx !== -1) {
+        return decodeURIComponent(url.pathname.slice(idx + marker.length));
+      }
     }
-  }
 
-  return null;
+    return null;
+  } catch {
+    return null;
+  }
 }
 
 export async function GET(
-  _req: NextRequest,
-  ctx: { params: Promise<{ itemId: string; pageNumber: string }> }
+  req: NextRequest,
+  { params }: { params: { itemId: string; pageNumber: string } }
 ) {
   try {
-    // ✅ Next.js 15: params is async
-    const { itemId, pageNumber } = await ctx.params;
-    const pageNum = Number(pageNumber);
-
-    // 1) Auth
     const session = await auth();
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // 2) Validate page number
-    if (!Number.isFinite(pageNum) || pageNum < 1) {
-      return NextResponse.json({ error: "Invalid page number" }, { status: 400 });
+    const itemId = params.itemId;
+    const pageNum = Number(params.pageNumber);
+
+    if (!itemId || !Number.isInteger(pageNum) || pageNum <= 0) {
+      return NextResponse.json({ error: "Invalid parameters" }, { status: 400 });
     }
 
-    // 3) Verify access + resolve documentId
-    const myItem = await prisma.myJstudyroomItem.findFirst({
-      where: { id: itemId, userId: session.user.id },
-      include: { bookShopItem: { include: { document: true } } },
+    // 1) Resolve item → documentId (adjust model/field names if yours differ)
+    const item = await prisma.myJstudyroomItem.findUnique({
+      where: { id: itemId },
+      select: { id: true, documentId: true, memberId: true },
     });
 
-    const documentId = myItem?.bookShopItem?.document?.id;
-    if (!documentId) {
-      return NextResponse.json({ error: "Not found or access denied" }, { status: 403 });
+    if (!item?.documentId) {
+      return NextResponse.json({ error: "Item not found" }, { status: 404 });
     }
 
-    // 4) Fetch the exact page row (NO skip/take)
-    // ✅ IMPORTANT: Prisma field is storagePath (mapped to storage_path in DB)
+    // Optional access check (keep if your membership logic requires it)
+    // If your project uses a different rule, adjust here.
+    // Example: only the same member can view:
+    // if (item.memberId !== session.user.id) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+    // 2) Fetch exact page row
     const pageRow = await prisma.documentPage.findFirst({
-      where: { documentId, pageNumber: pageNum },
-      select: {
-        storagePath: true,
-        pageUrl: true,
-      },
+      where: { documentId: item.documentId, pageNumber: pageNum },
+      select: { storagePath: true, pageUrl: true }, // Prisma field name is storagePath, DB column is storage_path
     });
 
-    // 5) Determine object path in bucket
-    const objectPath =
-      pageRow?.storagePath ||
-      (pageRow?.pageUrl ? getObjectPathFromPageUrl(pageRow.pageUrl) : null);
+    const candidate = pageRow?.storagePath || pageRow?.pageUrl || "";
+    const objectPath = getObjectPathFromUrlOrPath(candidate, PAGES_BUCKET);
 
     if (!objectPath) {
-      return NextResponse.json(
-        { error: "Page image not available", message: "No storagePath/pageUrl in DB" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Page image not available" }, { status: 404 });
     }
 
-    // 6) Download from Supabase Storage
-    const sb = supabaseServer();
-    const { data, error } = await sb.storage.from(PAGES_BUCKET).download(objectPath);
-
-    if (error || !data) {
-      return NextResponse.json(
-        { error: "Page image not available", message: "Failed to download from storage", details: String(error?.message || error) },
-        { status: 404 }
-      );
+    // 3) Download image from Supabase Storage
+    const dl = await downloadFromStorage(PAGES_BUCKET, objectPath);
+    if (!dl.ok) {
+      return NextResponse.json({ error: "Download failed", details: dl.error }, { status: 404 });
     }
 
-    const buf = await data.arrayBuffer();
     const contentType = inferContentTypeFromPath(objectPath);
-
-    return new NextResponse(buf, {
+    return new NextResponse(Buffer.from(dl.arrayBuffer), {
       status: 200,
       headers: {
         "Content-Type": contentType,
         "Cache-Control": "private, no-store, max-age=0",
       },
     });
-  } catch (e) {
-    console.error("Member viewer image route error:", e);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  } catch (e: any) {
+    console.error("Member page image route error:", e);
+    return NextResponse.json(
+      { error: "Internal server error", details: String(e?.message || e) },
+      { status: 500 }
+    );
   }
 }
