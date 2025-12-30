@@ -268,7 +268,12 @@ export async function POST(request: NextRequest) {
           storagePath
         });
 
-        // Convert PDF to page images
+        // CRITICAL FIX: Cleanup any existing phantom pages before conversion
+        await prisma.documentPage.deleteMany({
+          where: { documentId }
+        });
+
+        // Convert PDF to page images with atomic per-page processing
         const conversionResult = await convertPdfToImages({
           documentId,
           userId: session.user.id,
@@ -279,20 +284,6 @@ export async function POST(request: NextRequest) {
         });
 
         if (conversionResult.success) {
-          // Store page information in database
-          const pageData = conversionResult.pageUrls.map((url, index) => ({
-            documentId,
-            pageNumber: index + 1,
-            pageUrl: url,
-            fileSize: 0, // Will be updated later if needed
-            expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
-          }));
-
-          await prisma.documentPage.createMany({
-            data: pageData,
-            skipDuplicates: true
-          });
-
           logger.info('PDF conversion completed successfully', {
             documentId,
             pageCount: conversionResult.pageCount,

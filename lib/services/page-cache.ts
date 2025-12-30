@@ -105,22 +105,56 @@ export async function cachePages(
       where: { documentId },
     });
 
-    // Create new cache entries
-    const cacheEntries = pageUrls.map((url, index) => ({
-      documentId,
-      pageNumber: index + 1,
-      pageUrl: url,
-      fileSize: pageSizes?.[index] || 0,
-      expiresAt,
-    }));
+    // CRITICAL FIX: Verify each page URL exists before creating DB entry
+    let validPageCount = 0;
+    
+    for (let index = 0; index < pageUrls.length; index++) {
+      const pageUrl = pageUrls[index];
+      const pageNumber = index + 1;
+      
+      try {
+        // Verify the page URL is accessible
+        const response = await fetch(pageUrl, { method: 'HEAD' });
+        if (!response.ok) {
+          logger.warn(`Page ${pageNumber} URL not accessible: ${response.status}`, { pageUrl });
+          continue; // Skip this page
+        }
+        
+        // Only create DB entry after verifying URL exists
+        await prisma.documentPage.upsert({
+          where: {
+            documentId_pageNumber: { documentId, pageNumber }
+          },
+          update: {
+            pageUrl,
+            fileSize: pageSizes?.[index] || 0,
+            expiresAt,
+          },
+          create: {
+            documentId,
+            pageNumber,
+            pageUrl,
+            fileSize: pageSizes?.[index] || 0,
+            expiresAt,
+          }
+        });
+        
+        validPageCount++;
+        logger.info(`✅ Cached page ${pageNumber}`, { pageUrl });
+        
+      } catch (error) {
+        logger.error(`❌ Failed to verify/cache page ${pageNumber}:`, { 
+          pageUrl, 
+          error: error instanceof Error ? error.message : String(error) 
+        });
+        // Continue with next page instead of failing entire operation
+      }
+    }
 
-    await prisma.documentPage.createMany({
-      data: cacheEntries,
-    });
-
-    logger.info('Cached pages successfully', {
+    logger.info('Cached pages successfully with verification', {
       documentId,
-      pageCount: pageUrls.length,
+      totalUrls: pageUrls.length,
+      validPageCount,
       expiresAt,
     });
   } catch (error) {

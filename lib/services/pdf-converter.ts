@@ -35,7 +35,7 @@ export interface ConversionOptions {
 export interface ConversionResult {
   success: boolean;
   pageCount: number;
-  pageUrls: string[];
+  pageUrls: string[]; // Kept for backward compatibility, but will be empty array
   processingTime: number;
   error?: string;
 }
@@ -49,15 +49,20 @@ export interface PageConversionResult {
 /**
  * Main PDF conversion function using Poppler pdftoppm
  * 
+ * CRITICAL FIX: Implements atomic per-page processing
+ * - DB write happens ONLY after successful upload
+ * - No createMany() usage
+ * - Errors stop conversion immediately
+ * 
  * Optimizations:
  * - Uses Poppler pdftoppm for reliable PDF rendering
  * - Parallel page processing (up to CPU cores)
  * - Optimized Sharp settings for speed
  * - Efficient memory management
- * - Batch uploads to storage
+ * - Atomic per-page upload + DB write
  * 
  * @param options Conversion configuration
- * @returns Conversion result with page URLs and timing
+ * @returns Conversion result with page count and timing
  */
 export async function convertPdfToImages(
   options: ConversionOptions
@@ -123,79 +128,90 @@ export async function convertPdfToImages(
           return aNum - bNum;
         });
 
-      const pageCount = sortedPageFiles.length;
-      logger.info(`Poppler generated ${pageCount} page images`);
+      const totalPages = sortedPageFiles.length;
+      logger.info(`Poppler generated ${totalPages} page images`);
 
-      // Verify page sizes and log them
-      for (const pageFile of sortedPageFiles) {
-        const pageFilePath = path.join(tempOutputDir, pageFile);
-        const stats = await fs.stat(pageFilePath);
-        const pageNumber = parseInt(pageFile.match(/page-(\d+)/)?.[1] || '0');
-        
-        console.log(
-          `Generated ${pageFile} size:`,
-          stats.size,
-          'bytes',
-          `(${(stats.size / 1024).toFixed(2)} KB)`
-        );
-        
-        logger.info(`Generated ${pageFile} size:`, {
-          pageNumber,
-          sizeBytes: stats.size,
-          sizeKB: (stats.size / 1024).toFixed(2)
-        });
-
-        // Verify non-blank page (typically > 20KB)
-        if (stats.size < 20000) {
-          logger.warn(`⚠️ Page ${pageNumber} is suspiciously small (${stats.size} bytes) - may be blank`);
-        }
+      if (totalPages === 0) {
+        throw new Error('No pages were generated from PDF');
       }
 
-      // Process and upload pages in parallel batches
-      const batchSize = Math.min(os.cpus().length, 4);
-      const pageUrls: string[] = [];
+      // CRITICAL FIX: Atomic per-page processing
+      // Each page: convert → upload → DB write (ONLY after successful upload)
+      let processedPages = 0;
+      
+      for (let pageIndex = 0; pageIndex < totalPages; pageIndex++) {
+        const pageFile = sortedPageFiles[pageIndex];
+        const pageNumber = pageIndex + 1; // 1-indexed
+        const pageFilePath = path.join(tempOutputDir, pageFile);
 
-      for (let i = 0; i < pageCount; i += batchSize) {
-        const batch = [];
-        const endIndex = Math.min(i + batchSize, pageCount);
+        logger.info(`Processing page ${pageNumber}/${totalPages}`, { pageFile });
 
-        for (let j = i; j < endIndex; j++) {
-          const pageFile = sortedPageFiles[j];
-          const pageNumber = parseInt(pageFile.match(/page-(\d+)/)?.[1] || '0');
-          const pageFilePath = path.join(tempOutputDir, pageFile);
-
-          batch.push(
-            optimizeAndUploadPage(
-              pageFilePath,
-              pageNumber,
-              userId,
-              documentId,
-              quality,
-              format
-            )
-          );
+        // 1. Convert ONE page
+        const imageBuffer = await convertSinglePage(pageFilePath, quality, format);
+        
+        if (!imageBuffer || imageBuffer.length === 0) {
+          throw new Error(`Page ${pageNumber} conversion failed`);
         }
 
-        // Process batch in parallel
-        const results = await Promise.all(batch);
-        pageUrls.push(...results.map((r) => r.url));
+        // 2. Upload image to Supabase
+        const storagePath = `${userId}/${documentId}/page-${pageNumber}.${format}`;
+        
+        const { error } = await supabase.storage
+          .from("document-pages")
+          .upload(storagePath, imageBuffer, {
+            contentType: `image/${format}`,
+            upsert: true,
+            cacheControl: '604800', // 7 days
+          });
 
-        logger.info(`Processed and uploaded pages ${i + 1}-${endIndex} of ${pageCount}`);
+        if (error) {
+          throw new Error(`Upload failed for page ${pageNumber}: ${error.message}`);
+        }
+
+        // 3. ONLY AFTER successful upload → write DB row
+        const { prisma } = await import('@/lib/db');
+        const futureDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
+        
+        await prisma.documentPage.upsert({
+          where: {
+            documentId_pageNumber: { documentId, pageNumber }
+          },
+          update: {
+            storagePath,
+            fileSize: imageBuffer.length,
+            format: format as any,
+            expiresAt: futureDate
+          },
+          create: {
+            documentId,
+            pageNumber,
+            storagePath,
+            fileSize: imageBuffer.length,
+            format: format as any,
+            expiresAt: futureDate
+          }
+        });
+
+        processedPages++;
+        logger.info(`✅ Page ${pageNumber} processed successfully`, {
+          storagePath,
+          sizeKB: (imageBuffer.length / 1024).toFixed(2)
+        });
       }
 
       const processingTime = Date.now() - startTime;
 
-      logger.info('PDF conversion completed with Poppler', {
+      logger.info('PDF conversion completed with atomic processing', {
         documentId,
-        pageCount,
+        pageCount: processedPages,
         processingTime,
-        avgTimePerPage: processingTime / pageCount,
+        avgTimePerPage: processingTime / processedPages,
       });
 
       return {
         success: true,
-        pageCount,
-        pageUrls,
+        pageCount: processedPages,
+        pageUrls: [], // Not needed anymore - DB has the data
         processingTime,
       };
     } finally {
@@ -223,35 +239,25 @@ export async function convertPdfToImages(
 }
 
 /**
- * Optimize and upload a page image generated by Poppler
+ * Convert and optimize a single page image
  * 
  * @param pageFilePath Path to the page image file generated by Poppler
- * @param pageNumber Page number (1-indexed)
- * @param userId User ID for storage path
- * @param documentId Document ID for storage path
  * @param quality JPEG quality (0-100)
  * @param format Output format
- * @returns Page conversion result
+ * @returns Optimized image buffer
  */
-async function optimizeAndUploadPage(
+async function convertSinglePage(
   pageFilePath: string,
-  pageNumber: number,
-  userId: string,
-  documentId: string,
   quality: number,
   format: string
-): Promise<PageConversionResult> {
+): Promise<Buffer> {
   try {
     // Read the image file generated by Poppler
     const imageBuffer = await fs.readFile(pageFilePath);
     
-    logger.info(`[Converter] Processing page ${pageNumber}:`, {
-      originalSizeKB: (imageBuffer.length / 1024).toFixed(2),
-    });
-    
     // Verify we have actual content (not blank)
     if (imageBuffer.length < 20000) {
-      logger.warn(`[Converter] ⚠️ Page ${pageNumber} is suspiciously small (${imageBuffer.length} bytes) - may be blank`);
+      logger.warn(`⚠️ Page image is suspiciously small (${imageBuffer.length} bytes) - may be blank`);
     }
     
     // Optimize image with Sharp
@@ -269,50 +275,24 @@ async function optimizeAndUploadPage(
       })
       .toBuffer();
     
-    logger.info(`[Converter] Optimized page ${pageNumber}:`, {
-      originalKB: (imageBuffer.length / 1024).toFixed(2),
-      optimizedKB: (optimizedBuffer.length / 1024).toFixed(2),
-      compressionRatio: ((1 - optimizedBuffer.length / imageBuffer.length) * 100).toFixed(1) + '%',
-    });
-    
     // CRITICAL: Verify final image is reasonable size
     if (optimizedBuffer.length < 10000) {
-      logger.warn(
-        `[Converter] ⚠️ Page ${pageNumber} JPEG is too small (${optimizedBuffer.length} bytes) - likely blank. ` +
+      throw new Error(
+        `Optimized page JPEG is too small (${optimizedBuffer.length} bytes) - likely blank. ` +
         `Original was ${imageBuffer.length} bytes.`
       );
     }
 
-    // Upload to Supabase storage
-    const storagePath = `${userId}/${documentId}/page-${pageNumber}.${format}`;
-    const { error } = await supabase.storage
-      .from('document-pages')
-      .upload(storagePath, optimizedBuffer, {
-        contentType: `image/${format}`,
-        upsert: true,
-        cacheControl: '604800', // 7 days
-      });
+    logger.info('Page optimized successfully', {
+      originalKB: (imageBuffer.length / 1024).toFixed(2),
+      optimizedKB: (optimizedBuffer.length / 1024).toFixed(2),
+      compressionRatio: ((1 - optimizedBuffer.length / imageBuffer.length) * 100).toFixed(1) + '%',
+    });
 
-    if (error) {
-      throw new Error(`Upload failed for page ${pageNumber}: ${error.message}`);
-    }
-
-    // Get public URL
-    const { data: urlData } = supabase.storage
-      .from('document-pages')
-      .getPublicUrl(storagePath);
-
-    logger.info(`[Converter] ✅ Page ${pageNumber} uploaded successfully to ${storagePath}`);
-
-    return {
-      pageNumber,
-      url: urlData.publicUrl,
-      size: optimizedBuffer.length,
-    };
+    return optimizedBuffer;
   } catch (error) {
-    logger.error(`[Converter] ❌ Failed to process page ${pageNumber}:`, {
+    logger.error('Failed to convert single page:', {
       error: error instanceof Error ? error.message : String(error),
-      pageNumber,
     });
     throw error;
   }
