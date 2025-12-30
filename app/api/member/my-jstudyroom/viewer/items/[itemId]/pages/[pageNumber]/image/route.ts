@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { supabaseServer, inferContentTypeFromPath } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 const PAGES_BUCKET = process.env.SUPABASE_PAGES_BUCKET || "document-pages";
 
@@ -86,7 +87,8 @@ export async function GET(
     }
 
     // 6) Download from Supabase Storage
-    const { data, error } = await supabaseServer.storage.from(PAGES_BUCKET).download(objectPath);
+    const sb = supabaseServer();
+    const { data, error } = await sb.storage.from(PAGES_BUCKET).download(objectPath);
 
     if (error || !data) {
       return NextResponse.json(

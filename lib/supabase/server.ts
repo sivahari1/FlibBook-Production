@@ -1,24 +1,34 @@
 // lib/supabase/server.ts
-import { createClient } from "@supabase/supabase-js";
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
-const supabaseUrl = process.env.SUPABASE_URL!;
-const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+let _client: SupabaseClient | null = null;
 
-if (!supabaseUrl || !serviceRoleKey) {
-  throw new Error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
+export function supabaseServer(): SupabaseClient {
+  if (_client) return _client;
+
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  // DO NOT throw at module import time; only throw when this function is called.
+  if (!supabaseUrl || !serviceRoleKey) {
+    throw new Error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
+  }
+
+  _client = createClient(supabaseUrl, serviceRoleKey, {
+    auth: { persistSession: false },
+  });
+
+  return _client;
 }
 
-export const supabaseServer = createClient(supabaseUrl, serviceRoleKey, {
-  auth: { persistSession: false },
-});
-
 export async function downloadFromStorage(bucket: string, path: string) {
-  const { data, error } = await supabaseServer.storage.from(bucket).download(path);
+  const client = supabaseServer();
+  const { data, error } = await client.storage.from(bucket).download(path);
   if (error || !data) {
     return { ok: false as const, error: error?.message || "Download failed" };
   }
+
   const arrayBuffer = await data.arrayBuffer();
-  // Supabase download() doesn't always provide content-type; you can infer from extension
   return { ok: true as const, arrayBuffer };
 }
 

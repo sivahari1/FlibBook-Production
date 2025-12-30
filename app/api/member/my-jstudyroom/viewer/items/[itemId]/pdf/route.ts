@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { supabaseServer } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 const PDF_BUCKET = process.env.SUPABASE_PDF_BUCKET || "documents"; // change if your pdf bucket name differs
 
@@ -31,7 +32,8 @@ export async function GET(
     }
 
     // storagePath example: pdfs/<userId>/<file>.pdf
-    const { data, error } = await supabaseServer.storage.from(PDF_BUCKET).download(doc.storagePath);
+    const sb = supabaseServer();
+    const { data, error } = await sb.storage.from(PDF_BUCKET).download(doc.storagePath);
 
     if (error || !data) {
       return NextResponse.json({ error: "Failed to download PDF" }, { status: 404 });

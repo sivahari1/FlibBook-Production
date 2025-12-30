@@ -82,7 +82,8 @@ export async function POST(req: NextRequest) {
     }
 
     // 3) Download PDF
-    const { data, error } = await supabaseServer.storage.from(PDF_BUCKET).download(objectPath);
+    const sb = supabaseServer();
+    const { data, error } = await sb.storage.from(PDF_BUCKET).download(objectPath);
 
     if (error || !data) {
       console.error("PDF search: download failed", { error, bucket: PDF_BUCKET, objectPath });
@@ -94,8 +95,7 @@ export async function POST(req: NextRequest) {
     // 4) Extract text (✅ dynamic import avoids CJS export issues on Vercel)
     let text = "";
     try {
-      const mod: any = await import("pdf-parse");
-      const pdfParse = mod?.default ?? mod; // works for both CJS/ESM shapes
+      const pdfParse = require("pdf-parse");
       const parsed = await pdfParse(pdfBuf);
       text = parsed?.text || "";
     } catch (parseErr: any) {
