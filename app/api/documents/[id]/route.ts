@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 import { getDocumentById } from '@/lib/documents'
-import { deleteFile } from '@/lib/storage'
+import { deleteFileFromBucket } from '@/lib/storage'
 import { logger } from '@/lib/logger'
 import { requirePlatformUser } from '@/lib/role-check'
 
@@ -206,7 +206,8 @@ export async function DELETE(
     });
 
     // Step 6: Delete file from Supabase Storage (outside transaction)
-    const deleteResult = await deleteFile(document.storagePath)
+    const deleteResult = await deleteFileFromBucket("documents", document.storagePath);
+
     
     if (!deleteResult.success) {
       logger.error('Failed to delete file from storage (document already deleted from DB)', {

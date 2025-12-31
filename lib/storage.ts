@@ -181,6 +181,41 @@ export async function deleteFile(
 }
 
 /**
+ * Delete a file from a specific bucket in Supabase Storage
+ * Bucket-aware deletion for PDF-only storage implementation
+ * @param bucket - Bucket name (e.g., 'documents')
+ * @param path - Storage path of the file (bucket-relative path)
+ * @returns Success status
+ */
+export async function deleteFileFromBucket(
+  bucket: string,
+  path: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const supabaseAdmin = getSupabaseAdmin()
+    const { error } = await supabaseAdmin.storage
+      .from(bucket)
+      .remove([path])
+
+    if (error) {
+      console.error('Storage delete error:', error)
+      return { success: false, error: error.message }
+    }
+
+    return { success: true }
+  } catch (error) {
+    console.error('Delete file exception:', error)
+    return { success: false, error: 'Failed to delete file' }
+  }
+}
+
+/**
+ * Legacy alias for bucket-aware deletion
+ * @deprecated Use deleteFileFromBucket instead
+ */
+export const deleteFromStorage = deleteFileFromBucket
+
+/**
  * Get public URL for a file (for public buckets only)
  * @param path - Storage path of the file
  * @param bucketName - Optional bucket name (defaults to 'documents')
@@ -204,7 +239,7 @@ export function getPublicUrl(path: string, bucketName: string = BUCKET_NAME): st
 export async function listFiles(
   path: string,
   bucketName: string = BUCKET_NAME
-): Promise<{ files?: Array<Record<string, unknown>>; error?: string }> {
+): Promise<{ files?: Array<any>; error?: string }> {
   try {
     const supabaseAdmin = getSupabaseAdmin()
     const { data, error } = await supabaseAdmin.storage
