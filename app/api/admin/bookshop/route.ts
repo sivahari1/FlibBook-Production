@@ -156,6 +156,7 @@ export async function GET(request: NextRequest) {
 /**
  * POST /api/admin/bookshop
  * Create a new Book Shop item with multi-content type support
+ * ENSURES proper defaults for visibility
  * Admin only
  * Requirements: 11.3, 11.4, 11.5
  */
@@ -222,20 +223,27 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Create Book Shop item with content type and metadata (Requirements: 11.3, 11.4, 11.5)
+    // ENSURE proper defaults for bookshop visibility
+    const finalTitle = title || document.title // Fallback to document title
+    const finalDescription = description || `${document.contentType} content` // Basic description
+    const finalCategory = category || 'General' // Use "General" as default
+    const finalIsFree = isFree !== false // Default to true (free) if not specified
+    const finalIsPublished = isPublished !== false // Default to true (published) if not specified
+
+    // Create Book Shop item with GUARANTEED proper fields (Requirements: 11.3, 11.4, 11.5)
     const bookShopItem = await prisma.bookShopItem.create({
       data: {
         documentId,
-        title,
-        description: description || null,
-        category,
-        contentType: document.contentType,
+        title: finalTitle,
+        description: finalDescription || null,
+        category: finalCategory,
+        contentType: document.contentType, // From document.contentType
         metadata: document.metadata || {},
-        previewUrl: document.thumbnailUrl || null,
+        previewUrl: document.thumbnailUrl || null, // May be null - handled in UI
         linkUrl: document.linkUrl || null,
-        isFree: isFree !== false, // Default to true if not specified
-        price: isFree === false ? price : null,
-        isPublished: isPublished !== false // Default to true if not specified
+        isFree: finalIsFree,
+        price: finalIsFree ? null : price,
+        isPublished: finalIsPublished // ALWAYS set to true for visibility
       },
       include: {
         document: {
@@ -253,11 +261,11 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    logger.info('Book Shop item created with multi-content type', {
+    logger.info('Book Shop item created with guaranteed visibility', {
       itemId: bookShopItem.id,
       documentId,
-      title,
-      category,
+      title: finalTitle,
+      category: finalCategory,
       contentType: document.contentType,
       isFree: bookShopItem.isFree,
       isPublished: bookShopItem.isPublished

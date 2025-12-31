@@ -51,6 +51,9 @@ export async function canViewDocument(
         mimeType: true,
         // Include bookshop items for MyJstudyroom access
         bookShopItems: {
+          where: {
+            isPublished: true // Only consider published bookshop items
+          },
           select: {
             id: true,
             myJstudyroomItems: {
@@ -67,14 +70,20 @@ export async function canViewDocument(
         // Include email shares
         emailShares: {
           where: {
-            OR: [
-              { sharedWithUserId: userId },
-              { sharedWithEmail: session.user.email }
-            ],
-            // Only active shares (not expired)
-            OR: [
-              { expiresAt: null },
-              { expiresAt: { gt: new Date() } }
+            AND: [
+              {
+                OR: [
+                  { sharedWithUserId: userId },
+                  { sharedWithEmail: session.user.email }
+                ]
+              },
+              {
+                // Only active shares (not expired)
+                OR: [
+                  { expiresAt: null },
+                  { expiresAt: { gt: new Date() } }
+                ]
+              }
             ]
           },
           select: {

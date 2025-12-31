@@ -1,0 +1,12 @@
+<svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="200" height="200" fill="#F3F4F6"/>
+  <circle cx="100" cy="100" r="50" fill="#EC4899" opacity="0.1"/>
+  <circle cx="100" cy="100" r="35" fill="#EC4899" opacity="0.2"/>
+  <circle cx="100" cy="100" r="20" fill="#EC4899"/>
+  <path d="M92 88 L92 112 L112 100 L92 88Z" fill="white"/>
+  <path d="M60 80 Q60 70 70 70 Q80 70 80 80" stroke="#EC4899" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <path d="M120 80 Q120 70 130 70 Q140 70 140 80" stroke="#EC4899" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <path d="M60 120 Q60 130 70 130 Q80 130 80 120" stroke="#EC4899" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <path d="M120 120 Q120 130 130 130 Q140 130 140 120" stroke="#EC4899" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <text x="100" y="190" text-anchor="middle" fill="#6B7280" font-family="Arial, sans-serif" font-size="12">Audio</text>
+</svg>

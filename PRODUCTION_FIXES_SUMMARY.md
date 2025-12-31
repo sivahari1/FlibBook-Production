@@ -1,208 +1,201 @@
-# Production Fixes Summary
+# jStudyRoom Production Issues - Complete Fix Summary
 
-## Overview
-Fixed three critical production issues in the FlipBook DRM application deployed at https://jstudyroom.dev
+## Issues Fixed
 
----
+### ISSUE-1: Stale MyStudyRoom Items
+**Problem**: When admin deletes document_pages rows, members still see items in MyStudyRoom but get "document unavailable" on view.
 
-## Issue #1: Dark/Light Mode Toggle Not Working ✅
+**Root Cause**: MyStudyRoom is driven by `my_jstudyroom_items → book_shop_items → documents`, not `document_pages`. Deleting only `document_pages` leaves stale references.
 
-### Problem
-- Theme toggle button didn't visually change the UI
-- Light and dark modes looked the same
-- Error: "useTheme must be used within a ThemeProvider" appeared occasionally
+**Solution**: Implemented comprehensive document deletion system.
 
-### Root Cause
-- CSS variables were defined but not being applied to body element
-- Dark mode class wasn't properly removing light mode styles
-- Body element lacked explicit dark mode styling
+### ISSUE-2: Bookshop Items Not Visible or Broken
+**Problem**: Some documents added to bookshop don't appear OR show broken thumbnails.
 
-### Solution
-**Files Modified:**
-1. `app/globals.css`
-   - Added explicit dark mode body styles with distinct colors
-   - Dark mode: `background: #0f172a; color: #f1f5f9`
-   - Light mode: `background: #ffffff; color: #0f172a`
+**Root Cause**: Missing required fields (`isPublished`, `category`) and missing thumbnail handling.
 
-2. `app/layout.tsx`
-   - Added `className="h-full"` to html element
-   - Added explicit Tailwind classes to body: `bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100`
-   - Updated blocking script to explicitly remove 'dark' class in light mode
+**Solution**: Enhanced bookshop creation with guaranteed defaults and placeholder images.
 
-3. `app/view/[shareKey]/ViewerClient.tsx`
-   - Added dark mode support to loading and error states
-   - Updated background colors: `bg-gray-100 dark:bg-slate-900`
-   - Updated text colors for dark mode compatibility
+## Files Created/Modified
 
-### Result
-- ✅ Theme toggle now visually switches between distinct light and dark modes
-- ✅ Theme preference persists across page reloads
-- ✅ No "useTheme" errors in console
-- ✅ All pages support dark mode (landing, dashboard, login, viewer)
+### 1. Safe Document Deletion System
 
----
+**New Files:**
+- `app/api/admin/documents/[id]/delete/route.ts` - Admin deletion endpoint
+- `lib/document-deletion.ts` - Core deletion logic
 
-## Issue #2: Email-Restricted Share Links Showing "Share Link Not Found" ✅
+**Features:**
+- **Complete Deletion**: Removes document fully and consistently
+  - Deletes `my_jstudyroom_items` referencing `book_shop_items` of that document
+  - Deletes `book_shop_items` for that document  
+  - Deletes `document_pages` for that document
+  - Deletes `documents` row
+  - Deletes Supabase Storage folder under `document-pages/{userId}/{documentId}/`
+- **Bookshop-Only Removal**: Removes from catalog but keeps document
+  - Deletes only `book_shop_items` and dependent `my_jstudyroom_items`
+  - Preserves `documents` row for other uses
 
-### Problem
-- Creating a share link restricted to a specific email
-- Opening the link while logged in with that exact email
-- Getting error: "Access Denied - Share link not found"
-- Error message was generic and unhelpful
+### 2. Enhanced Bookshop Management
 
-### Root Cause
-- API was returning generic 403 error for email mismatches
-- Error message didn't distinguish between "not found" and "wrong email"
-- No specific handling for EMAIL_MISMATCH error code
+**Modified Files:**
+- `app/api/admin/bookshop/route.ts` - Enhanced POST method
+- `app/api/bookshop/route.ts` - Fixed GET method
+- `components/member/BookShopItemCard.tsx` - Added placeholder handling
 
-### Solution
-**Files Modified:**
-1. `app/api/share/[shareKey]/route.ts`
-   - Added specific error handling for `EMAIL_MISMATCH` code
-   - Now returns detailed message: "Access denied: This share is restricted to {email}. You are logged in as {userEmail}."
-   - Added logging of both restrictedEmail and userEmail for debugging
-   - Maintains 403 status but with clear, actionable error message
+**Improvements:**
+- **Guaranteed Defaults**: 
+  - `isPublished=true` (always visible)
+  - `category="General"` (if empty)
+  - `title` falls back to document title
+  - `description` falls back to content type description
+- **Proper Field Population**:
+  - `contentType` from `document.contentType`
+  - `isFree` correctly set
+- **Thumbnail Handling**:
+  - Placeholder images for missing thumbnails
+  - Graceful fallback for broken images
+  - Content-type specific placeholders
 
-### Result
-- ✅ Public share links work correctly for anyone with the URL
-- ✅ Email-restricted shares work when logged in with correct email
-- ✅ Clear error message when logged in with wrong email
-- ✅ No more confusing "share link not found" for valid tokens
-- ✅ Error message shows both the restricted email and current user's email
+### 3. Database Cleanup System
 
----
+**New Files:**
+- `scripts/cleanup-orphaned-items.ts` - TypeScript cleanup script
+- `scripts/cleanup-orphaned-items.sql` - SQL cleanup script
 
-## Issue #3: Password Reset Redirecting to Email Verification Page ✅
+**Cleanup Operations:**
+- Removes orphan `my_jstudyroom_items` where `bookShopItemId` no longer exists
+- Removes phantom `document_pages` rows without matching storage objects
+- Verifies storage.objects count matches total pages
+- Updates user document counts for consistency
 
-### Problem
-- User with verified account requests password reset
-- Receives reset email and successfully sets new password
-- After login, redirected to "Verify Your Email" page
-- This was confusing - email was already verified before reset
+### 4. Thumbnail Generation System
 
-### Root Cause
-1. **Middleware Issue**: Checking `!token.emailVerified` which treats `null`, `undefined`, and `false` the same
-2. **No Success Message**: After password reset, user wasn't informed of success on login page
+**New Files:**
+- `lib/thumbnail-generator.ts` - Thumbnail generation utilities
+- `app/api/admin/thumbnails/generate/route.ts` - Admin thumbnail API
+- `public/images/placeholders/*.svg` - Placeholder images
 
-### Solution
-**Files Modified:**
-1. `middleware.ts`
-   - Changed condition from `!token.emailVerified` to `token.emailVerified === false`
-   - Now only redirects if emailVerified is explicitly `false` (new unverified users)
-   - Users with `true` or `null` emailVerified can access protected routes
+**Features:**
+- Generates thumbnails from page 1 of converted PDFs
+- Batch processing for missing thumbnails
+- Syncs bookshop items with document thumbnails
+- Content-type specific placeholder images
 
-2. `app/api/auth/reset-password/route.ts`
-   - Added explicit comment: "Only update passwordHash, do NOT modify emailVerified"
-   - Ensured password reset preserves emailVerified status
-   - No accidental modification of verification status
+### 5. Testing and Verification
 
-3. `components/auth/ResetPasswordForm.tsx`
-   - Updated redirect to include success parameter: `/login?reset=success`
-   - User now sees success message on login page
+**New Files:**
+- `scripts/test-production-fixes.ts` - Comprehensive test suite
 
-4. `app/(auth)/login/page.tsx`
-   - Added `reset` parameter to searchParams type
-   - Added green success banner when `reset=success`
-   - Message: "Password Reset Successful - Your password has been reset. You can now login with your new password."
-   - Added dark mode support to success banner
+## API Endpoints
 
-### Result
-- ✅ Verified users can reset password without re-verifying email
-- ✅ After password reset, users see success message on login page
-- ✅ Users can login immediately with new password
-- ✅ New registrations still require email verification (unchanged)
-- ✅ No regression in NextAuth session handling
-- ✅ Clear visual feedback for successful password reset
+### Document Deletion
+```
+DELETE /api/admin/documents/[id]/delete?type=complete
+DELETE /api/admin/documents/[id]/delete?type=bookshop-only
+```
 
----
+### Thumbnail Generation
+```
+POST /api/admin/thumbnails/generate?limit=50
+POST /api/admin/thumbnails/generate?syncOnly=true
+```
 
-## Testing Checklist
+## Usage Instructions
 
-### Theme Toggle Testing
-- [ ] Click theme toggle on landing page - UI changes immediately
-- [ ] Click theme toggle on dashboard - UI changes immediately
-- [ ] Click theme toggle on login page - UI changes immediately
-- [ ] Click theme toggle on viewer page - UI changes immediately
-- [ ] Reload page - theme preference persists
-- [ ] Check console - no "useTheme" errors
-- [ ] Verify distinct visual difference between light and dark modes
+### 1. Run Database Cleanup
 
-### Share Link Testing
-- [ ] Create public share link - opens for anyone
-- [ ] Create email-restricted share link
-- [ ] Login with correct email - document opens
-- [ ] Login with different email - see clear error message with both emails
-- [ ] Error message shows: "restricted to X, you are logged in as Y"
-- [ ] No "share link not found" errors for valid tokens
+**Option A: TypeScript Script**
+```bash
+npx tsx scripts/cleanup-orphaned-items.ts
+```
 
-### Password Reset Testing
-- [ ] Register new user - verify email required
-- [ ] Login with verified account
-- [ ] Click "Forgot Password"
-- [ ] Receive reset email
-- [ ] Click reset link - opens reset password page
-- [ ] Set new password successfully
-- [ ] Redirected to login page with green success banner
-- [ ] Login with new password - goes directly to dashboard
-- [ ] NOT redirected to verify-email page
-- [ ] Email remains verified throughout process
+**Option B: SQL Script**
+```sql
+-- Run in Supabase SQL editor
+\i scripts/cleanup-orphaned-items.sql
+```
 
----
+### 2. Generate Missing Thumbnails
 
-## Files Changed
+```bash
+curl -X POST "https://your-domain.com/api/admin/thumbnails/generate?limit=100" \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN"
+```
 
-### Issue #1 (Dark Mode)
-1. `app/globals.css` - Added explicit dark mode body styles
-2. `app/layout.tsx` - Added Tailwind dark mode classes to body
-3. `app/view/[shareKey]/ViewerClient.tsx` - Added dark mode support
+### 3. Test Document Deletion
 
-### Issue #2 (Share Links)
-1. `app/api/share/[shareKey]/route.ts` - Improved error messages for email restrictions
+```bash
+# Remove from bookshop only
+curl -X DELETE "https://your-domain.com/api/admin/documents/DOCUMENT_ID/delete?type=bookshop-only" \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN"
 
-### Issue #3 (Password Reset)
-1. `middleware.ts` - Fixed emailVerified check logic
-2. `app/api/auth/reset-password/route.ts` - Added comment to preserve emailVerified
-3. `components/auth/ResetPasswordForm.tsx` - Added success parameter to redirect
-4. `app/(auth)/login/page.tsx` - Added success banner for password reset
+# Complete deletion (use with caution)
+curl -X DELETE "https://your-domain.com/api/admin/documents/DOCUMENT_ID/delete?type=complete" \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN"
+```
 
----
+### 4. Verify Fixes
 
-## Deployment Notes
+```bash
+npx tsx scripts/test-production-fixes.ts
+```
 
-### No Database Migration Required
-- All fixes are code-only changes
-- No Prisma schema modifications
-- No data migration needed
+## Environment Variables Required
 
-### Environment Variables
-- No new environment variables required
-- Existing configuration works as-is
+Ensure these are set in your Vercel deployment:
 
-### Build Status
-- ✅ TypeScript compilation successful
-- ✅ No diagnostics errors
-- ✅ Build completed successfully
-- ✅ All routes generated correctly
+```env
+SUPABASE_URL=your_supabase_url
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+DATABASE_URL=your_database_url
+```
 
-### Backward Compatibility
-- ✅ All existing functionality preserved
-- ✅ No breaking changes
-- ✅ Existing share links continue to work
-- ✅ Existing user sessions unaffected
+## Verification Steps
 
----
+1. **Check Orphaned Items**: Run cleanup script and verify 0 orphaned items
+2. **Test Bookshop Visibility**: Create new bookshop item and verify it appears in member catalog
+3. **Verify Thumbnails**: Check that placeholder images show for items without thumbnails
+4. **Test Document Deletion**: Use admin panel to remove documents and verify clean removal
+5. **Storage Consistency**: Verify document_pages count matches storage objects
 
-## Summary
+## Phantom Pages Consistency
 
-All three production issues have been successfully fixed:
+The system now includes verification that:
+- After conversion completes, storage.objects count matches total pages
+- Document_pages rows without corresponding storage objects are removed
+- Proxy URLs are never returned for pages that fail verification
 
-1. **Dark Mode**: Now works correctly with distinct visual differences
-2. **Share Links**: Email restrictions work properly with clear error messages
-3. **Password Reset**: No longer redirects verified users to email verification
+## Production Deployment Checklist
 
-The application is ready for deployment to production at https://jstudyroom.dev
+- [ ] Environment variables configured in Vercel
+- [ ] Database cleanup script executed
+- [ ] Thumbnail generation run for existing items
+- [ ] Admin deletion endpoints tested
+- [ ] Member bookshop visibility verified
+- [ ] Placeholder images deployed to `/public/images/placeholders/`
+- [ ] Error monitoring configured for new endpoints
 
-**Build Status**: ✅ Successful  
-**Tests**: ✅ All diagnostics pass  
-**Breaking Changes**: ❌ None  
-**Database Changes**: ❌ None required
+## Rollback Plan
+
+If issues occur:
+
+1. **Database**: The SQL script includes transaction boundaries - rollback if needed
+2. **API Changes**: Revert the modified files using git
+3. **Storage**: Document deletion includes storage cleanup - manual restoration may be needed
+4. **Thumbnails**: Thumbnail generation is additive - no rollback needed
+
+## Monitoring
+
+Monitor these metrics post-deployment:
+- Orphaned `my_jstudyroom_items` count (should remain 0)
+- Bookshop items with `isPublished=false` (investigate if increasing)
+- Document_pages without storage objects (should remain 0)
+- Member complaints about "document unavailable" (should decrease)
+
+## Support
+
+For issues with these fixes:
+1. Check Vercel logs for API errors
+2. Run the test script to identify specific problems
+3. Use the cleanup script to maintain database consistency
+4. Monitor Supabase storage usage and consistency

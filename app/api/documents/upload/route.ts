@@ -16,7 +16,7 @@ import { sanitizeString } from '@/lib/sanitization';
 import { logger } from '@/lib/logger';
 import { requirePlatformUser } from '@/lib/role-check';
 import { getAllCategories } from '@/lib/bookshop-categories';
-import { convertPdfToImages } from '@/lib/services/pdf-converter';
+import { uploadToStorage } from '@/lib/supabase/server';
 import type { DocumentMetadata } from '@/lib/types/api';
 
 // Force dynamic rendering
@@ -43,6 +43,9 @@ export async function POST(request: NextRequest) {
         { status: 401 }
       );
     }
+
+    // Generate single documentId for consistency across storage path, database, and bookshop
+    const documentId = crypto.randomUUID();
 
     // Parse form data
     const formData = await request.formData();
@@ -127,6 +130,16 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         );
       }
+
+      // PDF-only validation - reject non-PDF uploads
+      if (contentType === ContentType.PDF) {
+        if (!file.type.includes('pdf')) {
+          return NextResponse.json(
+            { error: 'Only PDF files are accepted for PDF content type' },
+            { status: 400 }
+          );
+        }
+      }
     }
 
     // Get user with current document count and role
@@ -210,9 +223,48 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         );
       }
+    } else if (file && contentType === ContentType.PDF) {
+      // PDF-only storage: Upload original PDF to Supabase Storage
+      const filename = sanitizeFilename(file.name);
+      const storageBucket = 'documents';
+      const storagePathInBucket = `pdfs/${session.user.id}/${documentId}/${filename}`;
+
+      // Upload PDF to Supabase Storage
+      const uploadResult = await uploadToStorage(
+        storageBucket,
+        storagePathInBucket,
+        file,
+        { contentType: 'application/pdf' }
+      );
+
+      if (!uploadResult.ok) {
+        return NextResponse.json(
+          { error: `Failed to upload PDF: ${uploadResult.error}` },
+          { status: 500 }
+        );
+      }
+
+      storagePath = uploadResult.path;
+      mimeType = 'application/pdf';
+      fileSize = file.size;
+      
+      // Basic PDF metadata
+      metadata = {
+        originalFilename: filename,
+        uploadedAt: new Date().toISOString(),
+        fileSize: file.size,
+        mimeType: 'application/pdf'
+      };
+
+      logger.info('PDF uploaded to storage successfully', {
+        userId: session.user.id,
+        documentId,
+        storagePath,
+        fileSize
+      });
+
     } else if (file) {
-      // Process file (PDF, Image, or Video)
-      // Requirements: 3.1, 4.1 - File processing
+      // Process other file types (Image, Video, Audio) using existing processor
       const contentProcessor = new ContentProcessor();
       const processingResult = await contentProcessor.processUpload(
         file,
@@ -235,7 +287,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create document record in database
-    const documentId = crypto.randomUUID();
+    // CRITICAL: Use the SAME documentId for storage path, prisma.document.create, and bookshop item
     const document = await prisma.document.create({
       data: {
         id: documentId,
@@ -256,80 +308,40 @@ export async function POST(request: NextRequest) {
       userId: session.user.id,
       documentId,
       contentType,
-      fileSize
+      fileSize,
+      storagePath
     });
 
-    // Trigger PDF conversion for PDF documents
-    if (contentType === ContentType.PDF && storagePath && file) {
-      try {
-        logger.info('Starting PDF conversion for uploaded document', {
-          documentId,
-          userId: session.user.id,
-          storagePath
-        });
+    // DO NOT create DocumentPage rows or trigger conversion for PDF-only storage
+    // The PDF will be viewed directly using PDF.js
 
-        // CRITICAL FIX: Cleanup any existing phantom pages before conversion
-        await prisma.documentPage.deleteMany({
-          where: { documentId }
-        });
-
-        // Convert PDF to page images with atomic per-page processing
-        const conversionResult = await convertPdfToImages({
-          documentId,
-          userId: session.user.id,
-          pdfPath: storagePath,
-          quality: 85,
-          dpi: 150,
-          format: 'jpg'
-        });
-
-        if (conversionResult.success) {
-          logger.info('PDF conversion completed successfully', {
-            documentId,
-            pageCount: conversionResult.pageCount,
-            processingTime: conversionResult.processingTime
-          });
-        } else {
-          logger.error('PDF conversion failed', {
-            documentId,
-            error: conversionResult.error
-          });
-          // Don't fail the upload if conversion fails - document is still uploaded
-        }
-      } catch (conversionError) {
-        logger.error('PDF conversion error', {
-          documentId,
-          error: conversionError instanceof Error ? conversionError.message : 'Unknown error'
-        });
-        // Don't fail the upload if conversion fails - document is still uploaded
-      }
-    }
-
-    // Create bookshop item if requested
+    // Create bookshop item if requested with guaranteed proper defaults
     let bookshopItem = null;
     let warningMessage = null;
     
-    if (addToBookshop && bookshopCategory && bookshopPrice) {
+    if (addToBookshop && bookshopCategory !== null && bookshopPrice !== null) {
       try {
         bookshopItem = await prisma.bookShopItem.create({
           data: {
             title,
-            description: bookshopDescription || descriptionRaw || '',
-            category: bookshopCategory,
+            description: bookshopDescription || descriptionRaw || `${contentType} content`,
+            category: bookshopCategory || 'General',
             price: Math.round(bookshopPrice), // Convert to integer (paise)
             contentType,
+            metadata: metadata as any || {},
             documentId: documentId,
             isFree: bookshopPrice === 0,
-            isPublished: true
+            isPublished: true // ALWAYS published for visibility
           }
         });
 
-        logger.info('Bookshop item created successfully', {
+        logger.info('Bookshop item created successfully with guaranteed visibility', {
           userId: session.user.id,
           documentId,
           bookshopItemId: bookshopItem.id,
           category: bookshopCategory,
-          price: bookshopPrice
+          price: bookshopPrice,
+          isPublished: true
         });
       } catch (error) {
         // Log error but don't fail the upload

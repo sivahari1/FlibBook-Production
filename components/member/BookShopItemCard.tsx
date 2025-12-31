@@ -252,24 +252,47 @@ const BookShopItemCardComponent = ({ item, onAddToMyJstudyroom, userLimits }: Bo
   return (
     <>
       <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-        {/* Thumbnail Preview with Lazy Loading */}
-        {thumbnailUrl && (
-          <div className="relative w-full h-48 bg-gray-100 dark:bg-gray-700">
+        {/* Thumbnail Preview with Lazy Loading and Placeholder */}
+        <div className="relative w-full h-48 bg-gray-100 dark:bg-gray-700">
+          {thumbnailUrl ? (
             <img
               src={thumbnailUrl}
               alt={item.title}
               loading="lazy"
               className="w-full h-full object-cover"
+              onError={(e) => {
+                // Hide broken image and show placeholder
+                e.currentTarget.style.display = 'none';
+                const placeholder = e.currentTarget.nextElementSibling as HTMLElement;
+                if (placeholder) placeholder.style.display = 'flex';
+              }}
             />
-            {/* Content Type Badge Overlay */}
-            <div className="absolute top-2 right-2">
-              <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-md ${contentTypeBadge.color}`}>
-                <span>{contentTypeBadge.icon}</span>
-                <span>{contentTypeBadge.label}</span>
-              </span>
+          ) : null}
+          
+          {/* Placeholder for missing/broken thumbnails */}
+          <div 
+            className={`${thumbnailUrl ? 'hidden' : 'flex'} w-full h-full items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800`}
+            style={{ display: thumbnailUrl ? 'none' : 'flex' }}
+          >
+            <div className="text-center">
+              <div className="text-4xl mb-2">{contentTypeBadge.icon}</div>
+              <div className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                {contentTypeBadge.label}
+              </div>
+              <div className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                No preview available
+              </div>
             </div>
           </div>
-        )}
+
+          {/* Content Type Badge Overlay */}
+          <div className="absolute top-2 right-2">
+            <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-md ${contentTypeBadge.color}`}>
+              <span>{contentTypeBadge.icon}</span>
+              <span>{contentTypeBadge.label}</span>
+            </span>
+          </div>
+        </div>
 
         {/* Card Content */}
         <div className="p-6">

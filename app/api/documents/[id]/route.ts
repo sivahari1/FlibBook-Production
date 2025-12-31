@@ -69,7 +69,8 @@ export async function GET(
 
 /**
  * DELETE /api/documents/[id]
- * Delete a document with storage cleanup
+ * Delete a document with proper cascade cleanup to prevent stale MyStudyRoom items
+ * CRITICAL FIX: Atomic deletion of my_jstudyroom_items → book_shop_items → documents → storage
  */
 export async function DELETE(
   request: NextRequest,
@@ -99,7 +100,18 @@ export async function DELETE(
         id: true,
         userId: true,
         storagePath: true,
-        fileSize: true
+        fileSize: true,
+        bookShopItems: {
+          select: {
+            id: true,
+            myJstudyroomItems: {
+              select: {
+                id: true,
+                userId: true
+              }
+            }
+          }
+        }
       }
     })
 
@@ -111,34 +123,104 @@ export async function DELETE(
       )
     }
 
-    // Verify ownership
-    if (document.userId !== session.user.id) {
+    // Verify ownership (admins can delete any document)
+    if (document.userId !== session.user.id && session.user.userRole !== 'ADMIN') {
       return NextResponse.json(
         { error: 'Forbidden: You do not have access to this document' },
         { status: 403 }
       )
     }
 
-    // Delete file from Supabase Storage
+    // ATOMIC DELETION: Delete in proper order to prevent stale references
+    // 1. Delete my_jstudyroom_items referencing book_shop_items of that document
+    // 2. Delete book_shop_items for that document  
+    // 3. Delete document_pages for that document
+    // 4. Delete documents row
+    // 5. Delete Supabase Storage folder
+
+    await prisma.$transaction(async (tx) => {
+      // Step 1: Delete MyJstudyroom items that reference this document's bookshop items
+      const myJstudyroomItemIds = document.bookShopItems.flatMap(item => 
+        item.myJstudyroomItems.map(mjItem => mjItem.id)
+      );
+
+      if (myJstudyroomItemIds.length > 0) {
+        await tx.myJstudyroomItem.deleteMany({
+          where: {
+            id: {
+              in: myJstudyroomItemIds
+            }
+          }
+        });
+
+        logger.info('Deleted MyJstudyroom items', {
+          documentId,
+          deletedItemIds: myJstudyroomItemIds
+        });
+      }
+
+      // Step 2: Delete BookShop items for this document
+      if (document.bookShopItems.length > 0) {
+        await tx.bookShopItem.deleteMany({
+          where: {
+            documentId: documentId
+          }
+        });
+
+        logger.info('Deleted BookShop items', {
+          documentId,
+          deletedCount: document.bookShopItems.length
+        });
+      }
+
+      // Step 3: Delete document pages (if any exist from old system)
+      await tx.documentPage.deleteMany({
+        where: {
+          documentId: documentId
+        }
+      });
+
+      // Step 4: Delete related records (these should cascade but ensure cleanup)
+      await tx.documentShare.deleteMany({
+        where: { documentId }
+      });
+
+      await tx.shareLink.deleteMany({
+        where: { documentId }
+      });
+
+      await tx.viewAnalytics.deleteMany({
+        where: { documentId }
+      });
+
+      await tx.documentAnnotation.deleteMany({
+        where: { documentId }
+      });
+
+      // Step 5: Delete the document itself
+      await tx.document.delete({
+        where: {
+          id: documentId
+        }
+      });
+    });
+
+    // Step 6: Delete file from Supabase Storage (outside transaction)
     const deleteResult = await deleteFile(document.storagePath)
     
     if (!deleteResult.success) {
-      console.error('Failed to delete file from storage:', deleteResult.error)
-      // Continue with database deletion even if storage deletion fails
-      // This prevents orphaned database records
+      logger.error('Failed to delete file from storage (document already deleted from DB)', {
+        documentId,
+        storagePath: document.storagePath,
+        error: deleteResult.error
+      });
+      // Don't fail the request - document is already deleted from DB
     }
 
-    // Delete document from database (cascades to shareLinks and analytics)
-    await prisma.document.delete({
-      where: {
-        id: documentId
-      }
-    })
-
-    // Update user's storage usage
+    // Step 7: Update user's storage usage
     await prisma.user.update({
       where: {
-        id: session.user.id
+        id: document.userId
       },
       data: {
         storageUsed: {
@@ -147,9 +229,11 @@ export async function DELETE(
       }
     })
 
-    logger.info('Document deleted successfully', {
+    logger.info('Document deleted successfully with full cascade cleanup', {
       userId: session.user.id,
-      documentId
+      documentId,
+      myJstudyroomItemsDeleted: document.bookShopItems.flatMap(item => item.myJstudyroomItems).length,
+      bookShopItemsDeleted: document.bookShopItems.length
     })
 
     return NextResponse.json({
