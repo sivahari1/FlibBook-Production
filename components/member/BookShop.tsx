@@ -58,9 +58,10 @@ export function BookShop() {
     // Try to load from cache first
     const cachedData = loadFromCache();
     if (cachedData) {
-      setItems(cachedData.items);
+      const items = Array.isArray(cachedData.items) ? cachedData.items : [];
+      setItems(items);
       const uniqueCategories = Array.from(
-        new Set(cachedData.items.map((item: BookShopItem) => item.category))
+        new Set(items.map((item: BookShopItem) => item.category))
       ).sort() as string[];
       setCategories(uniqueCategories);
       setLoading(false);
@@ -87,7 +88,7 @@ export function BookShop() {
       setLoading(true);
       setError(null);
       
-      const response = await fetch('/api/bookshop');
+      const response = await fetch('/api/bookshop', { cache: 'no-store' });
       if (!response.ok) {
         if (response.status >= 500 && retryAttempt < 2) {
           // Retry on server errors
@@ -96,15 +97,24 @@ export function BookShop() {
         }
         throw new Error('Failed to fetch book shop items');
       }
-      const data = await response.json();
-      setItems(data);
+      const json = await response.json();
+      
+      // Robust response validation - handle both array and object responses
+      const items = Array.isArray(json) ? json : (json.items ?? []);
+      
+      // Validate that items is actually an array
+      if (!Array.isArray(items)) {
+        throw new Error(`Invalid API response: expected array but got ${typeof items}`);
+      }
+      
+      setItems(items);
       
       // Save to cache
-      saveToCache({ items: data });
+      saveToCache({ items });
       
       // Extract unique categories
       const uniqueCategories = Array.from(
-        new Set(data.map((item: BookShopItem) => item.category))
+        new Set(items.map((item: BookShopItem) => item.category))
       ).sort() as string[];
       setCategories(uniqueCategories);
     } catch (err) {
