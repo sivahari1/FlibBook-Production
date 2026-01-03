@@ -185,18 +185,29 @@ export async function removeDocumentFromMyJstudyroom(
         where: { id: itemId },
       });
 
-      // Update user's document count
-      await tx.user.update({
+      // Get current counts to ensure we don't go negative
+      const currentUser = await tx.user.findUnique({
         where: { id: userId },
-        data: {
-          freeDocumentCount: item.isFree
-            ? { decrement: 1 }
-            : undefined,
-          paidDocumentCount: !item.isFree
-            ? { decrement: 1 }
-            : undefined,
-        },
-      });
+        select: { freeDocumentCount: true, paidDocumentCount: true },
+      })
+
+      if (currentUser) {
+        const newFreeCount = item.isFree 
+          ? Math.max(0, currentUser.freeDocumentCount - 1)
+          : currentUser.freeDocumentCount
+        const newPaidCount = !item.isFree 
+          ? Math.max(0, currentUser.paidDocumentCount - 1)
+          : currentUser.paidDocumentCount
+
+        // Update user's document count
+        await tx.user.update({
+          where: { id: userId },
+          data: {
+            freeDocumentCount: newFreeCount,
+            paidDocumentCount: newPaidCount,
+          },
+        });
+      }
     });
 
     return {
