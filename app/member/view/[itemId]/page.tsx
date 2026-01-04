@@ -15,16 +15,13 @@ export default async function MyJstudyroomViewerPage({
   const session = await getServerSession(authOptions);
   const { itemId } = await params;
 
-  if (!session?.user) {
-    redirect('/login');
-  }
+  if (!session?.user) redirect('/login');
 
   // Allow MEMBER or ADMIN role (admins can test member features)
   if (session.user.userRole !== 'MEMBER' && session.user.userRole !== 'ADMIN') {
     redirect('/dashboard');
   }
 
-  // Verify the item belongs to the user
   const item = await prisma.myJstudyroomItem.findUnique({
     where: { id: itemId },
     include: {
@@ -52,25 +49,15 @@ export default async function MyJstudyroomViewerPage({
     },
   });
 
-  if (!item) {
-    redirect('/member/my-jstudyroom');
-  }
-
-  if (item.userId !== session.user.id) {
-    redirect('/member/my-jstudyroom');
-  }
+  if (!item) redirect('/member/my-jstudyroom');
+  if (item.userId !== session.user.id) redirect('/member/my-jstudyroom');
 
   return (
-  <div className="w-full">
-    <div className="w-full max-w-7xl mx-auto px-4">
-      <MyJstudyroomViewerClient
-        document={item.bookShopItem.document}
-        bookShopTitle={item.bookShopItem.title}
-        memberName={session.user.name || session.user.email}
-        itemId={itemId}
-      />
-    </div>
-  </div>
- );
-
+    <MyJstudyroomViewerClient
+      document={item.bookShopItem.document}
+      bookShopTitle={item.bookShopItem.title}
+      memberName={session.user.name || session.user.email}
+      itemId={itemId}
+    />
+  );
 }

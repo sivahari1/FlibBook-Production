@@ -129,10 +129,18 @@ export function MyJstudyroomViewerClient({ documentId, title }: MyJstudyroomView
       return <PdfViewer url={viewerData.url} title={title} />;
     
     case 'EPUB':
-      return <EpubViewer url={viewerData.url} title={title} />;
+      return (
+        <div className="h-full w-full">
+          <EpubViewer url={viewerData.url} title={title} />
+        </div>
+      );
     
     case 'LINK':
-      return <LinkViewer url={viewerData.url} title={title} />;
+      return (
+        <div className="h-full w-full">
+          <LinkViewer url={viewerData.url} title={title} />
+        </div>
+      );
     
     default:
       return (

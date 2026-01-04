@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Viewer Frame Test</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
+    <!-- Simulated Member Layout -->
+    <nav class="bg-white shadow-sm border-b border-gray-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="text-xl font-bold text-gray-900">jStudyRoom</div>
+                <div class="text-sm text-gray-600">test@example.com</div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="flex-1">
+        <div class="w-full">
+            <!-- Header -->
+            <div class="px-4 py-3">
+                <div class="flex items-start justify-between gap-3">
+                    <div class="min-w-0">
+                        <h1 class="text-xl font-semibold truncate">Sample PDF Document</h1>
+                        <p class="text-sm text-gray-500 truncate">My StudyRoom • Test User</p>
+                    </div>
+                    <button class="px-3 py-1.5 text-sm font-medium bg-gray-100 hover:bg-gray-200 rounded-md">
+                        Back
+                    </button>
+                </div>
+            </div>
+
+            <!-- PDF Viewer Frame -->
+            <div class="px-4 pb-4">
+                <div 
+                    class="mx-auto max-w-5xl rounded-lg overflow-hidden border bg-black"
+                    style="height: calc(100vh - 220px); min-height: 650px;"
+                >
+                    <iframe
+                        src="https://mozilla.github.io/pdf.js/web/compressed.tracemonkey-pldi-09.pdf#view=FitH&toolbar=0&navpanes=0&scrollbar=1"
+                        title="PDF Viewer Test"
+                        class="w-full h-full"
+                        sandbox="allow-same-origin allow-scripts allow-forms"
+                    ></iframe>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-gray-200 py-4">
+        <div class="max-w-7xl mx-auto px-4 text-center text-sm text-gray-600">
+            © 2024 jStudyRoom. All rights reserved.
+        </div>
+    </footer>
+</body>
+</html>

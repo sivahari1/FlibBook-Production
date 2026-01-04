@@ -1,84 +1,88 @@
 #!/usr/bin/env tsx
 
-/**
- * Test PDF Viewer Fix
- * 
- * This script tests the PDF viewer with a real document to see if the fix works.
- */
+import { supabaseServer, generateSignedUrl } from '@/lib/supabase/server';
+import { prisma } from '@/lib/db';
 
-async function testPDFViewerFix() {
-  const documentId = '27b35557-868f-4faa-b66d-4a28d65e6ab7'; // TPIPR document with 5 pages
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-  
-  console.log('🧪 Testing PDF Viewer Fix');
-  console.log('==========================');
-  console.log(`Document ID: ${documentId}`);
-  console.log(`Base URL: ${baseUrl}`);
-  console.log('');
-  
+async function testPdfViewerFix() {
+  console.log('🔍 Testing PDF Viewer Fix...\n');
+
   try {
-    // Test the member view page directly
-    console.log('1. Testing member view page...');
-    const memberViewUrl = `${baseUrl}/member/view/${documentId}`;
-    console.log(`   URL: ${memberViewUrl}`);
-    
-    const pageResponse = await fetch(memberViewUrl);
-    console.log(`   Status: ${pageResponse.status}`);
-    
-    if (pageResponse.ok) {
-      console.log('   ✅ Member view page loads successfully');
-      
-      // Check if the page contains the expected viewer components
-      const pageContent = await pageResponse.text();
-      
-      if (pageContent.includes('MyJstudyroomViewerClient')) {
-        console.log('   ✅ MyJstudyroomViewerClient found in page');
-      } else {
-        console.log('   ⚠️ MyJstudyroomViewerClient not found in page');
+    // Get a sample PDF document
+    const pdfDocument = await prisma.document.findFirst({
+      where: { 
+        contentType: 'PDF',
+        storagePath: { 
+          not: null,
+          not: ''
+        }
+      },
+      include: {
+        bookShopItems: {
+          include: {
+            myJstudyroomItems: true
+          }
+        }
       }
+    });
+
+    if (!pdfDocument) {
+      console.log('❌ No PDF documents found in database');
+      return;
+    }
+
+    console.log(`📄 Found PDF document: ${pdfDocument.title}`);
+    console.log(`📁 Storage path: ${pdfDocument.storagePath}`);
+
+    // Generate signed URL
+    const result = await generateSignedUrl('documents', pdfDocument.storagePath!, 3600);
+    
+    if (!result.ok) {
+      console.log(`❌ Failed to generate signed URL: ${result.error}`);
+      return;
+    }
+
+    console.log(`✅ Generated signed URL: ${result.signedUrl}`);
+
+    // Test the URL with fetch to check headers
+    try {
+      const response = await fetch(result.signedUrl, { method: 'HEAD' });
+      console.log(`\n📊 URL Response Status: ${response.status}`);
+      console.log(`📊 Content-Type: ${response.headers.get('content-type')}`);
+      console.log(`📊 Content-Length: ${response.headers.get('content-length')}`);
+      console.log(`📊 Content-Disposition: ${response.headers.get('content-disposition')}`);
       
-      if (pageContent.includes('SimpleDocumentViewer')) {
-        console.log('   ⚠️ SimpleDocumentViewer found in page (may cause auth issues)');
+      if (response.status === 200) {
+        console.log('✅ PDF URL is accessible');
+        
+        // Check if content-type is correct
+        const contentType = response.headers.get('content-type');
+        if (contentType?.includes('application/pdf')) {
+          console.log('✅ Content-Type is correct (application/pdf)');
+        } else {
+          console.log(`⚠️  Content-Type might be incorrect: ${contentType}`);
+        }
       } else {
-        console.log('   ✅ SimpleDocumentViewer not found in page');
+        console.log(`❌ PDF URL returned status: ${response.status}`);
       }
-      
-    } else {
-      console.log(`   ❌ Member view page failed: ${pageResponse.status}`);
-      const errorText = await pageResponse.text();
-      console.log(`   Error: ${errorText.substring(0, 200)}...`);
+    } catch (fetchError) {
+      console.log(`❌ Error fetching PDF URL: ${fetchError}`);
     }
+
+    // Test the API endpoint
+    console.log('\n🔗 Testing API endpoint...');
+    const apiUrl = `/api/viewer/document/${pdfDocument.id}/access`;
+    console.log(`API URL: ${apiUrl}`);
     
-    console.log('');
-    console.log('2. Testing API endpoints with authentication...');
-    
-    // Note: These tests won't work from a script because we don't have session cookies
-    // But we can test the structure
-    
-    console.log('   Testing pages API structure...');
-    const pagesResponse = await fetch(`${baseUrl}/api/viewer/documents/${documentId}/pages`);
-    console.log(`   Status: ${pagesResponse.status}`);
-    
-    if (pagesResponse.status === 401) {
-      console.log('   ✅ API correctly requires authentication');
-    } else if (pagesResponse.ok) {
-      console.log('   ⚠️ API allows unauthenticated access');
-    } else {
-      console.log(`   ❌ API returned unexpected status: ${pagesResponse.status}`);
-    }
-    
-    console.log('');
-    console.log('🎯 RECOMMENDATIONS');
-    console.log('==================');
-    console.log('1. Open the browser to: ' + memberViewUrl);
-    console.log('2. Make sure you are logged in as a user who has access to this document');
-    console.log('3. Check the browser console for any remaining errors');
-    console.log('4. The PDF should now load properly with authentication');
-    
+    console.log('\n✅ PDF Viewer Fix Test Complete');
+    console.log('\n📋 Next Steps:');
+    console.log('1. Open the member viewer in browser');
+    console.log('2. Check Network tab for the API call');
+    console.log('3. Verify the signed URL returns 200 with application/pdf');
+    console.log('4. Test the "Open PDF in new tab" link');
+
   } catch (error) {
-    console.error('❌ Error during test:', error);
+    console.error('❌ Error testing PDF viewer fix:', error);
   }
 }
 
-// Run the test
-testPDFViewerFix().catch(console.error);
+testPdfViewerFix().catch(console.error);

@@ -113,7 +113,7 @@ export default async function MemberLayout({
       </nav>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-grow">
+      <main className="flex-1 min-h-0 overflow-hidden">
         {children}
       </main>
 
