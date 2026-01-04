@@ -80,13 +80,6 @@ const BookShopItemCardComponent = ({ item, onAddToMyJstudyroom, userLimits }: Bo
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Helper function to format file size
-  const formatFileSize = (bytes: number) => {
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  };
-
   // Get type-specific metadata display
   const getMetadataDisplay = () => {
     switch (contentType) {
@@ -100,10 +93,10 @@ const BookShopItemCardComponent = ({ item, onAddToMyJstudyroom, userLimits }: Bo
         }
         break;
       case 'IMAGE':
-        if (metadata.width && metadata.height) {
+        if ((metadata as any).width && (metadata as any).height) {
           return (
             <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-              <span>📐 {metadata.width} × {metadata.height}</span>
+              <span>📐 {(metadata as any).width} × {(metadata as any).height}</span>
             </div>
           );
         }
@@ -112,7 +105,7 @@ const BookShopItemCardComponent = ({ item, onAddToMyJstudyroom, userLimits }: Bo
         if (linkUrl) {
           try {
             const url = new URL(linkUrl);
-            const domain = metadata.domain || url.hostname;
+            const domain = (metadata as any).domain || url.hostname;
             return (
               <div className="space-y-2">
                 <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
@@ -123,9 +116,9 @@ const BookShopItemCardComponent = ({ item, onAddToMyJstudyroom, userLimits }: Bo
                     {linkUrl}
                   </a>
                 </div>
-                {metadata.title && metadata.title !== item.title && (
+                {(metadata as any).title && (metadata as any).title !== item.title && (
                   <div className="text-xs text-gray-500 dark:text-gray-500 italic">
-                    {metadata.title}
+                    {(metadata as any).title}
                   </div>
                 )}
               </div>
@@ -168,10 +161,8 @@ const BookShopItemCardComponent = ({ item, onAddToMyJstudyroom, userLimits }: Bo
 
   const handleAddClick = async () => {
     if (item.isFree) {
-      // Handle free document addition
       await handleAddFreeDocument();
     } else {
-      // Handle paid document (payment flow)
       handlePaidDocument();
     }
   };
@@ -180,48 +171,64 @@ const BookShopItemCardComponent = ({ item, onAddToMyJstudyroom, userLimits }: Bo
     try {
       setLoading(true);
       setError(null);
-      
-      // Optimistic update
+
+      // optimistic UI: immediately mark as added
       setIsOptimisticallyAdded(true);
 
       const response = await fetch('/api/member/my-jstudyroom', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          Accept: 'application/json',
         },
-        body: JSON.stringify({
-          bookShopItemId: item.id,
-        }),
+        body: JSON.stringify({ bookShopItemId: item.id }),
+        cache: 'no-store',
       });
 
-      const data = await response.json();
+      const text = await response.text();
+      let data: any = {};
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch {
+        data = { raw: text };
+      }
+
+      // ✅ IMPORTANT: treat 409 as success (already in studyroom)
+      if (response.status === 409) {
+        // keep optimistic state (do NOT rollback)
+        setIsOptimisticallyAdded(true);
+
+        // tell parent so it can refresh list/counts, and so UI becomes consistent
+        onAddToMyJstudyroom(item.id);
+        return;
+      }
 
       if (!response.ok) {
-        // Rollback optimistic update
+        // rollback optimistic state on genuine failure
         setIsOptimisticallyAdded(false);
-        
-        // Handle specific error cases
-        if (response.status === 400 && data.error?.includes('limit')) {
-          throw new Error(`Free item limit reached (5/5). Remove an item from your Study Room to add more.`);
-        } else if (response.status === 409) {
-          throw new Error('This item is already in your Study Room.');
+
+        if (response.status === 400 && (data.error?.includes('limit') || data.message?.includes('limit'))) {
+          throw new Error(`Free item limit reached. Remove an item from your Study Room to add more.`);
         } else if (response.status === 404) {
           throw new Error('This item is no longer available.');
+        } else if (response.status === 401) {
+          throw new Error('Please login again and retry.');
+        } else if (response.status === 403) {
+          throw new Error('You are not allowed to add items.');
         } else {
-          throw new Error(data.error || 'Failed to add document');
+          throw new Error(data.message || data.error || `Failed to add document (${response.status})`);
         }
       }
 
-      // Success - notify parent to refresh
+      // ✅ success
       onAddToMyJstudyroom(item.id);
     } catch (err) {
-      // Rollback optimistic update on error
+      // rollback on error (not on 409 because 409 returns early above)
       setIsOptimisticallyAdded(false);
-      
+
       const errorMessage = err instanceof Error ? err.message : 'An error occurred';
       setError(errorMessage);
-      
-      // Log error for debugging
+
       console.error('Error adding free document:', err);
     } finally {
       setLoading(false);
@@ -230,7 +237,7 @@ const BookShopItemCardComponent = ({ item, onAddToMyJstudyroom, userLimits }: Bo
 
   const handleRetry = () => {
     setError(null);
-    setRetryCount(prev => prev + 1);
+    setRetryCount((prev) => prev + 1);
     handleAddFreeDocument();
   };
 
@@ -240,7 +247,6 @@ const BookShopItemCardComponent = ({ item, onAddToMyJstudyroom, userLimits }: Bo
   };
 
   const handlePaymentSuccess = () => {
-    // Notify parent to refresh
     onAddToMyJstudyroom(item.id);
   };
 
@@ -252,7 +258,7 @@ const BookShopItemCardComponent = ({ item, onAddToMyJstudyroom, userLimits }: Bo
   return (
     <>
       <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-        {/* Thumbnail Preview with Lazy Loading and Placeholder */}
+        {/* Thumbnail Preview */}
         <div className="relative w-full h-48 bg-gray-100 dark:bg-gray-700">
           {thumbnailUrl ? (
             <img
@@ -261,31 +267,26 @@ const BookShopItemCardComponent = ({ item, onAddToMyJstudyroom, userLimits }: Bo
               loading="lazy"
               className="w-full h-full object-cover"
               onError={(e) => {
-                // Hide broken image and show placeholder
                 e.currentTarget.style.display = 'none';
                 const placeholder = e.currentTarget.nextElementSibling as HTMLElement;
                 if (placeholder) placeholder.style.display = 'flex';
               }}
             />
           ) : null}
-          
-          {/* Placeholder for missing/broken thumbnails */}
-          <div 
+
+          {/* Placeholder */}
+          <div
             className={`${thumbnailUrl ? 'hidden' : 'flex'} w-full h-full items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800`}
             style={{ display: thumbnailUrl ? 'none' : 'flex' }}
           >
             <div className="text-center">
               <div className="text-4xl mb-2">{contentTypeBadge.icon}</div>
-              <div className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                {contentTypeBadge.label}
-              </div>
-              <div className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                No preview available
-              </div>
+              <div className="text-sm font-medium text-gray-600 dark:text-gray-400">{contentTypeBadge.label}</div>
+              <div className="text-xs text-gray-500 dark:text-gray-500 mt-1">No preview available</div>
             </div>
           </div>
 
-          {/* Content Type Badge Overlay */}
+          {/* Type Badge */}
           <div className="absolute top-2 right-2">
             <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-md ${contentTypeBadge.color}`}>
               <span>{contentTypeBadge.icon}</span>
@@ -296,14 +297,11 @@ const BookShopItemCardComponent = ({ item, onAddToMyJstudyroom, userLimits }: Bo
 
         {/* Card Content */}
         <div className="p-6">
-          {/* Badges Row */}
           <div className="flex flex-wrap items-center gap-2 mb-3">
-            {/* Category Badge */}
             <span className="inline-block px-3 py-1 text-xs font-medium bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-full">
               {item.category}
             </span>
-            
-            {/* Content Type Badge (if no thumbnail) */}
+
             {!thumbnailUrl && (
               <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-md ${contentTypeBadge.color}`}>
                 <span>{contentTypeBadge.icon}</span>
@@ -312,26 +310,14 @@ const BookShopItemCardComponent = ({ item, onAddToMyJstudyroom, userLimits }: Bo
             )}
           </div>
 
-          {/* Title */}
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2 line-clamp-2">
-            {item.title}
-          </h3>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2 line-clamp-2">{item.title}</h3>
 
-          {/* Type-Specific Metadata */}
-          {getMetadataDisplay() && (
-            <div className="mb-3">
-              {getMetadataDisplay()}
-            </div>
-          )}
+          {getMetadataDisplay() && <div className="mb-3">{getMetadataDisplay()}</div>}
 
-          {/* Description */}
           {item.description && (
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 line-clamp-3">
-              {item.description}
-            </p>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 line-clamp-3">{item.description}</p>
           )}
 
-          {/* Price Badge */}
           <div className="mb-4">
             {item.isFree ? (
               <span className="inline-flex items-center px-3 py-1 text-sm font-semibold bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 rounded-md">
@@ -344,27 +330,16 @@ const BookShopItemCardComponent = ({ item, onAddToMyJstudyroom, userLimits }: Bo
             )}
           </div>
 
-          {/* Error Message with Retry */}
+          {/* Error box (won't show for 409 because 409 is treated as success) */}
           {error && (
             <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md">
               <div className="flex items-start gap-2">
-                <svg
-                  className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
+                <svg className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 <div className="flex-1">
                   <p className="text-sm text-red-800 dark:text-red-200">{error}</p>
-                  {/* Show retry button for network errors */}
-                  {!error.includes('limit') && !error.includes('already') && retryCount < MAX_RETRIES && (
+                  {!error.includes('limit') && retryCount < MAX_RETRIES && (
                     <button
                       onClick={handleRetry}
                       className="mt-2 text-xs text-red-700 dark:text-red-300 underline hover:no-underline"
@@ -377,7 +352,7 @@ const BookShopItemCardComponent = ({ item, onAddToMyJstudyroom, userLimits }: Bo
             </div>
           )}
 
-          {/* In My Study Room Badge */}
+          {/* In StudyRoom badge */}
           {isInStudyRoom && (
             <div className="mb-4">
               <span className="inline-flex items-center px-3 py-1 text-sm font-semibold bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-md">
@@ -396,7 +371,6 @@ const BookShopItemCardComponent = ({ item, onAddToMyJstudyroom, userLimits }: Bo
             </div>
           )}
 
-          {/* Action Button */}
           <Button
             onClick={handleAddClick}
             disabled={isInStudyRoom || loading || isAtLimit}
@@ -412,11 +386,10 @@ const BookShopItemCardComponent = ({ item, onAddToMyJstudyroom, userLimits }: Bo
               : 'Add to My Study Room'}
           </Button>
 
-          {/* Limit Warning */}
           {isAtLimit && !isInStudyRoom && (
             <div className="mt-2 p-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-md">
               <p className="text-xs text-amber-800 dark:text-amber-300 text-center">
-                <strong>Limit Reached:</strong> You've used all {item.isFree ? userLimits?.freeLimit : userLimits?.paidLimit} {item.isFree ? 'free' : 'paid'} slots. 
+                <strong>Limit Reached:</strong> You've used all {item.isFree ? userLimits?.freeLimit : userLimits?.paidLimit} {item.isFree ? 'free' : 'paid'} slots.
                 Remove an item from your Study Room to add more.
               </p>
             </div>
@@ -424,7 +397,6 @@ const BookShopItemCardComponent = ({ item, onAddToMyJstudyroom, userLimits }: Bo
         </div>
       </div>
 
-      {/* Payment Modal */}
       {!item.isFree && item.price && (
         <PaymentModal
           isOpen={showPaymentModal}
@@ -443,5 +415,4 @@ const BookShopItemCardComponent = ({ item, onAddToMyJstudyroom, userLimits }: Bo
   );
 };
 
-// Export memoized component for performance optimization
 export const BookShopItemCard = memo(BookShopItemCardComponent);

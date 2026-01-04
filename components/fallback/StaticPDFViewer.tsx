@@ -1,27 +1,20 @@
 /**
  * Static PDF Viewer Fallback Component
  * 
- * Provides a simple static PDF viewer when flipbook fails
+ * Provides a simple iframe-based PDF viewer when flipbook fails
+ * Phase-1: Iframe-only implementation (no PDF.js, no react-pdf)
  * Requirements: 18.1, 18.4
  */
 
 'use client';
 
 import React, { useState } from 'react';
-import { Document as PDFDocument, Page as PDFPage, pdfjs } from 'react-pdf';
-import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
-import 'react-pdf/dist/esm/Page/TextLayer.css';
-
-// Set up PDF.js worker
-if (typeof window !== 'undefined') {
-  pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
-}
 
 export interface StaticPDFViewerProps {
   /**
-   * PDF file URL or data
+   * PDF file URL
    */
-  file: string | ArrayBuffer;
+  file: string;
 
   /**
    * Document title
@@ -55,7 +48,7 @@ export interface StaticPDFViewerProps {
 }
 
 /**
- * Static PDF Viewer Component
+ * Static PDF Viewer Component - Iframe Only (Phase 1)
  */
 export function StaticPDFViewer({
   file,
@@ -66,41 +59,20 @@ export function StaticPDFViewer({
   onLoadError,
   className = '',
 }: StaticPDFViewerProps) {
-  const [numPages, setNumPages] = useState<number>(0);
-  const [currentPage, setCurrentPage] = useState<number>(1);
-  const [scale, setScale] = useState<number>(1.0);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
 
-  const handleLoadSuccess = ({ numPages }: { numPages: number }) => {
-    setNumPages(numPages);
+  const handleIframeLoad = () => {
     setIsLoading(false);
     setError(null);
     onLoadSuccess?.();
   };
 
-  const handleLoadError = (error: Error) => {
+  const handleIframeError = () => {
+    const error = new Error('Failed to load PDF in iframe');
     setIsLoading(false);
     setError(error);
     onLoadError?.(error);
-  };
-
-  const goToPage = (page: number) => {
-    if (page >= 1 && page <= numPages) {
-      setCurrentPage(page);
-    }
-  };
-
-  const zoomIn = () => {
-    setScale((prev) => Math.min(prev + 0.25, 3.0));
-  };
-
-  const zoomOut = () => {
-    setScale((prev) => Math.max(prev - 0.25, 0.5));
-  };
-
-  const resetZoom = () => {
-    setScale(1.0);
   };
 
   if (error) {
@@ -128,7 +100,7 @@ export function StaticPDFViewer({
           </p>
           {allowDownload && (
             <button
-              onClick={() => window.open(file as string, '_blank')}
+              onClick={() => window.open(file, '_blank')}
               className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
             >
               Download PDF
@@ -151,47 +123,16 @@ export function StaticPDFViewer({
               </h2>
             )}
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              Static PDF Viewer (Fallback Mode)
+              Static PDF Viewer (Iframe Mode - Phase 1)
             </p>
           </div>
           
           {/* Controls */}
           <div className="flex items-center gap-2">
-            {/* Zoom Controls */}
-            <div className="flex items-center gap-1 border border-gray-300 dark:border-gray-600 rounded-md">
-              <button
-                onClick={zoomOut}
-                disabled={scale <= 0.5}
-                className="px-3 py-1 hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                title="Zoom out"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
-                </svg>
-              </button>
-              <button
-                onClick={resetZoom}
-                className="px-3 py-1 text-sm hover:bg-gray-200 dark:hover:bg-gray-700"
-                title="Reset zoom"
-              >
-                {Math.round(scale * 100)}%
-              </button>
-              <button
-                onClick={zoomIn}
-                disabled={scale >= 3.0}
-                className="px-3 py-1 hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                title="Zoom in"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-              </button>
-            </div>
-
             {/* Download Button */}
             {allowDownload && (
               <button
-                onClick={() => window.open(file as string, '_blank')}
+                onClick={() => window.open(file, '_blank')}
                 className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700"
                 title="Download PDF"
               >
@@ -207,47 +148,12 @@ export function StaticPDFViewer({
             )}
           </div>
         </div>
-
-        {/* Page Navigation */}
-        {numPages > 0 && (
-          <div className="flex items-center justify-center gap-4 mt-4">
-            <button
-              onClick={() => goToPage(currentPage - 1)}
-              disabled={currentPage <= 1}
-              className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Previous
-            </button>
-            
-            <div className="flex items-center gap-2">
-              <input
-                type="number"
-                min={1}
-                max={numPages}
-                value={currentPage}
-                onChange={(e) => goToPage(parseInt(e.target.value) || 1)}
-                className="w-16 px-2 py-1 text-center border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700"
-              />
-              <span className="text-sm text-gray-600 dark:text-gray-400">
-                of {numPages}
-              </span>
-            </div>
-
-            <button
-              onClick={() => goToPage(currentPage + 1)}
-              disabled={currentPage >= numPages}
-              className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Next
-            </button>
-          </div>
-        )}
       </div>
 
-      {/* PDF Content */}
-      <div className="relative overflow-auto bg-gray-50 dark:bg-gray-900 p-4">
+      {/* PDF Content - Iframe Only */}
+      <div className="relative overflow-hidden bg-gray-50 dark:bg-gray-900">
         {isLoading && (
-          <div className="flex items-center justify-center min-h-[400px]">
+          <div className="absolute inset-0 flex items-center justify-center bg-gray-50 dark:bg-gray-900 z-10">
             <div className="text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
               <p className="mt-4 text-sm text-gray-600 dark:text-gray-400">Loading PDF...</p>
@@ -255,41 +161,37 @@ export function StaticPDFViewer({
           </div>
         )}
 
-        <div className="flex justify-center">
-          <div className="relative">
-            <PDFDocument
-              file={file}
-              onLoadSuccess={handleLoadSuccess}
-              onLoadError={handleLoadError}
-              loading=""
-            >
-              <PDFPage
-                pageNumber={currentPage}
-                scale={scale}
-                renderTextLayer={true}
-                renderAnnotationLayer={true}
-              />
-            </PDFDocument>
+        <div 
+          className="w-full bg-black"
+          style={{ height: 'calc(100vh - 120px)', minHeight: 600 }}
+        >
+          <iframe
+            src={file}
+            title={title || 'PDF Viewer'}
+            className="w-full h-full"
+            sandbox="allow-same-origin allow-scripts allow-forms"
+            onLoad={handleIframeLoad}
+            onError={handleIframeError}
+          />
 
-            {/* Watermark Overlay */}
-            {watermark && (
+          {/* Watermark Overlay */}
+          {watermark && (
+            <div
+              className="absolute inset-0 pointer-events-none flex items-center justify-center"
+              style={{
+                background: 'transparent',
+              }}
+            >
               <div
-                className="absolute inset-0 pointer-events-none flex items-center justify-center"
+                className="text-gray-400 opacity-20 text-4xl font-bold transform rotate-[-45deg] select-none"
                 style={{
-                  background: 'transparent',
+                  textShadow: '2px 2px 4px rgba(0,0,0,0.1)',
                 }}
               >
-                <div
-                  className="text-gray-400 opacity-20 text-4xl font-bold transform rotate-[-45deg] select-none"
-                  style={{
-                    textShadow: '2px 2px 4px rgba(0,0,0,0.1)',
-                  }}
-                >
-                  {watermark}
-                </div>
+                {watermark}
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

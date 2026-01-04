@@ -61,11 +61,16 @@ export default async function MyJstudyroomViewerPage({
   }
 
   return (
-    <MyJstudyroomViewerClient
-      document={item.bookShopItem.document}
-      bookShopTitle={item.bookShopItem.title}
-      memberName={session.user.name || session.user.email}
-      itemId={itemId}
-    />
-  );
+  <div className="w-full">
+    <div className="w-full max-w-7xl mx-auto px-4">
+      <MyJstudyroomViewerClient
+        document={item.bookShopItem.document}
+        bookShopTitle={item.bookShopItem.title}
+        memberName={session.user.name || session.user.email}
+        itemId={itemId}
+      />
+    </div>
+  </div>
+ );
+
 }

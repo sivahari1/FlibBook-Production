@@ -10,7 +10,7 @@ import WatermarkOverlay from './WatermarkOverlay';
 import LoadingSpinner from './LoadingSpinner';
 import LoadingProgressIndicator from './LoadingProgressIndicator';
 import ViewerError from './ViewerError';
-import PDFViewerWithPDFJS from './PDFViewerWithPDFJS';
+import { PdfViewer } from '@/components/pdf/PdfViewer';
 import { useKeyboardNavigation } from '@/hooks/useKeyboardNavigation';
 import { useTouchGestures } from '@/hooks/useTouchGestures';
 import { loadPreferences, updatePreferences, isLocalStorageAvailable } from '@/lib/viewer-preferences';
@@ -138,7 +138,6 @@ const SimpleDocumentViewer = React.memo(function SimpleDocumentViewer({
   const [loadingProgress, setLoadingProgress] = useState<LoadProgress | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pageErrors, setPageErrors] = useState<Map<number, string>>(new Map());
-  const [pdfTotalPages, setPdfTotalPages] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
   
   // Memory management state
@@ -156,9 +155,6 @@ const SimpleDocumentViewer = React.memo(function SimpleDocumentViewer({
     pageLoadTimes: new Map<number, number>(),
   });
   
-  // Ref for PDF viewer to control zoom directly
-  const pdfViewerRef = useRef<any>(null);
-  
 
 
   // Loading state management for consistency across contexts
@@ -166,46 +162,15 @@ const SimpleDocumentViewer = React.memo(function SimpleDocumentViewer({
   const loadingStateManager = useLoadingStateManager(contextId, documentId);
   const loadingStatePersistence = useLoadingStatePersistence(documentId, 'simple-document-viewer');
 
-  // FIXED: Stable callback functions to prevent infinite loops in PDFViewerWithPDFJS
-  const handlePdfLoadComplete = useCallback((numPages: number) => {
-    console.log(`PDF loaded with ${numPages} pages (reliability features: ${enableReliabilityFeatures ? 'enabled' : 'disabled'})`);
-    console.log(`[Memory Management] Lazy loading: ${memoryConfig.enableLazyLoading ? 'enabled' : 'disabled'}, Max concurrent pages: ${memoryConfig.maxConcurrentPages}`);
-    
-    setPdfTotalPages(numPages);
-    
-    // Apply current zoom level to PDF viewer once it's loaded
-    setTimeout(() => {
-      if (pdfViewerRef.current?.setZoom && zoomLevel !== 1.0) {
-        try {
-          pdfViewerRef.current.setZoom(zoomLevel);
-        } catch (error) {
-          console.error('[SimpleDocumentViewer] Error applying initial zoom:', error);
-        }
-      }
-    }, 100);
-    
-    // Initialize loaded pages for lazy loading
-    if (memoryConfig.enableLazyLoading) {
-      const initialPages = new Set<number>();
-      const viewportRange = 3;
-      for (let i = Math.max(1, currentPage - viewportRange); i <= Math.min(numPages, currentPage + viewportRange); i++) {
-        initialPages.add(i);
-      }
-      setLoadedPages(initialPages);
-    } else {
-      // Load all pages if lazy loading is disabled
-      const allPages = new Set<number>();
-      for (let i = 1; i <= numPages; i++) {
-        allPages.add(i);
-      }
-      setLoadedPages(allPages);
-    }
+  // FIXED: Stable callback functions for iframe-only PDF viewing
+  const handlePdfLoadComplete = useCallback(() => {
+    console.log('PDF loaded in iframe (Phase 1 stable solution)');
     
     // Update loading progress to complete
     const completeProgress: LoadProgress = {
       documentId,
-      loaded: numPages,
-      total: numPages,
+      loaded: 1,
+      total: 1,
       percentage: 100,
       status: 'complete',
     };
@@ -221,23 +186,15 @@ const SimpleDocumentViewer = React.memo(function SimpleDocumentViewer({
     if (onLoadProgress) {
       onLoadProgress(completeProgress);
     }
-    
-    // Register cleanup function for PDF resources
-    resourceCleanupRef.current.push(() => {
-      console.log('[Memory Management] Cleaning up PDF resources');
-    });
   }, [
-    enableReliabilityFeatures,
-    memoryConfig.enableLazyLoading,
-    memoryConfig.maxConcurrentPages,
     documentId,
-    currentPage,
     onLoadProgress,
-    zoomLevel,
-  ]); // Added zoomLevel dependency
+    loadingStateManager,
+    loadingStatePersistence,
+  ]);
 
   const handlePdfError = useCallback((error: Error) => {
-    console.error('PDF.js error:', error);
+    console.error('PDF iframe error:', error);
     setError(error.message);
     
     // Update loading progress to error
@@ -269,7 +226,9 @@ const SimpleDocumentViewer = React.memo(function SimpleDocumentViewer({
     documentId,
     onLoadProgress,
     onRenderingError,
-  ]); // FIXED: Removed problematic dependencies that cause infinite loops
+    loadingStateManager,
+    loadingStatePersistence,
+  ]);
 
   // Memoize watermark to prevent infinite re-renders in child components
   const memoizedWatermark = useMemo(() => {
@@ -289,10 +248,10 @@ const SimpleDocumentViewer = React.memo(function SimpleDocumentViewer({
     watermark?.color
   ]);
 
-  // If pdfUrl is provided, we'll render the PDF directly
+  // If pdfUrl is provided, we'll render the PDF directly using iframe
   // Otherwise fall back to legacy page-based rendering
   const usePdfRendering = !!pdfUrl;
-  const totalPages = usePdfRendering ? pdfTotalPages : pages.length;
+  const totalPages = usePdfRendering ? 1 : pages.length; // Iframe doesn't provide page count
 
   // Memory management utilities - SIMPLIFIED
   const getMemoryUsage = useCallback(() => {
@@ -510,14 +469,15 @@ const SimpleDocumentViewer = React.memo(function SimpleDocumentViewer({
         onLoadProgress(initialProgress);
       }
       
-      // We'll render the PDF directly using PDF.js
-      // The actual loading will be handled by PDFViewerWithPDFJS
+      // For iframe rendering, we consider it loaded immediately
+      // The actual PDF loading is handled by the browser
       setIsLoading(false);
+      handlePdfLoadComplete();
     } else if (!usePdfRendering) {
       // Load pages using canonical viewer API
       loadDocumentPages();
     }
-  }, [usePdfRendering, pdfUrl, documentId]);
+  }, [usePdfRendering, pdfUrl, documentId, loadingStatePersistence, optimizeBrowserCache, loadingStateManager, onLoadProgress, handlePdfLoadComplete, loadDocumentPages]);
 
   // Load document pages from canonical API
   const loadDocumentPages = useCallback(async () => {
@@ -669,25 +629,16 @@ const SimpleDocumentViewer = React.memo(function SimpleDocumentViewer({
     setCurrentPage(newPage);
   }, [totalPages]);
 
-  // Handle zoom change - directly control PDF viewer if available
+  // Handle zoom change - iframe doesn't support programmatic zoom control
   const handleZoomChange = useCallback((newZoom: number) => {
     const clampedZoom = Math.max(0.5, Math.min(newZoom, 3.0));
     
     console.log('[SimpleDocumentViewer] Zoom change requested:', newZoom, '-> clamped:', clampedZoom);
+    console.log('[SimpleDocumentViewer] Note: Iframe PDF viewing does not support programmatic zoom control');
     
-    // Always update local state first
+    // Update local state for UI display
     setZoomLevel(clampedZoom);
-    
-    // If PDF viewer is available, update its zoom directly
-    if (usePdfRendering && pdfViewerRef.current?.setZoom) {
-      try {
-        console.log('[SimpleDocumentViewer] Setting PDF viewer zoom to:', clampedZoom);
-        pdfViewerRef.current.setZoom(clampedZoom);
-      } catch (error) {
-        console.error('[SimpleDocumentViewer] Error setting PDF zoom:', error);
-      }
-    }
-  }, [usePdfRendering]);
+  }, []);
 
   // Handle view mode toggle - no dependencies needed as it only uses the parameter
   const handleViewModeChange = useCallback((newMode: ViewMode) => {
@@ -838,20 +789,6 @@ const SimpleDocumentViewer = React.memo(function SimpleDocumentViewer({
       document.removeEventListener('keydown', handleKeyDown);
     };
   }, [handleToggleFullscreen]);
-
-  // Sync zoom level display with PDF viewer
-  useEffect(() => {
-    if (usePdfRendering && pdfViewerRef.current?.getZoom) {
-      const interval = setInterval(() => {
-        const actualZoom = pdfViewerRef.current.getZoom();
-        if (actualZoom && Math.abs(actualZoom - zoomLevel) > 0.01) {
-          setZoomLevel(actualZoom);
-        }
-      }, 200); // Check every 200ms (reduced frequency)
-
-      return () => clearInterval(interval);
-    }
-  }, [usePdfRendering, zoomLevel]);
 
   // Handle F11 key for fullscreen toggle
   useEffect(() => {
@@ -1125,72 +1062,11 @@ const SimpleDocumentViewer = React.memo(function SimpleDocumentViewer({
             )}
           </div>
         ) : usePdfRendering && pdfUrl ? (
-          // PDF.js rendering with reliability features - avoids iframe blocking issues
-          // Requirements: 2.1, 1.1, 1.2, 8.1
+          // Iframe-only PDF rendering - Phase 1 stable solution
           <div className="w-full h-full" style={{ height: '100%', overflow: 'visible' }}>
-            <PDFViewerWithPDFJS
-              ref={pdfViewerRef}
-              pdfUrl={pdfUrl}
-              documentTitle={documentTitle}
-              watermark={memoizedWatermark}
-              enableDRM={enableDRMProtection || enableScreenshotPrevention}
-              viewMode={viewMode === 'continuous' ? 'continuous' : 'single'}
-              initialZoom={zoomLevel}
-            onPageChange={(page) => {
-              setCurrentPage(page);
-              // Sync zoom level when page changes
-              if (pdfViewerRef.current?.getZoom) {
-                const currentZoom = pdfViewerRef.current.getZoom();
-                if (currentZoom && Math.abs(currentZoom - zoomLevel) > 0.01) {
-                  setZoomLevel(currentZoom);
-                }
-              }
-            }}
-            onLoadComplete={handlePdfLoadComplete}
-            onTotalPagesChange={setPdfTotalPages}
-            onError={handlePdfError}
-            onRenderComplete={(pageNumber) => {
-              console.log(`Page ${pageNumber} rendered successfully`);
-              
-              // Track page load time for performance metrics
-              const loadTime = performance.now() - performanceMetricsRef.current.renderStartTime;
-              performanceMetricsRef.current.pageLoadTimes.set(pageNumber, loadTime);
-              
-              // Update loaded pages for memory management
-              setLoadedPages(prev => new Set(prev).add(pageNumber));
-              
-              // Update loading progress for rendering phase
-              if (pdfTotalPages > 0) {
-                const renderingProgress: LoadProgress = {
-                  documentId,
-                  loaded: pageNumber,
-                  total: pdfTotalPages,
-                  percentage: Math.floor((pageNumber / pdfTotalPages) * 100),
-                  status: pageNumber === pdfTotalPages ? 'complete' : 'rendering',
-                };
-                setLoadingProgress(renderingProgress);
-                
-                // Update loading state manager for consistency
-                loadingStateManager.updateLoadingState(renderingProgress);
-                
-                // Notify parent of rendering progress
-                if (onLoadProgress) {
-                  onLoadProgress(renderingProgress);
-                }
-              }
-              
-              // Sync zoom level after render
-              if (pdfViewerRef.current?.getZoom) {
-                const currentZoom = pdfViewerRef.current.getZoom();
-                if (currentZoom && Math.abs(currentZoom - zoomLevel) > 0.01) {
-                  setZoomLevel(currentZoom);
-                }
-              }
-              
-              // Check memory usage after page render
-              handleMemoryPressure();
-            }}
-              hideToolbar={true}
+            <PdfViewer
+              url={pdfUrl}
+              title={documentTitle}
             />
           </div>
         ) : viewMode === 'continuous' ? (
