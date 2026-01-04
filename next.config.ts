@@ -35,6 +35,26 @@ const nextConfig: NextConfig = {
   },
 
   async headers() {
+    const csp = [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://checkout.razorpay.com",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: https: blob:",
+      "font-src 'self' data:",
+      "connect-src 'self' https://*.supabase.co https://api.razorpay.com",
+
+      // ✅ REQUIRED FOR PDF IFRAME
+      "frame-src 'self' https://*.supabase.co https://api.razorpay.com",
+      "child-src 'self' https://*.supabase.co https://api.razorpay.com",
+
+      "worker-src 'self' blob:",
+      "object-src 'none'",
+
+      "base-uri 'self'",
+      "form-action 'self'",
+      "upgrade-insecure-requests",
+    ].join("; ");
+
     return [
       {
         source: "/:path*",
@@ -46,24 +66,7 @@ const nextConfig: NextConfig = {
           { key: "X-XSS-Protection", value: "1; mode=block" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
-
-          {
-            key: "Content-Security-Policy",
-            value: [
-              "default-src 'self'",
-              "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://checkout.razorpay.com",
-              "worker-src 'self' blob:",
-              "style-src 'self' 'unsafe-inline'",
-              "img-src 'self' data: https: blob:",
-              "font-src 'self' data:",
-              "connect-src 'self' https://*.supabase.co https://api.razorpay.com",
-              "frame-src 'self' https://*.supabase.co https://api.razorpay.com",
-              "object-src 'self' none:",
-              "base-uri 'self'",
-              "form-action 'self'",
-              "upgrade-insecure-requests",
-            ].join("; "),
-          },
+          { key: "Content-Security-Policy", value: csp },
         ],
       },
     ];
