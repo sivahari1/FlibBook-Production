@@ -237,8 +237,8 @@ export async function middleware(request: NextRequest) {
   // Add security headers to all responses
   const response = NextResponse.next();
   
-  // Content Security Policy
-  // Requirements: 8.2 - CSP configuration for PDF.js
+  // CSP is configured in next.config.ts only - no CSP headers injected here
+  // This ensures next.config.ts CSP remains the single source of truth
     
   return response;
 }
