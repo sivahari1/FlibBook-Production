@@ -62,7 +62,6 @@ const nextConfig: NextConfig = {
               "img-src 'self' data: https: blob:",
               "font-src 'self' data:",
               "connect-src 'self' https://*.supabase.co https://api.razorpay.com",
-              "frame-src 'self' https://*.supabase.co https://api.razorpay.com",
               "worker-src 'self' blob:",
               "object-src 'none'",
               "base-uri 'self'",
