@@ -43,19 +43,12 @@ interface PageProps {
   isLoading?: boolean;
 }
 
-const FlipBookPage = React.memo(
+const Page = React.memo(
   React.forwardRef<HTMLDivElement, PageProps>(
     ({ imageUrl, pageNumber, watermarkText, isLoading }, ref) => {
       const [imageLoaded, setImageLoaded] = useState(false);
       const [imageError, setImageError] = useState(false);
       const [retryCount, setRetryCount] = useState(0);
-
-      useEffect(() => {
-        // reset when page changes
-        setImageLoaded(false);
-        setImageError(false);
-        setRetryCount(0);
-      }, [imageUrl, pageNumber]);
 
       const handleImageLoad = useCallback(() => {
         setImageLoaded(true);
@@ -63,8 +56,9 @@ const FlipBookPage = React.memo(
       }, []);
 
       const handleImageError = useCallback(() => {
+        // retry 3 times with exponential backoff
         if (retryCount < 3) {
-          const delay = Math.pow(2, retryCount) * 1000;
+          const delay = Math.pow(2, retryCount) * 800;
           setTimeout(() => setRetryCount((p) => p + 1), delay);
         } else {
           setImageError(true);
@@ -91,15 +85,11 @@ const FlipBookPage = React.memo(
           className="relative bg-white shadow-lg overflow-hidden select-none"
           style={{
             width: '100%',
-            height: '100%',
-            minHeight: '400px',
+            minHeight: '60vh',
             transform: 'translateZ(0)',
-            willChange: 'transform',
-            backfaceVisibility: 'hidden',
-            WebkitBackfaceVisibility: 'hidden',
           }}
         >
-          {(isLoading || (!imageLoaded && !imageError)) && (
+          {(isLoading || !imageLoaded) && !imageError && (
             <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
               <div className="flex flex-col items-center space-y-2">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
@@ -125,6 +115,7 @@ const FlipBookPage = React.memo(
                 <button
                   onClick={() => {
                     setImageError(false);
+                    setImageLoaded(false);
                     setRetryCount(0);
                   }}
                   className="mt-2 px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
@@ -143,18 +134,15 @@ const FlipBookPage = React.memo(
                 imageLoaded ? 'opacity-100' : 'opacity-0'
               }`}
               draggable={false}
-              loading="lazy"
+              loading="eager"
               decoding="async"
               onLoad={handleImageLoad}
               onError={handleImageError}
               style={{
-                imageRendering: 'auto',
-                transform: 'translateZ(0)',
-                zIndex: 0,
-                position: 'relative',
                 userSelect: 'none',
                 WebkitUserSelect: 'none',
-                pointerEvents: 'auto',
+                // IMPORTANT: keep this NONE so mobile swipe still works smoothly
+                pointerEvents: 'none',
               }}
             />
           )}
@@ -174,12 +162,8 @@ const FlipBookPage = React.memo(
               }}
             >
               <div
-                className="absolute inset-0 flex items-center justify-center text-gray-400 text-sm font-medium opacity-20 transform rotate-45"
-                style={{
-                  textShadow: '1px 1px 2px rgba(255,255,255,0.8)',
-                  fontSize: '14px',
-                  letterSpacing: '2px',
-                }}
+                className="absolute inset-0 flex items-center justify-center text-gray-400 font-medium opacity-20 transform rotate-45"
+                style={{ fontSize: 14, letterSpacing: 2 }}
               >
                 {watermarkText}
               </div>
@@ -191,7 +175,7 @@ const FlipBookPage = React.memo(
   )
 );
 
-FlipBookPage.displayName = 'FlipBookPage';
+Page.displayName = 'FlipBookPage';
 
 export function FlipBookViewer({
   documentId,
@@ -204,6 +188,7 @@ export function FlipBookViewer({
   const [flipBookData, setFlipBookData] = useState<FlipBookData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
   const [currentPage, setCurrentPage] = useState(1);
   const [zoom, setZoom] = useState(1);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -211,123 +196,133 @@ export function FlipBookViewer({
   const [isMobile, setIsMobile] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
-  const thumbnailsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const checkMobile = () => {
-      const isMobileDevice =
+      const mobile =
         window.matchMedia('(max-width: 768px)').matches ||
         /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
-      setIsMobile(isMobileDevice);
+      setIsMobile(mobile);
     };
-
     checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
+  const apiFetch = useCallback(async (url: string) => {
+    // If your auth is NextAuth cookie-based, include credentials.
+    // Same-origin fetch already sends cookies, but keeping it explicit is fine.
+    return fetch(url, {
+      credentials: 'include',
+      cache: 'no-store',
+    });
+  }, []);
+
+  // initial load
   useEffect(() => {
-    async function fetchFlipBookData() {
+    let cancelled = false;
+
+    async function fetchInitial() {
       try {
         setLoading(true);
         setError(null);
 
-        const response = await fetch(`/api/member/viewer/pages/${documentId}?from=1&to=20`, {
-          credentials: 'include',
-          cache: 'no-store',
-        });
-
-        if (!response.ok) {
-          if (response.status === 401) throw new Error('You need to be logged in to view this document.');
-          if (response.status === 403) throw new Error('You do not have permission to view this document.');
-          if (response.status === 404) throw new Error('Document not found.');
+        const res = await apiFetch(`/api/member/viewer/pages/${documentId}?from=1&to=20`);
+        if (!res.ok) {
+          if (res.status === 401) throw new Error('You need to be logged in to view this document.');
+          if (res.status === 403) throw new Error('You do not have permission to view this document.');
+          if (res.status === 404) throw new Error('Document not found.');
           throw new Error('Failed to load document pages.');
         }
 
-        const data: FlipBookData = await response.json();
+        const data: FlipBookData = await res.json();
+        if (cancelled) return;
+
         setFlipBookData(data);
 
         if (data.status === 'no_pages') {
-          setError(data.message || 'Document pages are not available yet.');
+          setError(data.message || 'Pages not available yet. Please try later.');
+        } else {
+          // reset current page if needed
+          setCurrentPage(1);
         }
-      } catch (err) {
-        console.error('Error fetching flipbook data:', err);
-        setError(err instanceof Error ? err.message : 'Failed to load document');
+      } catch (e) {
+        if (cancelled) return;
+        setError(e instanceof Error ? e.message : 'Failed to load document');
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
 
-    if (documentId) fetchFlipBookData();
-  }, [documentId]);
+    if (documentId) fetchInitial();
+    return () => {
+      cancelled = true;
+    };
+  }, [documentId, apiFetch]);
 
   const loadMorePages = useCallback(
     async (fromPage: number, toPage: number) => {
       if (!flipBookData) return;
 
       try {
-        const response = await fetch(
-          `/api/member/viewer/pages/${documentId}?from=${fromPage}&to=${toPage}`,
-          {
-            credentials: 'include',
-            cache: 'no-store',
-          }
-        );
+        const res = await apiFetch(`/api/member/viewer/pages/${documentId}?from=${fromPage}&to=${toPage}`);
+        if (!res.ok) return;
 
-        if (response.ok) {
-          const data: FlipBookData = await response.json();
-          setFlipBookData((prev) =>
-            prev
-              ? {
-                  ...prev,
-                  pages: [
-                    ...prev.pages,
-                    ...data.pages.filter((p) => !prev.pages.some((e) => e.pageNo === p.pageNo)),
-                  ],
-                }
-              : data
-          );
-        }
-      } catch (e) {
-        console.error('Error loading more pages:', e);
+        const data: FlipBookData = await res.json();
+        setFlipBookData((prev) => {
+          if (!prev) return data;
+
+          const merged = [...prev.pages];
+          for (const p of data.pages) {
+            if (!merged.some((x) => x.pageNo === p.pageNo)) merged.push(p);
+          }
+          merged.sort((a, b) => a.pageNo - b.pageNo);
+
+          return { ...prev, pages: merged, totalPages: data.totalPages ?? prev.totalPages };
+        });
+      } catch {
+        // ignore; page component has its own retry UI
       }
     },
-    [documentId, flipBookData]
+    [documentId, flipBookData, apiFetch]
   );
 
   const goToPage = useCallback(
     (pageNumber: number) => {
-      if (!flipBookData || pageNumber < 1 || pageNumber > flipBookData.totalPages) return;
+      if (!flipBookData) return;
+      if (pageNumber < 1 || pageNumber > flipBookData.totalPages) return;
 
       setCurrentPage(pageNumber);
       onPageChange?.(pageNumber);
 
-      const startPage = Math.max(1, pageNumber - 2);
-      const endPage = Math.min(flipBookData.totalPages, pageNumber + 2);
+      // prefetch nearby pages
+      const start = Math.max(1, pageNumber - 2);
+      const end = Math.min(flipBookData.totalPages, pageNumber + 2);
 
       const missing: number[] = [];
-      for (let i = startPage; i <= endPage; i++) {
+      for (let i = start; i <= end; i++) {
         if (!flipBookData.pages.some((p) => p.pageNo === i)) missing.push(i);
       }
-
-      if (missing.length) {
-        loadMorePages(Math.min(...missing), Math.max(...missing));
-      }
+      if (missing.length > 0) loadMorePages(Math.min(...missing), Math.max(...missing));
     },
     [flipBookData, onPageChange, loadMorePages]
   );
 
   const goToNextPage = useCallback(() => {
-    if (currentPage < (flipBookData?.totalPages || 0)) goToPage(currentPage + 1);
-  }, [currentPage, flipBookData, goToPage]);
+    if (!flipBookData) return;
+    if (currentPage < flipBookData.totalPages) goToPage(currentPage + 1);
+  }, [flipBookData, currentPage, goToPage]);
 
   const goToPreviousPage = useCallback(() => {
     if (currentPage > 1) goToPage(currentPage - 1);
   }, [currentPage, goToPage]);
 
   const toggleFullscreen = useCallback(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
     if (!document.fullscreenElement) {
-      containerRef.current?.requestFullscreen?.();
+      el.requestFullscreen?.();
       setIsFullscreen(true);
     } else {
       document.exitFullscreen?.();
@@ -335,56 +330,37 @@ export function FlipBookViewer({
     }
   }, []);
 
-  const handleZoomIn = useCallback(() => setZoom((p) => Math.min(p + 0.25, 3)), []);
-  const handleZoomOut = useCallback(() => setZoom((p) => Math.max(p - 0.25, 0.5)), []);
-  const resetZoom = useCallback(() => setZoom(1), []);
-
-  const finalWatermarkText = useMemo(() => {
-    if (watermarkText) return watermarkText;
-    if (userEmail) {
-      const timestamp = new Date().toLocaleDateString();
-      const docId = documentId.slice(-6);
-      return `${userEmail} • ${docId} • ${timestamp}`;
-    }
-    return undefined;
-  }, [watermarkText, userEmail, documentId]);
-
-  // Keyboard navigation
+  // keyboard
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
+    const onKeyDown = (e: KeyboardEvent) => {
       if (!flipBookData || flipBookData.totalPages === 0) return;
 
-      switch (e.key) {
-        case 'ArrowLeft':
-          e.preventDefault();
-          goToPreviousPage();
-          break;
-        case 'ArrowRight':
-          e.preventDefault();
-          goToNextPage();
-          break;
-        case 'Home':
-          e.preventDefault();
-          goToPage(1);
-          break;
-        case 'End':
-          e.preventDefault();
-          goToPage(flipBookData.totalPages);
-          break;
-        case 'Escape':
-          if (isFullscreen) {
-            e.preventDefault();
-            setIsFullscreen(false);
-          }
-          break;
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        goToPreviousPage();
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        goToNextPage();
+      } else if (e.key === 'Home') {
+        e.preventDefault();
+        goToPage(1);
+      } else if (e.key === 'End') {
+        e.preventDefault();
+        goToPage(flipBookData.totalPages);
+      } else if ((e.key === 'f' || e.key === 'F') && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        toggleFullscreen();
+      } else if (e.key === 'Escape' && isFullscreen) {
+        e.preventDefault();
+        setIsFullscreen(false);
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [flipBookData, isFullscreen, goToNextPage, goToPreviousPage, goToPage]);
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [flipBookData, goToPreviousPage, goToNextPage, goToPage, toggleFullscreen, isFullscreen]);
 
-  // Touch/swipe handling for mobile
+  // swipe on mobile
   useEffect(() => {
     if (!isMobile || !containerRef.current) return;
 
@@ -392,34 +368,44 @@ export function FlipBookViewer({
     let startY = 0;
     let startTime = 0;
 
-    const handleTouchStart = (e: TouchEvent) => {
-      const touch = e.touches[0];
-      startX = touch.clientX;
-      startY = touch.clientY;
+    const onStart = (e: TouchEvent) => {
+      const t = e.touches[0];
+      startX = t.clientX;
+      startY = t.clientY;
       startTime = Date.now();
     };
 
-    const handleTouchEnd = (e: TouchEvent) => {
-      const touch = e.changedTouches[0];
-      const deltaX = touch.clientX - startX;
-      const deltaY = touch.clientY - startY;
-      const deltaTime = Date.now() - startTime;
+    const onEnd = (e: TouchEvent) => {
+      const t = e.changedTouches[0];
+      const dx = t.clientX - startX;
+      const dy = t.clientY - startY;
+      const dt = Date.now() - startTime;
 
-      if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 50 && deltaTime < 300) {
-        if (deltaX > 0) goToPreviousPage();
+      if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 50 && dt < 350) {
+        if (dx > 0) goToPreviousPage();
         else goToNextPage();
       }
     };
 
     const el = containerRef.current;
-    el.addEventListener('touchstart', handleTouchStart, { passive: true });
-    el.addEventListener('touchend', handleTouchEnd, { passive: true });
-
+    el.addEventListener('touchstart', onStart, { passive: true });
+    el.addEventListener('touchend', onEnd, { passive: true });
     return () => {
-      el.removeEventListener('touchstart', handleTouchStart);
-      el.removeEventListener('touchend', handleTouchEnd);
+      el.removeEventListener('touchstart', onStart);
+      el.removeEventListener('touchend', onEnd);
     };
-  }, [isMobile, goToNextPage, goToPreviousPage]);
+  }, [isMobile, goToPreviousPage, goToNextPage]);
+
+  const handleZoomIn = useCallback(() => setZoom((z) => Math.min(z + 0.25, 3)), []);
+  const handleZoomOut = useCallback(() => setZoom((z) => Math.max(z - 0.25, 0.5)), []);
+  const resetZoom = useCallback(() => setZoom(1), []);
+
+  const finalWatermarkText = useMemo(() => {
+    if (watermarkText) return watermarkText;
+    if (!userEmail) return undefined;
+    const ts = new Date().toLocaleDateString();
+    return `${userEmail} • ${documentId.slice(-6)} • ${ts}`;
+  }, [watermarkText, userEmail, documentId]);
 
   if (loading) {
     return (
@@ -447,9 +433,24 @@ export function FlipBookViewer({
             </svg>
           </div>
           <h3 className="text-lg font-semibold text-gray-900 mb-2">
-            {flipBookData?.status === 'no_pages' ? 'Processing Document' : 'Error Loading Document'}
+            {flipBookData?.status === 'no_pages' && flipBookData?.conversionStatus === 'PROCESSING' 
+              ? 'Processing Document...' 
+              : flipBookData?.status === 'no_pages' && flipBookData?.conversionStatus === 'FAILED'
+              ? 'Processing Failed'
+              : 'Error Loading Document'}
           </h3>
           <p className="text-gray-600">{error}</p>
+          {flipBookData?.status === 'no_pages' && flipBookData?.conversionStatus === 'PROCESSING' && (
+            <div className="mt-4">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2" />
+              <p className="text-sm text-blue-600">Please wait while we prepare your document...</p>
+            </div>
+          )}
+          {flipBookData?.status === 'no_pages' && flipBookData?.conversionStatus === 'FAILED' && (
+            <div className="mt-4">
+              <p className="text-sm text-red-600">Document processing failed. Please contact administrator.</p>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -462,10 +463,10 @@ export function FlipBookViewer({
       ref={containerRef}
       className={`relative bg-white rounded-lg shadow-lg overflow-hidden ${className || ''}`}
       style={{
-        maxWidth: '1100px',
+        maxWidth: 1100,
         margin: '0 auto',
         height: isMobile ? 'calc(100vh - 120px)' : 'calc(100vh - 200px)',
-        minHeight: '400px',
+        minHeight: 400,
       }}
     >
       {/* Toolbar */}
@@ -537,7 +538,7 @@ export function FlipBookViewer({
             </button>
 
             <button
-              onClick={() => setShowThumbnails((v) => !v)}
+              onClick={() => setShowThumbnails((s) => !s)}
               className="p-2 rounded-md hover:bg-gray-100"
               title="Toggle thumbnails"
             >
@@ -551,7 +552,7 @@ export function FlipBookViewer({
         </div>
       </div>
 
-      {/* Main viewer area */}
+      {/* Main viewer */}
       <div className="absolute inset-0 pt-16 pb-4 overflow-auto">
         <div
           className="mx-auto"
@@ -564,7 +565,7 @@ export function FlipBookViewer({
           }}
         >
           {currentPageData ? (
-            <FlipBookPage
+            <Page
               imageUrl={currentPageData.url || ''}
               pageNumber={currentPage}
               watermarkText={finalWatermarkText}
@@ -581,10 +582,10 @@ export function FlipBookViewer({
         </div>
       </div>
 
-      {/* Thumbnails panel */}
+      {/* Thumbnails */}
       {showThumbnails && (
         <div className="absolute bottom-0 left-0 right-0 bg-white/95 backdrop-blur-sm border-t border-gray-200 p-2 z-10">
-          <div ref={thumbnailsRef} className="flex space-x-2 overflow-x-auto pb-2" style={{ scrollBehavior: 'smooth' }}>
+          <div className="flex space-x-2 overflow-x-auto pb-2" style={{ scrollBehavior: 'smooth' }}>
             {Array.from({ length: flipBookData.totalPages }, (_, i) => i + 1).map((pageNum) => {
               const pageData = flipBookData.pages.find((p) => p.pageNo === pageNum);
               return (
@@ -595,7 +596,7 @@ export function FlipBookViewer({
                     currentPage === pageNum ? 'border-blue-500 shadow-md' : 'border-gray-200 hover:border-gray-300'
                   }`}
                 >
-                  {pageData ? (
+                  {pageData?.url ? (
                     <img src={pageData.url} alt={`Page ${pageNum}`} className="w-full h-full object-cover" loading="lazy" />
                   ) : (
                     <div className="w-full h-full bg-gray-100 flex items-center justify-center">
@@ -609,7 +610,6 @@ export function FlipBookViewer({
         </div>
       )}
 
-      {/* Mobile hint */}
       {isMobile && (
         <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black/70 text-white px-3 py-1 rounded-full text-xs z-20">
           Swipe to navigate pages

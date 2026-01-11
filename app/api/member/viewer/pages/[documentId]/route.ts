@@ -1,122 +1,130 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
-import { canViewDocument } from '@/lib/authz/canViewDocument';
-import { prisma } from '@/lib/db';
-import { createClient } from '@supabase/supabase-js';
+import "server-only";
+import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { canViewDocument } from "@/lib/authz/canViewDocument";
+import { prisma } from "@/lib/db";
+import { createClient } from "@supabase/supabase-js";
+import { ensureDocumentPages } from "@/lib/server/conversion/ensureDocumentPages-emergency";
+
+export const runtime = "nodejs";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  { auth: { persistSession: false } }
 );
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { documentId: string } }
-) {
+type Ctx = { params: Promise<{ documentId: string }> };
+
+function parseIntSafe(v: string | null, fallback: number) {
+  const n = Number.parseInt(v ?? "", 10);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+export async function GET(req: NextRequest, { params }: Ctx) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { documentId } = params;
-    const { searchParams } = new URL(request.url);
+    // ✅ Next.js 15: await params
+    const { documentId } = await params;
 
-    const from = Number.parseInt(searchParams.get('from') || '1', 10);
-    const to = Number.parseInt(searchParams.get('to') || '20', 10);
+    const { searchParams } = new URL(req.url);
+    const from = parseIntSafe(searchParams.get("from"), 1);
+    const to = parseIntSafe(searchParams.get("to"), 20);
 
-    if (!Number.isFinite(from) || !Number.isFinite(to) || from < 1 || to < from) {
-      return NextResponse.json({ error: 'Invalid pagination parameters.' }, { status: 400 });
-    }
-
-    const pageCount = to - from + 1;
-    if (pageCount > 50) {
+    if (from < 1 || to < from || to - from > 50) {
       return NextResponse.json(
-        { error: 'Invalid pagination parameters. Max 50 pages per request.' },
+        { error: "Invalid pagination parameters. Max 50 pages per request." },
         { status: 400 }
       );
     }
 
-    const authResult = await canViewDocument(session, documentId);
+    // ✅ Access check
+    const authResult = await canViewDocument(session as any, documentId);
     if (!authResult.allowed) {
       return NextResponse.json(
-        { error: authResult.reason || 'Access denied' },
+        { error: authResult.reason || "Access denied" },
         { status: 403 }
       );
     }
 
-    const document = authResult.document!;
+    // ✅ Ensure pages exist / conversion runs
+    const ensureResult = await ensureDocumentPages(documentId);
 
-    const dbPages = await prisma.documentPage.findMany({
-      where: {
+    const doc = await prisma.document.findFirst({
+      where: { id: documentId },
+      select: { id: true, title: true },
+    });
+    if (!doc) return NextResponse.json({ error: "Document not found" }, { status: 404 });
+
+    if (ensureResult.status === "PROCESSING") {
+      return NextResponse.json({
         documentId,
-        pageNumber: { gte: from, lte: to },
-      },
-      orderBy: { pageNumber: 'asc' },
+        title: doc.title,
+        totalPages: 0,
+        pages: [],
+        status: "no_pages",
+        conversionStatus: "PROCESSING",
+        message: "Pages are being generated. Please refresh shortly.",
+      });
+    }
+
+    if (ensureResult.status === "FAILED") {
+      return NextResponse.json({
+        documentId,
+        title: doc.title,
+        totalPages: 0,
+        pages: [],
+        status: "no_pages",
+        conversionStatus: "FAILED",
+        message: "Conversion failed. Please contact administrator.",
+        error: ensureResult.message || "Unknown conversion error",
+      });
+    }
+
+    // READY: fetch pages
+    const dbPages = await prisma.documentPage.findMany({
+      where: { documentId, pageNumber: { gte: from, lte: to } },
+      orderBy: { pageNumber: "asc" },
       select: {
         pageNumber: true,
+        storageBucket: true,
         storagePath: true,
+        pageUrl: true,
       },
     });
 
-    const totalPages = await prisma.documentPage.count({ where: { documentId } });
-
-    if (totalPages === 0) {
-      return NextResponse.json(
-        {
-          documentId,
-          title: document.title,
-          totalPages: 0,
-          pages: [],
-          status: 'no_pages',
-          message: 'Pages not available yet. Please try later.',
-        },
-        {
-          headers: { 'Cache-Control': 'no-store' },
-        }
-      );
-    }
-
-    // NOTE: Use a longer expiry for reading stability
-    const SIGNED_URL_TTL_SECONDS = 3600; // 60 minutes
-
     const pages = await Promise.all(
-      dbPages.map(async (page) => {
-        const storagePath = page.storagePath;
+      dbPages.map(async (p) => {
+        const bucket = (p.storageBucket || process.env.SUPABASE_PAGES_BUCKET || "document-pages").trim();
+        const path = (p.storagePath || "").trim();
 
-        if (!storagePath) {
-          // Do NOT leak public URLs; return null so client can retry / show error.
-          return { pageNo: page.pageNumber, url: null as string | null };
+        if (path) {
+          const { data, error } = await supabase.storage.from(bucket).createSignedUrl(path, 600);
+          if (!error && data?.signedUrl) return { pageNo: p.pageNumber, url: data.signedUrl };
         }
 
-        const { data, error } = await supabase.storage
-          .from('document-pages')
-          .createSignedUrl(storagePath, SIGNED_URL_TTL_SECONDS);
-
-        if (error || !data?.signedUrl) {
-          console.error(`Signed URL error for page ${page.pageNumber}`, error);
-          return { pageNo: page.pageNumber, url: null as string | null };
-        }
-
-        return { pageNo: page.pageNumber, url: data.signedUrl };
+        return { pageNo: p.pageNumber, url: p.pageUrl || "" };
       })
     );
 
+    return NextResponse.json({
+      documentId,
+      title: doc.title,
+      totalPages: ensureResult.pageCount,
+      pages,
+      status: "success",
+      conversionStatus: "READY",
+    });
+  } catch (e) {
+    console.error("[member/viewer/pages] ERROR:", e);
     return NextResponse.json(
-      {
-        documentId,
-        title: document.title,
-        totalPages,
-        pages,
-        status: 'success',
-      },
-      {
-        headers: { 'Cache-Control': 'no-store' },
-      }
+      { error: "Internal server error", message: e instanceof Error ? e.message : "Unknown error" },
+      { status: 500 }
     );
-  } catch (error) {
-    console.error('Error in flipbook pages API:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

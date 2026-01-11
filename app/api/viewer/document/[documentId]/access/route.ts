@@ -6,48 +6,46 @@ import { generateSignedUrl } from "@/lib/supabase/server";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { documentId: string } }
+  context: { params: { documentId: string } }
 ) {
   try {
     const session = await getServerSession(authOptions);
-    
-    if (!session?.user) {
+
+    if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { documentId } = params;
-    
-    // Get document with related data
+    const documentId = context.params.documentId;
+
+    // Validate document exists
     const document = await prisma.document.findUnique({
       where: { id: documentId },
       include: {
         bookShopItems: {
           include: {
             myJstudyroomItems: {
-              where: { userId: session.user.id }
-            }
-          }
-        }
-      }
+              where: { userId: session.user.id },
+            },
+          },
+        },
+      },
     });
 
     if (!document) {
       return NextResponse.json({ error: "Document not found" }, { status: 404 });
     }
 
-    // Access control logic
     const userRole = session.user.userRole;
-    const isAdmin = userRole === 'ADMIN' || session.user.additionalRoles?.includes('ADMIN');
-    
+    const isAdmin =
+      userRole === "ADMIN" || session.user.additionalRoles?.includes("ADMIN");
+
     let hasAccess = false;
-    
+
     if (isAdmin) {
-      // ADMIN: Can preview ANY document (published or not)
       hasAccess = true;
-    } else if (userRole === 'MEMBER') {
-      // MEMBER: Can access ONLY documents added to MyJstudyRoom
-      const hasInMyJstudyroom = document.bookShopItems.some(item => 
-        item.myJstudyroomItems.length > 0
+    } else if (userRole === "MEMBER") {
+      const hasInMyJstudyroom = document.bookShopItems.some(
+        (item) => item.myJstudyroomItems.length > 0
       );
       hasAccess = hasInMyJstudyroom;
     }
@@ -56,51 +54,51 @@ export async function GET(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Generate response based on content type
     const contentType = document.contentType;
 
-    if (contentType === 'PDF') {
-      // Generate signed URL for PDF
-      const result = await generateSignedUrl('documents', document.storagePath, 3600);
-      
+    // For MEMBER role: always return FLIPBOOK viewerType and do NOT include PDF url
+    if (!isAdmin && userRole === "MEMBER") {
+      return NextResponse.json({ 
+        viewerType: "FLIPBOOK",
+        documentId: document.id,
+        conversionStatus: document.conversionStatus,
+        pageCount: document.pageCount,
+        type: contentType,
+        url: "" // Never expose PDF URL to members
+      });
+    }
+
+    // ADMIN behavior - can still get signed URL if needed
+    if (contentType === "PDF" || contentType === "EPUB") {
+      const result = await generateSignedUrl("documents", document.storagePath, 3600);
       if (!result.ok) {
         return NextResponse.json({ error: "Failed to generate access URL" }, { status: 500 });
       }
-
-      return NextResponse.json({
-        type: "PDF",
-        url: result.signedUrl
+      return NextResponse.json({ 
+        viewerType: isAdmin ? "DIRECT" : "FLIPBOOK",
+        documentId: document.id,
+        conversionStatus: document.conversionStatus,
+        pageCount: document.pageCount,
+        type: contentType, 
+        url: result.signedUrl 
       });
     }
-    
-    if (contentType === 'EPUB') {
-      // Generate signed URL for EPUB
-      const result = await generateSignedUrl('documents', document.storagePath, 3600);
-      
-      if (!result.ok) {
-        return NextResponse.json({ error: "Failed to generate access URL" }, { status: 500 });
-      }
 
-      return NextResponse.json({
-        type: "EPUB",
-        url: result.signedUrl
-      });
-    }
-    
-    if (contentType === 'LINK') {
-      // Return the link URL directly
+    if (contentType === "LINK") {
       if (!document.linkUrl) {
         return NextResponse.json({ error: "Link URL not found" }, { status: 404 });
       }
-
-      return NextResponse.json({
-        type: "LINK",
-        url: document.linkUrl
+      return NextResponse.json({ 
+        viewerType: "LINK",
+        documentId: document.id,
+        conversionStatus: document.conversionStatus,
+        pageCount: document.pageCount,
+        type: "LINK", 
+        url: document.linkUrl 
       });
     }
 
     return NextResponse.json({ error: "Unsupported content type" }, { status: 400 });
-
   } catch (error) {
     console.error("Error in viewer access API:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

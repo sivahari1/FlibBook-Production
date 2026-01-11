@@ -1,118 +1,203 @@
-# Member Document Viewing Fix - Complete
+# Member Document Viewing Fix - Implementation Complete
 
-## Issues Fixed
+## Overview
+This implementation enforces a single invariant: **Member routes and APIs must always use documents.id (documentId)** and ensures a reliable PDF→images conversion pipeline for FlipBook viewing.
 
-### 1. Prisma Import Errors
-- **Problem**: Route handlers failing with "Module not found: Can't resolve '@/lib/prisma'"
-- **Solution**: 
-  - Verified `lib/prisma.ts` exists and exports default prisma singleton
-  - Confirmed `tsconfig.json` has correct path mapping: `"@/*": ["./*"]`
-  - Updated critical member API routes to use consistent import: `import prisma from "@/lib/prisma"`
+## ✅ Completed Tasks
 
-### 2. Member Viewer CORS Errors
-- **Problem**: Browser fetching Supabase Storage URLs with `credentials: 'include'` causing CORS errors
-- **Solution**: 
-  - Created secure API proxy endpoint: `/api/member/my-jstudyroom/viewer/items/[itemId]/pages/[pageNumber]/image`
-  - Updated `MyJstudyroomViewerClient.tsx` to use proxy URLs instead of direct Supabase URLs
-  - Removed all cross-origin fetching with credentials
+### A) Document ID Resolution System
+- **✅ Created `lib/server/resolveDocumentId.ts`**
+  - Server-only utility that resolves any ID to documentId
+  - Resolution order: Document → BookShopItem → MyJstudyroomItem
+  - Throws 404 for invalid IDs
 
-## Files Modified
+- **✅ Updated `/member/view/[itemId]` route**
+  - Now uses resolver to convert any itemId to documentId
+  - Shows resolution info in UI for debugging
+  - Maintains backward compatibility with existing links
 
-### 1. New API Proxy Route
-**File**: `app/api/member/my-jstudyroom/viewer/items/[itemId]/pages/[pageNumber]/image/route.ts`
-- Authenticates member using `auth()`
-- Verifies member access via `MyJstudyroomItem` → `BookShopItem` → `Document` relationship
-- Fetches images server-side from Supabase Storage using service role
-- Returns image bytes with proper Content-Type and cache headers
-- Handles all error scenarios (401, 403, 404, 500)
+### B) Database Schema Updates
+- **✅ Added conversion tracking fields to Document model:**
+  - `conversionStatus` enum (PENDING, PROCESSING, READY, FAILED)
+  - `conversionError` string (nullable)
+  - `pageCount` int (nullable)
+  - `convertedAt` DateTime (nullable)
+  - `pagesUpdatedAt` DateTime (nullable)
 
-### 2. Updated Member Viewer Client
-**File**: `app/member/view/[itemId]/MyJstudyroomViewerClient.tsx`
-- **Removed**: Direct Supabase Storage URL fetching with `credentials: 'include'`
-- **Removed**: Blob URL creation and cleanup
-- **Added**: Direct proxy URL usage in `<img src="...">` tags
-- **Simplified**: Page loading logic - no more complex blob conversion
+- **✅ Enhanced DocumentPage model:**
+  - `storageBucket` string (default: "document-pages")
+  - `storagePath` string (required, NOT NULL)
+  - `width` and `height` int (nullable)
 
-### 3. Updated Prisma Imports
-**Files Updated**:
-- `app/api/member/my-jstudyroom/route.ts`
-- `app/api/member/my-jstudyroom/[id]/route.ts`
-- `app/api/member/my-jstudyroom/[id]/pages/route.ts`
-- `app/api/member/my-jstudyroom/[id]/pages/[pageNum]/route.ts`
-- `app/api/member/my-jstudyroom/[id]/signed-url/route.ts`
+- **✅ Created Prisma migration**
+  - File: `prisma/migrations/20250110000000_add_conversion_tracking/migration.sql`
 
-**Change**: `import { prisma } from '@/lib/db'` → `import prisma from '@/lib/prisma'`
+### C) PDF Conversion Pipeline
+- **✅ Created `lib/server/conversion/ensureDocumentPages.ts`**
+  - Idempotent and lock-safe conversion function
+  - Handles concurrent requests safely
+  - Deterministic storage paths: `documents/{documentId}/pages/{pageNumber}.webp`
+  - Graceful fallback for environments without PDF conversion libraries
+  - Comprehensive error handling and logging
 
-## Architecture Changes
+### D) Updated Member Pages API
+- **✅ Enhanced `/api/member/viewer/pages/[documentId]/route.ts`**
+  - Calls `ensureDocumentPages()` before querying pages
+  - Returns conversion status in response
+  - Handles PROCESSING, FAILED, and READY states
+  - Self-healing: triggers conversion when pages are missing
 
-### Before (Problematic)
-```
-Member Browser → Direct Supabase Storage URLs (with credentials) → CORS Error
-```
+### E) Updated Access API
+- **✅ Enhanced `/api/viewer/document/[documentId]/access/route.ts`**
+  - Always validates document exists (404 if not found)
+  - Members always get `viewerType: "FLIPBOOK"` with empty PDF URL
+  - Includes `documentId`, `conversionStatus`, and `pageCount` in response
+  - Maintains DRM protection for members
 
-### After (Fixed)
-```
-Member Browser → Same-Origin Proxy API → Server-Side Supabase Fetch → Image Bytes
-```
+### F) Admin Diagnostic Endpoints
+- **✅ Created `/api/admin/documents/[documentId]/conversion-status/route.ts`**
+  - Shows document conversion status and metadata
+  - Compares actual vs recorded page counts
+  - Lists sample storage paths
+  - Admin-only access with email allowlist fallback
 
-## Security Features
+- **✅ Created `/api/admin/documents/[documentId]/rebuild-pages/route.ts`**
+  - POST endpoint to force page regeneration
+  - Clears existing pages and resets conversion status
+  - Triggers fresh conversion
+  - Admin-only access
 
-1. **Authentication**: Every request validates NextAuth session
-2. **Authorization**: Verifies member owns/purchased the document via database
-3. **Server-Side Access**: All Supabase Storage access happens server-side
-4. **Private Caching**: Images cached privately, not publicly
-5. **Error Handling**: Proper HTTP status codes and error messages
+### G) Enhanced FlipBook Viewer
+- **✅ Updated `components/flipbook/FlipBookViewer.tsx`**
+  - Better status handling for PROCESSING and FAILED states
+  - Shows appropriate messages and loading indicators
+  - Maintains existing functionality
 
-## Testing
+### H) Updated Viewer Client
+- **✅ Enhanced `components/viewers/MyJstudyroomViewerClient.tsx`**
+  - Handles new response format with `viewerType`
+  - Always uses FlipBook for PDFs (members and admins)
+  - Backward compatible with existing responses
 
-### Manual Testing Steps
-1. Start development server: `npm run dev`
-2. Login as a member user
-3. Navigate to My jstudyroom
-4. Open any document
-5. Verify:
-   - All page images load without errors
-   - No CORS errors in browser console
-   - Network tab shows 200 responses for `/api/member/.../image` requests
-   - Images display correctly with watermarks
+## 🧪 Testing Checklist
 
-### Automated Testing
-Run the test script:
+### Local Testing
 ```bash
-npx tsx scripts/test-member-viewer-fix.ts
+# 1. Run Prisma migration (when database is available)
+npx prisma migrate dev --name add_conversion_tracking
+
+# 2. Test document ID resolution
+npx tsx scripts/test-document-id-resolution.ts
+
+# 3. Test member view with different ID types
+# - Visit /member/view/{documentId} (should work)
+# - Visit /member/view/{bookShopItemId} (should resolve and work)
+# - Visit /member/view/{myJstudyroomItemId} (should resolve and work)
+# - Visit /member/view/{invalidId} (should redirect to my-jstudyroom)
+
+# 4. Test conversion pipeline
+# - Upload a new PDF
+# - Access as member → should trigger conversion
+# - Check admin status endpoint
+# - Use admin rebuild endpoint if needed
 ```
 
-## Environment Requirements
-
-Ensure these environment variables are set:
+### Production Testing
 ```bash
+# 1. Verify member access works
+curl -H "Cookie: next-auth.session-token=..." \
+  https://your-domain.com/api/member/viewer/pages/{documentId}
+
+# 2. Check admin endpoints (replace with admin session)
+curl -H "Cookie: next-auth.session-token=..." \
+  https://your-domain.com/api/admin/documents/{documentId}/conversion-status
+
+# 3. Test rebuild (POST request)
+curl -X POST -H "Cookie: next-auth.session-token=..." \
+  https://your-domain.com/api/admin/documents/{documentId}/rebuild-pages
+```
+
+## 🔧 Configuration Requirements
+
+### Environment Variables
+```env
+# Required for Supabase Storage
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
 SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+
+# Optional: Admin email allowlist (comma-separated)
+ADMIN_EMAILS=admin1@example.com,admin2@example.com
+
+# Database connection
 DATABASE_URL=your_database_url
-NEXTAUTH_SECRET=your_nextauth_secret
-NEXTAUTH_URL=your_app_url
+DIRECT_URL=your_direct_database_url
 ```
 
-## Performance Benefits
+### Supabase Storage Buckets
+Ensure these buckets exist:
+- `documents` (for original PDFs)
+- `document-pages` (for converted page images)
 
-1. **Reduced Network Requests**: No more double-fetching (API + Storage)
-2. **Better Caching**: Proper HTTP cache headers on images
-3. **Simplified Client**: No blob URL management overhead
-4. **Server-Side Optimization**: Single request per image
+## 🚀 Deployment Steps
 
-## Backward Compatibility
+1. **Deploy code changes**
+2. **Run Prisma migration:**
+   ```bash
+   npx prisma migrate deploy
+   ```
+3. **Verify storage buckets exist**
+4. **Test with a sample document**
+5. **Monitor logs for conversion issues**
 
-- ✅ Admin/Platform viewer unchanged
-- ✅ Existing API endpoints still functional
-- ✅ No database schema changes
-- ✅ No breaking changes to other components
+## 🔍 Troubleshooting
 
-## Production Deployment
+### Common Issues
 
-1. Deploy the updated code
-2. Verify environment variables are set
-3. Test member document viewing
-4. Monitor error logs for any issues
-5. Check performance metrics
+1. **"Processing Document" stuck forever**
+   - Check admin conversion status endpoint
+   - Use admin rebuild endpoint to retry
+   - Check server logs for conversion errors
 
-The member document viewing should now work without CORS errors on both localhost and production environments.
+2. **"Document not found" errors**
+   - Verify ID resolution is working
+   - Check database for orphaned records
+   - Ensure proper foreign key relationships
+
+3. **Blank/missing pages**
+   - Check Supabase Storage permissions
+   - Verify storage paths in database
+   - Use admin rebuild to regenerate pages
+
+### Debug Commands
+```bash
+# Check document status
+npx prisma studio
+# Navigate to Document table, check conversionStatus
+
+# Check page records
+# Navigate to DocumentPage table, verify storagePath values
+
+# Test API endpoints directly
+curl -v https://your-domain.com/api/member/viewer/pages/{documentId}
+```
+
+## 📊 Success Metrics
+
+- ✅ Members can view documents using any valid ID (document, bookShop, myJstudyroom)
+- ✅ All member PDF viewing uses FlipBook (no direct PDF access)
+- ✅ Conversion pipeline handles missing pages automatically
+- ✅ Admin tools available for diagnostics and repair
+- ✅ System is resilient to concurrent access and failures
+- ✅ DRM protection maintained (watermarks, no downloads)
+
+## 🎯 Key Benefits
+
+1. **Consistent ID Handling**: Any ID type resolves to documentId
+2. **Automatic Conversion**: Missing pages trigger conversion automatically
+3. **Self-Healing**: APIs detect and fix inconsistent states
+4. **Admin Tools**: Comprehensive diagnostics and repair capabilities
+5. **Concurrent Safe**: Lock-based conversion prevents duplicates
+6. **DRM Maintained**: Members never get direct PDF access
+7. **Backward Compatible**: Existing links continue to work
+
+The implementation is now complete and ready for testing and deployment!

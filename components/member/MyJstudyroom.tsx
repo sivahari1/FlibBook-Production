@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import { useSession } from 'next-auth/react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import Link from 'next/link';
@@ -190,6 +191,7 @@ function getContentTypeInfo(contentType: string) {
 }
 
 export function MyJstudyroom() {
+  const { data: session, status } = useSession();
   const [items, setItems] = useState<MyJstudyroomItem[]>([]);
   const [counts, setCounts] = useState<DocumentCounts>({
     free: 0,
@@ -207,10 +209,17 @@ export function MyJstudyroom() {
   const [selectedPriceType, setSelectedPriceType] = useState<'all' | 'free' | 'paid'>('all');
 
   useEffect(() => {
-    fetchMyJstudyroom();
-    // Empty dependency array is correct here - we only want to fetch once on mount
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    // Only fetch when session is loaded and user is authenticated
+    if (status === 'loading') return; // Still loading session
+    if (status === 'unauthenticated') {
+      setError('Please log in to view your study room');
+      setLoading(false);
+      return;
+    }
+    if (session?.user) {
+      fetchMyJstudyroom();
+    }
+  }, [session, status]);
 
   // Debounce search query (300ms)
   useEffect(() => {
@@ -264,21 +273,49 @@ export function MyJstudyroom() {
       setLoading(true);
       setError(null);
 
-      const response = await fetch('/api/member/my-jstudyroom');
+      console.log('Fetching My jstudyroom items...');
+      const response = await fetch('/api/member/my-jstudyroom', {
+        method: 'GET',
+        credentials: 'include'
+      });
+
+      console.log('Response status:', response.status);
+      console.log('Response status text:', response.statusText);
+      console.log('Response URL:', response.url);
 
       if (!response.ok) {
-        const data = await response.json();
+        // Read response body safely
+        let errorMessage = `MyJstudyroom API failed: ${response.status} ${response.statusText}`;
+        let responseText = '';
+        
+        try {
+          responseText = await response.text();
+          console.log('Response body:', responseText.substring(0, 200));
+          
+          // Try to parse as JSON if it looks like JSON
+          if (responseText.trim().startsWith('{') || responseText.trim().startsWith('[')) {
+            const data = JSON.parse(responseText);
+            errorMessage = `MyJstudyroom API failed: ${response.status} ${response.statusText} - ${data.error || 'Unknown error'}`;
+          } else {
+            errorMessage = `MyJstudyroom API failed: ${response.status} ${response.statusText} - ${responseText.substring(0, 200)}`;
+          }
+        } catch (parseError) {
+          console.error('Failed to parse error response:', parseError);
+          errorMessage = `MyJstudyroom API failed: ${response.status} ${response.statusText} - ${responseText.substring(0, 200)}`;
+        }
         
         // Retry on server errors
         if (response.status >= 500 && retryAttempt < 2) {
+          console.log(`Retrying request (attempt ${retryAttempt + 1})...`);
           await new Promise(resolve => setTimeout(resolve, 1000 * (retryAttempt + 1)));
           return fetchMyJstudyroom(retryAttempt + 1);
         }
         
-        throw new Error(data.error || 'Failed to fetch My jstudyroom');
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
+      console.log('Successfully fetched items:', data.items?.length || 0);
       setItems(data.items);
       setCounts(data.counts);
     } catch (err) {
@@ -379,7 +416,8 @@ export function MyJstudyroom() {
     }
   };
 
-  if (loading) {
+  // Show loading state for session or data loading
+  if (status === 'loading' || loading) {
     return (
       <div className="space-y-6">
         {/* Document Count Indicators Skeleton */}

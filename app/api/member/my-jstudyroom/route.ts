@@ -130,7 +130,11 @@ export async function GET() {
       },
     })
   } catch (e) {
-    return NextResponse.json({ error: 'Failed to fetch My jstudyroom items' }, { status: 500 })
+    console.error('Error in GET /api/member/my-jstudyroom:', e);
+    return NextResponse.json({ 
+      error: 'Failed to fetch My jstudyroom items',
+      details: e instanceof Error ? e.message : 'Unknown error'
+    }, { status: 500 })
   }
 }
 export async function POST(request: NextRequest) {
@@ -207,6 +211,10 @@ export async function POST(request: NextRequest) {
       },
     })
   } catch (e) {
-    return NextResponse.json({ error: 'Failed to add document to My jstudyroom' }, { status: 500 })
+    console.error('Error in POST /api/member/my-jstudyroom:', e);
+    return NextResponse.json({ 
+      error: 'Failed to add document to My jstudyroom',
+      details: e instanceof Error ? e.message : 'Unknown error'
+    }, { status: 500 })
   }
 }

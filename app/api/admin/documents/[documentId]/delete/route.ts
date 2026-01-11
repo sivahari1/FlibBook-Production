@@ -9,20 +9,20 @@ export const revalidate = 0
 export const runtime = 'nodejs'
 
 /**
- * DELETE /api/admin/documents/[id]/delete
+ * DELETE /api/admin/documents/[documentId]/delete
  * Safe server-side document deletion with options
  * Admin only
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ documentId: string }> }
 ) {
   try {
     // Verify admin role
     const authError = await requireAdmin()
     if (authError) return authError
 
-    const { id: documentId } = await params
+    const { documentId } = await params
     const { searchParams } = new URL(request.url)
     const deleteType = searchParams.get('type') || 'complete' // 'complete' or 'bookshop-only'
 

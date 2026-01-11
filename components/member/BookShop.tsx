@@ -51,17 +51,18 @@ export function BookShop() {
 
       const res = await fetch('/api/bookshop', { cache: 'no-store' });
 
-      if (!res.ok) {
-        throw new Error(`Failed to load bookshop (${res.status})`);
-      }
-
       const text = await res.text();
       let json: any = {};
 
       try {
         json = text ? JSON.parse(text) : {};
-      } catch {
-        json = {};
+      } catch (parseError) {
+        throw new Error(`Invalid JSON response: ${text.substring(0, 100)}...`);
+      }
+
+      if (!res.ok) {
+        const errorMsg = json?.error || `HTTP ${res.status}`;
+        throw new Error(`Failed to load bookshop (${res.status}): ${errorMsg}`);
       }
 
       const items: BookShopItem[] = Array.isArray(json.items)
@@ -74,8 +75,9 @@ export function BookShop() {
         Array.from(new Set(items.map(i => i.category))).sort()
       );
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load bookshop');
-      console.error(err);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load bookshop';
+      setError(errorMessage);
+      console.error('[BookShop] Error:', err);
     } finally {
       setLoading(false);
     }

@@ -5,11 +5,21 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { MyJstudyroomViewerClient as UnifiedViewer } from '@/components/viewers/MyJstudyroomViewerClient';
 
+interface MyJstudyroomViewerClientProps {
+  document: any;
+  bookShopTitle: string;
+  memberName: string;
+  originalItemId: string;
+  resolvedDocumentId: string;
+}
+
 export function MyJstudyroomViewerClient({
   document: documentData,
   bookShopTitle,
   memberName,
-}: any) {
+  originalItemId,
+  resolvedDocumentId,
+}: MyJstudyroomViewerClientProps) {
   return (
     <div className="w-full">
       {/* Header */}
@@ -20,6 +30,11 @@ export function MyJstudyroomViewerClient({
             <p className="text-sm text-gray-500 truncate">
               {bookShopTitle ? `From: ${bookShopTitle}` : 'My StudyRoom'} • {memberName}
             </p>
+            {originalItemId !== resolvedDocumentId && (
+              <p className="text-xs text-blue-600 mt-1">
+                Resolved: {originalItemId} → {resolvedDocumentId}
+              </p>
+            )}
           </div>
 
           <Link href="/member/my-jstudyroom">
@@ -28,9 +43,9 @@ export function MyJstudyroomViewerClient({
         </div>
       </div>
 
-      {/* Viewer */}
+      {/* Viewer - Always use the resolved documentId */}
       <div className="px-4 pb-4">
-        <UnifiedViewer documentId={documentData.id} title={documentData.title} />
+        <UnifiedViewer documentId={resolvedDocumentId} title={documentData.title} />
       </div>
     </div>
   );

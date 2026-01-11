@@ -1,15 +1,46 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db"; // adjust if needed
+import { prisma } from "@/lib/db";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
+    console.log("[/api/bookshop] Starting BookShop API request");
+    
+    // Get session for user context (optional)
+    let session = null;
+    try {
+      session = await getServerSession(authOptions);
+      console.log("[/api/bookshop] Session:", session?.user?.email || "none");
+    } catch (sessionError) {
+      console.warn("[/api/bookshop] Session error (continuing without):", sessionError);
+    }
+
+    console.log("[/api/bookshop] Querying database for published BookShop items");
+    
     const rawItems = await prisma.bookShopItem.findMany({
       where: { isPublished: true },
-      include: { document: true },
+      include: { 
+        document: {
+          select: {
+            id: true,
+            title: true,
+            filename: true,
+            contentType: true,
+            mimeType: true,
+            storagePath: true,
+            thumbnailUrl: true,
+            linkUrl: true,
+            metadata: true
+          }
+        }
+      },
       orderBy: { createdAt: "desc" },
     });
+
+    console.log(`[/api/bookshop] Found ${rawItems.length} published items`);
 
     const items = rawItems.map((item: any) => {
       const doc: any = item.document ?? null;
@@ -52,15 +83,31 @@ export async function GET() {
       };
     });
 
+    console.log("[/api/bookshop] Successfully processed items, returning response");
+
     return NextResponse.json(
-      { items, total: items.length },
+      { ok: true, items, total: items.length },
       { headers: { "Cache-Control": "no-store" } }
     );
-  } catch (e: any) {
-    console.error("[/api/bookshop] FAILED:", e);
+  } catch (error: any) {
+    console.error("[/api/bookshop] ERROR:", {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+      code: error.code
+    });
+    
     return NextResponse.json(
-      { items: [], total: 0, error: "BOOKSHOP_FAILED" },
-      { status: 500, headers: { "Cache-Control": "no-store" } }
+      { 
+        ok: false, 
+        error: "Failed to load bookshop items",
+        items: [], 
+        total: 0 
+      },
+      { 
+        status: 500, 
+        headers: { "Cache-Control": "no-store" } 
+      }
     );
   }
 }

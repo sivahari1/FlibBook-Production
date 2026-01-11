@@ -2,19 +2,39 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   images: {
-    remotePatterns: [
-      {
-        protocol: "https",
-        hostname: "**.supabase.co",
-      },
-    ],
+    remotePatterns: [{ protocol: "https", hostname: "**.supabase.co" }],
   },
 
-  webpack: (config) => {
-    config.resolve.alias = {
-      ...(config.resolve.alias || {}),
-      canvas: false,
-    };
+  // ✅ Keep native modules out of webpack bundling
+  serverExternalPackages: [
+    "sharp",
+    "pdfjs-dist",
+    "@napi-rs/canvas",
+    "@napi-rs/canvas-win32-x64-msvc",
+    "@napi-rs/canvas-linux-x64-gnu",
+    "@napi-rs/canvas-linux-x64-musl",
+    "@napi-rs/canvas-darwin-x64",
+    "@napi-rs/canvas-darwin-arm64",
+  ],
+
+  webpack: (config, { isServer }) => {
+    // Do NOT alias "canvas" = false globally; it can break server rendering paths.
+    // Only prevent client bundles from trying to include native deps.
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...(config.resolve.fallback || {}),
+        "@napi-rs/canvas": false,
+      };
+    }
+
+    // Ensure server build treats @napi-rs/canvas as external (commonjs)
+    if (isServer) {
+      config.externals = config.externals || [];
+      config.externals.push({
+        "@napi-rs/canvas": "commonjs @napi-rs/canvas",
+      });
+    }
+
     return config;
   },
 
@@ -24,15 +44,8 @@ const nextConfig: NextConfig = {
     },
   },
 
-  serverExternalPackages: ["sharp", "canvas"],
-
-  typescript: {
-    ignoreBuildErrors: true,
-  },
-
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
+  typescript: { ignoreBuildErrors: true },
+  eslint: { ignoreDuringBuilds: true },
 
   async headers() {
     return [
@@ -40,19 +53,11 @@ const nextConfig: NextConfig = {
         source: "/:path*",
         headers: [
           { key: "X-DNS-Prefetch-Control", value: "on" },
-          {
-            key: "Strict-Transport-Security",
-            value: "max-age=63072000; includeSubDomains; preload",
-          },
+          { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "X-XSS-Protection", value: "1; mode=block" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-          {
-            key: "Permissions-Policy",
-            value: "camera=(), microphone=(), geolocation=()",
-          },
-
-          // ✅ ADD CSP HERE (ONLY HERE)
+          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
           {
             key: "Content-Security-Policy",
             value: [

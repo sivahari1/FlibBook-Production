@@ -43,30 +43,36 @@ model User {
 }
 
 model Document {
-  id            String               @id @default(cuid())
-  title         String
-  filename      String
-  fileSize      BigInt
-  storagePath   String
-  mimeType      String               @default("application/pdf")
-  userId        String
-  createdAt     DateTime             @default(now())
-  updatedAt     DateTime             @updatedAt
-  contentType   String               @default("PDF")
-  metadata      Json                 @default("{}")
-  thumbnailUrl  String?
-  linkUrl       String?
-  bookShopItems BookShopItem[]
-  annotations   DocumentAnnotation[]
-  pages         DocumentPage[]
-  emailShares   DocumentShare[]
-  user          User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  shareLinks    ShareLink[]
-  analytics     ViewAnalytics[]
+  id                String               @id @default(cuid())
+  title             String
+  filename          String
+  fileSize          BigInt
+  storagePath       String
+  mimeType          String               @default("application/pdf")
+  userId            String
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  contentType       String               @default("PDF")
+  metadata          Json                 @default("{}")
+  thumbnailUrl      String?
+  linkUrl           String?
+  conversionStatus  ConversionStatus     @default(PENDING)
+  conversionError   String?
+  pageCount         Int?
+  convertedAt       DateTime?
+  pagesUpdatedAt    DateTime?
+  bookShopItems     BookShopItem[]
+  annotations       DocumentAnnotation[]
+  pages             DocumentPage[]
+  emailShares       DocumentShare[]
+  user              User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  shareLinks        ShareLink[]
+  analytics         ViewAnalytics[]
 
   @@index([userId])
   @@index([createdAt])
   @@index([contentType])
+  @@index([conversionStatus])
   @@map("documents")
 }
 
@@ -283,7 +289,10 @@ model DocumentPage {
   documentId          String
   pageNumber          Int
   pageUrl             String
+  storageBucket       String    @default("document-pages")
   storagePath         String?   @map("storage_path")
+  width               Int?
+  height              Int?
   fileSize            Int       @default(0)
   createdAt           DateTime  @default(now())
   expiresAt           DateTime
@@ -348,6 +357,13 @@ model ErrorLog {
   @@index([timestamp])
   @@index([userId])
   @@map("error_logs")
+}
+
+enum ConversionStatus {
+  PENDING
+  PROCESSING
+  READY
+  FAILED
 }
 
 enum MediaType {

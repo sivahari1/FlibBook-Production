@@ -20,6 +20,10 @@ const LinkViewer = dynamic(
 );
 
 interface ViewerData {
+  viewerType: 'FLIPBOOK' | 'DIRECT' | 'LINK';
+  documentId: string;
+  conversionStatus?: string;
+  pageCount?: number;
   type: 'PDF' | 'EPUB' | 'LINK';
   url: string;
 }
@@ -127,42 +131,45 @@ export function MyJstudyroomViewerClient({ documentId, title }: MyJstudyroomView
     );
   }
 
-  switch (viewerData.type) {
-    case 'PDF':
-      // Flipbook-style rendering (page images)
-      return (
-        <div className="w-full">
-          <FlipBookViewer
-            documentId={documentId}
-            title={title}
-            userEmail={session?.user?.email || undefined}
-            className="w-full"
-          />
-        </div>
-      );
+  // Determine viewer type based on response
+  const shouldUseFlipbook = viewerData.viewerType === 'FLIPBOOK' || 
+                           (!viewerData.viewerType && viewerData.type === 'PDF');
 
-    case 'EPUB':
-      return (
-        <div className="w-full">
-          <EpubViewer url={viewerData.url} title={title} />
-        </div>
-      );
-
-    case 'LINK':
-      return (
-        <div className="w-full">
-          <LinkViewer url={viewerData.url} title={title} />
-        </div>
-      );
-
-    default:
-      return (
-        <div className="flex items-center justify-center min-h-[400px] bg-gray-50 rounded-lg">
-          <div className="text-center p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Unsupported Content Type</h3>
-            <p className="text-gray-600">This document type is not supported.</p>
-          </div>
-        </div>
-      );
+  if (shouldUseFlipbook || viewerData.type === 'PDF') {
+    return (
+      <div className="w-full">
+        <FlipBookViewer
+          documentId={documentId}
+          title={title}
+          userEmail={session?.user?.email || undefined}
+          className="w-full"
+        />
+      </div>
+    );
   }
+
+  if (viewerData.type === 'EPUB') {
+    return (
+      <div className="w-full">
+        <EpubViewer url={viewerData.url} title={title} />
+      </div>
+    );
+  }
+
+  if (viewerData.type === 'LINK') {
+    return (
+      <div className="w-full">
+        <LinkViewer url={viewerData.url} title={title} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center justify-center min-h-[400px] bg-gray-50 rounded-lg">
+      <div className="text-center p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">Unsupported Content Type</h3>
+        <p className="text-gray-600">This document type is not supported.</p>
+      </div>
+    </div>
+  );
 }
