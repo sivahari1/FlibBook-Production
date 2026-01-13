@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import Link from 'next/link';
-import { getContentTypes, getContentTypeLabel } from '@/lib/bookshop-categories';
+import { getCategoryStructure } from '@/lib/bookshop-categories';
 
 import { ContentMetadata } from '@/lib/types/content';
 
@@ -205,7 +205,7 @@ export function MyJstudyroom() {
   // Filter states
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
-  const [selectedContentType, setSelectedContentType] = useState<string>('');
+  const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [selectedPriceType, setSelectedPriceType] = useState<'all' | 'free' | 'paid'>('all');
 
   useEffect(() => {
@@ -243,9 +243,9 @@ export function MyJstudyroom() {
       );
     }
 
-    // Apply content type filter
-    if (selectedContentType) {
-      filtered = filtered.filter(item => item.contentType === selectedContentType);
+    // Apply category filter
+    if (selectedCategory) {
+      filtered = filtered.filter(item => item.category === selectedCategory);
     }
 
     // Apply price type filter
@@ -256,15 +256,15 @@ export function MyJstudyroom() {
     }
 
     return filtered;
-  }, [items, debouncedSearchQuery, selectedContentType, selectedPriceType]);
+  }, [items, debouncedSearchQuery, selectedCategory, selectedPriceType]);
 
   // Check if any filters are active
-  const hasActiveFilters = debouncedSearchQuery.trim() !== '' || selectedContentType !== '' || selectedPriceType !== 'all';
+  const hasActiveFilters = debouncedSearchQuery.trim() !== '' || selectedCategory !== '' || selectedPriceType !== 'all';
 
   // Clear all filters
   const clearFilters = () => {
     setSearchQuery('');
-    setSelectedContentType('');
+    setSelectedCategory('');
     setSelectedPriceType('all');
   };
 
@@ -572,21 +572,21 @@ export function MyJstudyroom() {
                 </div>
               </div>
 
-              {/* Content Type Filter */}
+              {/* Category Filter */}
               <div>
-                <label htmlFor="contentType" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Content Type
+                <label htmlFor="category" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Category
                 </label>
                 <select
-                  id="contentType"
-                  value={selectedContentType}
-                  onChange={(e) => setSelectedContentType(e.target.value)}
+                  id="category"
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                 >
-                  <option value="">All Types</option>
-                  {getContentTypes().map(type => (
-                    <option key={type} value={type}>
-                      {getContentTypeLabel(type)}
+                  <option value="">All Categories</option>
+                  {getCategoryStructure().map(cat => (
+                    <option key={cat.name} value={cat.name}>
+                      {cat.name}
                     </option>
                   ))}
                 </select>

@@ -35,7 +35,7 @@ export function BookShop() {
   const [items, setItems] = useState<BookShopItem[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [selectedCategory, setSelectedCategory] = useState('');
-  const [selectedContentType, setSelectedContentType] = useState('');
+  const [selectedPriceType, setSelectedPriceType] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -143,9 +143,9 @@ export function BookShop() {
   const filteredItems = useMemo(() => {
     return items.filter(item => {
       if (selectedCategory && item.category !== selectedCategory) return false;
-      if (selectedContentType) {
-        const type = item.document?.contentType || 'PDF';
-        if (type !== selectedContentType) return false;
+      if (selectedPriceType) {
+        if (selectedPriceType === 'free' && !item.isFree) return false;
+        if (selectedPriceType === 'paid' && item.isFree) return false;
       }
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
@@ -156,7 +156,7 @@ export function BookShop() {
       }
       return true;
     });
-  }, [items, selectedCategory, selectedContentType, searchQuery]);
+  }, [items, selectedCategory, selectedPriceType, searchQuery]);
 
   /* ---------------- UI STATES ---------------- */
 
@@ -192,16 +192,13 @@ export function BookShop() {
           />
 
           <select
-            value={selectedContentType}
-            onChange={e => setSelectedContentType(e.target.value)}
+            value={selectedPriceType}
+            onChange={e => setSelectedPriceType(e.target.value)}
             className="border px-3 py-2"
           >
-            <option value="">All Types</option>
-            <option value="PDF">PDF</option>
-            <option value="IMAGE">Image</option>
-            <option value="VIDEO">Video</option>
-            <option value="LINK">Link</option>
-            <option value="AUDIO">Audio</option>
+            <option value="">All Items</option>
+            <option value="free">Free</option>
+            <option value="paid">Paid</option>
           </select>
 
           <select
